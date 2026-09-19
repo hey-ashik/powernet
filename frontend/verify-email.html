@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Email Verification — PowerNet</title>
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/auth.css">
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card" style="text-align: center;">
+      <div class="auth-header">
+        <div class="auth-logo">
+          <div class="auth-logo-icon">
+            <i class="fa-solid fa-bolt-lightning" style="font-size: 20px;"></i>
+          </div>
+          <span class="auth-logo-text">PowerNet</span>
+        </div>
+        <h1 class="auth-title" id="verif-title">Verifying your email...</h1>
+        <p class="auth-subtitle" id="verif-desc">Please wait while we confirm your account.</p>
+      </div>
+
+      <div id="verif-status-box" style="margin: 24px 0; font-size: 44px; color: var(--primary);">
+        <i class="fa-solid fa-spinner fa-spin"></i>
+      </div>
+
+      <div id="alert-box" class="alert-box"></div>
+
+      <a href="/login?verified=1" class="btn-primary-block" id="btn-to-login" style="display: none; line-height: 48px; text-decoration: none; margin-top: 16px;">
+        <i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Continue to Login
+      </a>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const token = urlParams.get('token');
+      const title = document.getElementById('verif-title');
+      const desc = document.getElementById('verif-desc');
+      const icon = document.getElementById('verif-status-box');
+      const alertBox = document.getElementById('alert-box');
+      const btn = document.getElementById('btn-to-login');
+
+      if (!token) {
+        title.textContent = 'Verification Link Missing';
+        desc.textContent = 'No verification token was found in the URL link.';
+        icon.innerHTML = '<i class="fa-solid fa-circle-xmark" style="color: #DC2626;"></i>';
+        alertBox.className = 'alert-box alert-error';
+        alertBox.textContent = 'Token missing or invalid.';
+        alertBox.style.display = 'block';
+        btn.style.display = 'block';
+        return;
+      }
+
+      try {
+        const res = await API.request(`/auth/verify-email.php?token=${encodeURIComponent(token)}`);
+        title.textContent = 'Email Verified!';
+        desc.textContent = 'Your account is active. Redirecting to login...';
+        icon.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #16A34A;"></i>';
+        alertBox.className = 'alert-box alert-success';
+        alertBox.textContent = res.message || 'Email verified successfully!';
+        alertBox.style.display = 'block';
+        btn.style.display = 'block';
+
+        // Auto-redirect to login page after 1.5 seconds as requested
+        setTimeout(() => {
+          window.location.href = '/login?verified=1';
+        }, 1500);
+      } catch (err) {
+        title.textContent = 'Verification Failed';
+        desc.textContent = err.message || 'This link may have expired or already been used.';
+        icon.innerHTML = '<i class="fa-solid fa-triangle-exclamation" style="color: #F59E0B;"></i>';
+        alertBox.className = 'alert-box alert-error';
+        alertBox.textContent = err.message;
+        alertBox.style.display = 'block';
+        btn.style.display = 'block';
+      }
+    });
+  </script>
+</body>
+</html>

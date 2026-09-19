@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login — PowerNet</title>
+  <meta name="description" content="Sign in to your PowerNet electrical energy monitoring dashboard">
+  <!-- FontAwesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/auth.css">
+</head>
+<body>
+  <div class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="auth-logo">
+          <div class="auth-logo-icon">
+            <i class="fa-solid fa-bolt-lightning" style="font-size: 20px;"></i>
+          </div>
+          <span class="auth-logo-text">PowerNet</span>
+        </div>
+        <h1 class="auth-title">Welcome back</h1>
+        <p class="auth-subtitle">Monitor. Analyze. Predict.</p>
+      </div>
+
+      <div id="alert-box" class="alert-box"></div>
+
+      <form id="form-login">
+        <div class="form-group">
+          <label class="form-label" for="email">
+            <i class="fa-regular fa-envelope" style="margin-right: 6px; color: var(--text-secondary);"></i> Email
+          </label>
+          <input type="email" id="email" class="input-control" placeholder="name@domain.com" required autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">
+            <i class="fa-solid fa-lock" style="margin-right: 6px; color: var(--text-secondary);"></i> Password
+          </label>
+          <input type="password" id="password" class="input-control" placeholder="••••••••" required autocomplete="current-password">
+        </div>
+
+        <div class="form-row-space">
+          <label class="form-checkbox">
+            <input type="checkbox" checked>
+            <span>Remember me</span>
+          </label>
+          <a href="/forgot-password" class="forgot-link">Forgot password?</a>
+        </div>
+
+        <button type="submit" class="btn-primary-block">
+          <i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login
+        </button>
+      </form>
+
+      <div class="auth-footer">
+        Don't have an account? <a href="/register">Create a new account</a>
+      </div>
+    </div>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/auth.js"></script>
+  <script>
+    // Detect if redirected after successful email verification
+    document.addEventListener('DOMContentLoaded', () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      if (urlParams.get('verified') === '1') {
+        const alertBox = document.getElementById('alert-box');
+        if (alertBox) {
+          alertBox.className = 'alert-box alert-success';
+          alertBox.innerHTML = '<i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> Email verified successfully! Please log in to continue.';
+          alertBox.style.display = 'block';
+        }
+      }
+    });
+  </script>
+</body>
+</html>

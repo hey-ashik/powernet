@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Devices — PowerNet Energy Monitoring</title>
+  <meta name="description" content="Manage and pair ESP32 DevKit V1 devices with PowerNet">
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- FontAwesome 6 Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/dashboard.css">
+  <link rel="stylesheet" href="/assets/css/responsive.css">
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar">
+      <div>
+        <div class="brand-wrapper">
+          <div class="brand-icon">
+            <i class="fa-solid fa-bolt-lightning" style="font-size: 18px;"></i>
+          </div>
+          <div class="brand-text">Power<span>Net</span></div>
+        </div>
+
+        <ul class="nav-menu">
+          <li class="nav-item">
+            <a href="/dashboard" class="nav-link">
+              <div class="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="3.5" y="3.5" width="7" height="7" rx="2.2"></rect>
+                  <rect x="13.5" y="3.5" width="7" height="7" rx="2.2"></rect>
+                  <rect x="3.5" y="13.5" width="7" height="7" rx="2.2"></rect>
+                  <rect x="13.5" y="13.5" width="7" height="7" rx="2.2"></rect>
+                </svg>
+              </div>
+              <span class="nav-text">Analytics</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="/devices" class="nav-link active">
+              <div class="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="4" y="4" width="16" height="16" rx="3"></rect>
+                  <rect x="9" y="9" width="6" height="6" rx="1"></rect>
+                  <line x1="9" y1="1" x2="9" y2="4"></line>
+                  <line x1="15" y1="1" x2="15" y2="4"></line>
+                  <line x1="9" y1="20" x2="9" y2="23"></line>
+                  <line x1="15" y1="20" x2="15" y2="23"></line>
+                  <line x1="20" y1="9" x2="23" y2="9"></line>
+                  <line x1="20" y1="15" x2="23" y2="15"></line>
+                  <line x1="1" y1="9" x2="4" y2="9"></line>
+                  <line x1="1" y1="15" x2="4" y2="15"></line>
+                </svg>
+              </div>
+              <span class="nav-text">Devices</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a href="/analytics" class="nav-link">
+              <div class="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 3v18h18"></path>
+                  <path d="m19 9-5 5-4-4-3 3"></path>
+                </svg>
+              </div>
+              <span class="nav-text">Reports</span>
+            </a>
+          </li>
+        </ul>
+
+        <div class="sidebar-divider"></div>
+
+        <ul class="nav-menu">
+          <li class="nav-item">
+            <a href="/login" class="nav-link" onclick="API.setToken(''); API.setUser(null);">
+              <div class="nav-icon">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+              </div>
+              <span class="nav-text">Sign Out</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Support / ESP32 Hardware Widget -->
+      <div class="sidebar-widget">
+        <div class="widget-icon-box">
+          <i class="fa-solid fa-microchip" style="font-size: 20px;"></i>
+        </div>
+        <div class="widget-title">ESP32 DevKit V1</div>
+        <div class="widget-sub">No device connected</div>
+        <a href="#form-connect-device-page" class="widget-btn" id="btn-sidebar-connect">
+          <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
+        </a>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="top-bar">
+        <div class="page-title-group">
+          <h1 class="page-title">Connected Devices</h1>
+        </div>
+        <div class="top-actions">
+          <div class="user-profile">
+            <div class="avatar" id="user-avatar-display">--</div>
+            <span class="user-name" id="user-name-display">Loading...</span>
+          </div>
+        </div>
+      </header>
+
+      <!-- Connect Device Form Card (Themed & Rounded) -->
+      <div class="card" style="margin-bottom: 32px; border-radius: 24px; padding: 28px 32px; background: #FFFFFF; border: 1px solid var(--border-card); box-shadow: var(--shadow-card);">
+        <div style="display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 22px; flex-wrap: wrap; gap: 12px;">
+          <div>
+            <h2 style="font-size: 19px; font-weight: 800; color: #0F172A; margin: 0 0 6px 0; display: flex; align-items: center; gap: 10px;">
+              <span style="width: 36px; height: 36px; border-radius: 10px; background: #EFF6FF; color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 17px;">
+                <i class="fa-solid fa-link"></i>
+              </span>
+              Connect New ESP32 Device
+            </h2>
+            <p style="color: #64748B; font-size: 14px; margin: 0; line-height: 1.5;">
+              Enter your hardware Device ID (e.g. <code>pnw101</code>). The device will be securely locked to your account.
+            </p>
+          </div>
+          <span style="font-size: 12px; background: #F1F5F9; color: #475569; padding: 6px 14px; border-radius: 9999px; font-weight: 600; display: inline-flex; align-items: center; gap: 6px;">
+            <i class="fa-solid fa-shield-halved" style="color: var(--primary);"></i> Single-Account Lock Active
+          </span>
+        </div>
+
+        <form id="form-connect-device-page" style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 18px; align-items: flex-end;">
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label" for="device_id">Device Identifier</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-microchip input-icon"></i>
+              <input type="text" id="device_id" class="input-control" placeholder="e.g. pnw101" required value="pnw101">
+            </div>
+          </div>
+          <div class="form-group" style="margin: 0;">
+            <label class="form-label" for="device_name">Device Name (Optional)</label>
+            <div class="input-with-icon">
+              <i class="fa-solid fa-tag input-icon"></i>
+              <input type="text" id="device_name" class="input-control" placeholder="e.g. Main Distribution Panel">
+            </div>
+          </div>
+          <button type="submit" class="btn-primary-inline" style="height: 48px; padding: 0 28px;">
+            <i class="fa-solid fa-plus"></i> Connect Device
+          </button>
+        </form>
+      </div>
+
+      <!-- Device List -->
+      <h2 style="font-size: 18px; font-weight: 700; margin-bottom: 16px;">
+        <i class="fa-solid fa-microchip" style="color: var(--primary); margin-right: 8px;"></i> Active Hardware Units
+      </h2>
+      <div id="devices-list">
+        <!-- Rendered dynamically by devices.js -->
+      </div>
+    </main>
+  </div>
+
+  <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/devices.js"></script>
+</body>
+</html>

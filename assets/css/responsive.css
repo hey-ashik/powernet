@@ -1,0 +1,91 @@
+/* ==========================================================
+ * PowerNet Responsive Breakpoints
+ * Seamless adaptation for Desktop, Tablet, and Mobile devices
+ * ========================================================== */
+
+@media (max-width: 1280px) {
+  .metrics-section {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .metric-card, .donut-card {
+    grid-column: span 3;
+  }
+  .kpi-row {
+    grid-template-columns: repeat(6, 1fr);
+  }
+  .kpi-card {
+    grid-column: span 3;
+  }
+  .dashboard-main-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 1024px) {
+  .sidebar {
+    width: 80px;
+    min-width: 80px;
+    padding: 20px 10px;
+  }
+  .brand-text, .nav-text, .widget-title, .widget-sub, .widget-btn {
+    display: none;
+  }
+  .brand-wrapper {
+    justify-content: center;
+    padding: 0 0 20px 0;
+  }
+  .nav-link {
+    justify-content: center;
+    padding: 12px;
+  }
+  .main-content {
+    padding: 20px 24px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+    flex-direction: row;
+    align-items: center;
+    padding: 12px 16px;
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
+  .brand-text {
+    display: inline-block;
+  }
+  .nav-menu {
+    flex-direction: row;
+    flex: none;
+    gap: 4px;
+  }
+  .sidebar-divider, .sidebar-widget {
+    display: none;
+  }
+  .main-content {
+    padding: 16px;
+  }
+  .top-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .top-actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .metrics-section, .kpi-row {
+    grid-template-columns: 1fr;
+  }
+  .metric-card, .donut-card, .kpi-card {
+    grid-column: span 1;
+  }
+  #form-connect-device-page {
+    grid-template-columns: 1fr !important;
+  }
+}
