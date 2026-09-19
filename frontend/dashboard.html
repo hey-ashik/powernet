@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — PowerNet Smart Electrical Energy Monitoring</title>
-  <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, energy, and temperature with automated ESP32 telemetry.">
+  <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, energy, and temperature with automated device telemetry.">
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -23,7 +23,7 @@
         <div class="brand-wrapper">
           <a href="/dashboard" class="brand-logo-group">
             <div class="brand-icon">
-              <i class="fa-solid fa-bolt-lightning" style="font-size: 18px;"></i>
+              <i class="fa-brands fa-superpowers" style="font-size: 20px;"></i>
             </div>
             <div class="brand-text">PowerNet</div>
           </a>
@@ -68,39 +68,12 @@
               <span class="nav-text">Devices</span>
             </a>
           </li>
-          <li class="nav-item">
-            <a href="/analytics" class="nav-link" id="nav-analytics" data-tooltip="Reports">
-              <div class="nav-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M3 3v18h18"></path>
-                  <path d="m19 9-5 5-4-4-3 3"></path>
-                </svg>
-              </div>
-              <span class="nav-text">Reports</span>
-            </a>
-          </li>
-          <li class="nav-item">
-            <a href="#logs-section" class="nav-link" id="nav-logs" data-tooltip="Telemetry Logs">
-              <div class="nav-icon">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="8" y1="6" x2="21" y2="6"></line>
-                  <line x1="8" y1="12" x2="21" y2="12"></line>
-                  <line x1="8" y1="18" x2="21" y2="18"></line>
-                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
-                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
-                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
-                </svg>
-              </div>
-              <span class="nav-text">Telemetry Logs</span>
-            </a>
-          </li>
         </ul>
-
         <div class="sidebar-divider"></div>
 
         <ul class="nav-menu">
           <li class="nav-item">
-            <a href="/devices" class="nav-link" data-tooltip="Settings">
+            <a href="#settings" class="nav-link" id="nav-settings" data-tooltip="Settings">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="3"></circle>
@@ -111,7 +84,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="/login" class="nav-link" id="btn-logout" data-tooltip="Sign Out" onclick="API.setToken(''); API.setUser(null);">
+            <a href="/" class="nav-link" id="btn-logout" data-tooltip="Sign Out" onclick="API.setToken(''); API.setUser(null); window.location.href='/'; return false;">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -125,12 +98,12 @@
         </ul>
       </div>
 
-      <!-- Support / ESP32 Hardware Widget -->
+      <!-- Support / Hardware Widget -->
       <div class="sidebar-widget">
         <div class="widget-icon-box">
           <i class="fa-solid fa-microchip" style="font-size: 20px;"></i>
         </div>
-        <div class="widget-title">ESP32 DevKit V1</div>
+        <div class="widget-title">Hardware Device</div>
         <div class="widget-sub">No device connected</div>
         <button class="widget-btn" id="btn-open-connect">
           <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
@@ -143,13 +116,6 @@
       <!-- Top Bar -->
       <header class="top-bar">
         <div class="page-title-group">
-          <button class="topbar-toggle-btn" id="btn-topbar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="4" x2="20" y1="6" y2="6"/>
-              <line x1="4" x2="20" y1="12" y2="12"/>
-              <line x1="4" x2="20" y1="18" y2="18"/>
-            </svg>
-          </button>
           <h1 class="page-title">Analytics</h1>
           <div class="date-pill" id="dashboard-date-range">
             <span>--.--.----</span>
@@ -172,7 +138,7 @@
             <span id="status-text">Disconnected</span>
           </div>
 
-          <div class="user-profile">
+          <div class="user-profile" id="user-profile-trigger" title="View Account & Settings">
             <div class="avatar" id="user-avatar-display">--</div>
             <span class="user-name" id="user-name-display">Loading...</span>
           </div>
@@ -260,30 +226,9 @@
         </div>
       </section>
 
-      <!-- Secondary Row: Cumulative Energy, Temperature, and KPI cards -->
+      <!-- Secondary Row: Temperature & Estimated Cost (Left-aligned) -->
       <section class="kpi-row">
-        <!-- Cumulative Energy (Month total style in interface.png) -->
-        <div class="metric-card" style="grid-column: span 3;">
-          <div class="metric-header">
-            <span class="metric-title">Cumulative Energy</span>
-            <div class="metric-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="1" x2="12" y2="23"></line>
-                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-              </svg>
-            </div>
-          </div>
-          <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-cum-energy">0.0</span>
-            <span class="metric-unit">kWh</span>
-          </div>
-          <div class="metric-footer">
-            <span class="delta-down">&darr; 0.2%</span>
-            <span class="delta-context">meter lifetime accumulation</span>
-          </div>
-        </div>
-
-        <!-- Temperature (Revenue style in interface.png) -->
+        <!-- Card 1: Temperature -->
         <div class="metric-card" style="grid-column: span 3;">
           <div class="metric-header">
             <span class="metric-title">Temperature</span>
@@ -304,7 +249,7 @@
           </div>
         </div>
 
-        <!-- Est. Cost KPI (Paid Invoices style in interface.png) -->
+        <!-- Card 2: Estimated Cost (Left-aligned, 00 taka sign) -->
         <div class="kpi-card" style="grid-column: span 3;">
           <div class="kpi-card-header">
             <div class="kpi-icon">
@@ -313,31 +258,12 @@
                 <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path>
               </svg>
             </div>
-            <div class="kpi-circular-badge"><span>+15%</span></div>
+            <div class="kpi-circular-badge"><span>৳</span></div>
           </div>
           <div>
             <div class="kpi-title">Estimated Cost</div>
-            <div class="kpi-value" id="kpi-est-cost">$0.00</div>
-            <div class="kpi-sub">Tariff ($0.34 / kWh)</div>
-          </div>
-        </div>
-
-        <!-- Peak Capacity KPI (Funds received style in interface.png) -->
-        <div class="kpi-card" style="grid-column: span 3;">
-          <div class="kpi-card-header">
-            <div class="kpi-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="6" width="20" height="12" rx="2"></rect>
-                <circle cx="12" cy="12" r="2"></circle>
-                <path d="M6 12h.01M18 12h.01"></path>
-              </svg>
-            </div>
-            <div class="kpi-circular-badge green"><span>+59%</span></div>
-          </div>
-          <div>
-            <div class="kpi-title">Peak Breaker Load</div>
-            <div class="kpi-value" id="kpi-peak-load">0.000 kW</div>
-            <div class="kpi-sub">Breaker Limit: 6.0 kW</div>
+            <div class="kpi-value" id="kpi-est-cost">0.00 ৳</div>
+            <div class="kpi-sub">Standard Tariff (৳)</div>
           </div>
         </div>
       </section>
@@ -421,37 +347,102 @@
           <span style="width: 38px; height: 38px; border-radius: 12px; background: #EFF6FF; color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 18px;">
             <i class="fa-solid fa-microchip"></i>
           </span>
-          Connect ESP32 Device
+          Connect Device
         </h3>
         <button class="modal-close" id="btn-close-modal" type="button" aria-label="Close dialog">&times;</button>
       </div>
       <p style="font-size: 13.5px; color: #64748B; margin-top: -12px; margin-bottom: 22px; line-height: 1.5;">
-        Pair your ESP32 node using its Device ID. Once connected, live telemetry will stream to this dashboard and the device will be securely locked to your account.
+        Pair your device using its Device ID. Once connected, live telemetry will stream to this dashboard.
       </p>
       <form id="form-connect-device">
         <div class="form-group">
           <label class="form-label" for="input-device-id">Device Identifier</label>
           <div class="input-with-icon">
-            <i class="fa-solid fa-microchip input-icon"></i>
+            <i class="fa-solid fa-hashtag input-icon"></i>
             <input type="text" id="input-device-id" class="input-control" placeholder="e.g. pnw101" required value="pnw101">
-          </div>
-          <div class="form-hint" style="font-size: 12px; color: #94A3B8; margin-top: 6px;">
-            Must match <code>DEVICE_ID</code> in firmware (e.g. <code>pnw101</code>).
           </div>
         </div>
         <div class="form-group" style="margin-bottom: 26px;">
           <label class="form-label" for="input-device-name">Display Name (Optional)</label>
           <div class="input-with-icon">
             <i class="fa-solid fa-tag input-icon"></i>
-            <input type="text" id="input-device-name" class="input-control" placeholder="e.g. Main Distribution Panel">
+            <input type="text" id="input-device-name" class="input-control" placeholder="e.g. Main Panel">
           </div>
         </div>
         <button type="submit" class="btn-primary-block">
-          <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect & Lock Device
+          <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
         </button>
       </form>
     </div>
   </div>
+
+  <!-- Profile & Settings Slide-Out Drawer (Right to Left) -->
+  <div class="drawer-backdrop" id="profile-drawer-backdrop"></div>
+  <aside class="right-drawer" id="profile-drawer" aria-hidden="true">
+    <div class="drawer-header">
+      <h3 class="drawer-title"><i class="fa-solid fa-user-gear" style="color: var(--primary); margin-right: 8px;"></i> Profile & Settings</h3>
+      <button class="drawer-close-btn" id="btn-close-drawer" title="Close" aria-label="Close">&times;</button>
+    </div>
+
+    <div class="drawer-body">
+      <!-- User Profile Summary Card with Edit Pencil -->
+      <div class="drawer-card profile-card">
+        <div class="drawer-avatar-wrap">
+          <div class="drawer-avatar" id="drawer-user-avatar">--</div>
+        </div>
+        <div class="drawer-user-info" style="width: 100%;">
+          <div class="drawer-name-row" id="drawer-name-view">
+            <span class="drawer-user-name" id="drawer-user-name">Loading...</span>
+            <button class="icon-btn-edit" id="btn-edit-name" title="Edit Name" aria-label="Edit Name">
+              <i class="fa-solid fa-pen"></i>
+            </button>
+          </div>
+          <!-- Inline Edit Form (Hidden by default) -->
+          <div class="drawer-name-edit-form" id="drawer-name-edit" style="display: none;">
+            <input type="text" class="drawer-input" id="input-edit-name" placeholder="Enter your name" maxlength="50">
+            <div class="edit-btn-row">
+              <button type="button" class="btn-edit-save" id="btn-save-name">Save</button>
+              <button type="button" class="btn-edit-cancel" id="btn-cancel-name">Cancel</button>
+            </div>
+          </div>
+          <div class="drawer-user-email" id="drawer-user-email">--</div>
+        </div>
+      </div>
+
+      <!-- Connected Device Information Card -->
+      <div class="drawer-card device-card">
+        <div class="drawer-card-header">
+          <span class="drawer-section-title"><i class="fa-solid fa-microchip" style="color: var(--primary); margin-right: 6px;"></i> Connected Device</span>
+          <span class="drawer-device-badge" id="drawer-device-status">No Device</span>
+        </div>
+        <div class="drawer-device-details">
+          <div class="drawer-detail-row">
+            <span class="detail-label">Device ID:</span>
+            <span class="detail-val" id="drawer-device-id" style="font-family: monospace; font-size: 13.5px;">None</span>
+          </div>
+          <div class="drawer-detail-row">
+            <span class="detail-label">Hardware:</span>
+            <span class="detail-val" id="drawer-device-name">Hardware Node</span>
+          </div>
+          <div class="drawer-detail-row">
+            <span class="detail-label">Access:</span>
+            <span class="detail-val" style="color: var(--success); font-weight: 600;">Account Locked</span>
+          </div>
+        </div>
+        <a href="/devices" class="drawer-card-action">
+          <span>Manage in Devices</span>
+          <i class="fa-solid fa-arrow-right"></i>
+        </a>
+      </div>
+
+      <!-- Sign Out Action (Directly to Home Page) -->
+      <div class="drawer-actions" style="margin-top: auto;">
+        <button type="button" class="drawer-btn-logout" id="drawer-btn-logout">
+          <i class="fa-solid fa-arrow-right-from-bracket" style="margin-right: 8px;"></i> Sign Out
+        </button>
+      </div>
+    </div>
+  </aside>
 
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/dashboard.js"></script>

@@ -413,7 +413,7 @@ const Dashboard = {
     const btnEl = document.getElementById('btn-open-connect') || document.getElementById('btn-sidebar-connect');
 
     if (device) {
-      if (titleEl) titleEl.textContent = device.device_name || `ESP32 (${device.device_id})`;
+      if (titleEl) titleEl.textContent = device.device_name || 'Hardware Device';
       if (subEl) subEl.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${device.device_id}`;
       if (btnEl) {
         btnEl.className = 'widget-btn connected';
@@ -426,7 +426,7 @@ const Dashboard = {
         `;
       }
     } else {
-      if (titleEl) titleEl.textContent = 'ESP32 DevKit V1';
+      if (titleEl) titleEl.textContent = 'Hardware Device';
       if (subEl) subEl.textContent = 'No device connected';
       if (btnEl) {
         btnEl.className = 'widget-btn';
@@ -475,14 +475,10 @@ const Dashboard = {
     if (elPower) elPower.textContent = '0.000';
     const elEnergy = document.getElementById('metric-energy');
     if (elEnergy) elEnergy.textContent = '0.000';
-    const elCumEnergy = document.getElementById('metric-cum-energy');
-    if (elCumEnergy) elCumEnergy.textContent = '0.0';
     const elTemp = document.getElementById('metric-temperature');
     if (elTemp) elTemp.textContent = '--';
     const elCost = document.getElementById('kpi-est-cost');
-    if (elCost) elCost.textContent = '$0.00';
-    const elPeak = document.getElementById('kpi-peak-load');
-    if (elPeak) elPeak.textContent = '0.000 kW';
+    if (elCost) elCost.textContent = '0.00 ৳';
 
     // Empty Donuts (0%)
     this.renderDonuts(0, 0);
@@ -503,7 +499,7 @@ const Dashboard = {
           <td colspan="5" style="text-align:center; padding: 40px 16px; color: #94A3B8;">
             <i class="fa-solid fa-plug-circle-xmark" style="font-size: 30px; margin-bottom: 10px; display: block; color: #CBD5E1;"></i>
             No telemetry data yet.<br>
-            <span style="font-size: 12.5px; color: #64748B;">Click <strong>Connect Device</strong> on the bottom-left to link your ESP32 (pnw101).</span>
+            <span style="font-size: 12.5px; color: #64748B;">Click <strong>Connect Device</strong> on the bottom-left to link your device (pnw101).</span>
           </td>
         </tr>
       `;
@@ -598,7 +594,7 @@ const Dashboard = {
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
-            submitBtn.innerHTML = '<i class="fa-solid fa-link" style="margin-right: 8px;"></i> Connect ESP32';
+            submitBtn.innerHTML = '<i class="fa-solid fa-link" style="margin-right: 8px;"></i> Connect Device';
           }
         }
       });
@@ -650,25 +646,14 @@ const Dashboard = {
     const energyNum = (data.energy !== undefined && data.energy !== null) ? Number(data.energy) : 0.0;
     if (elEnergy) elEnergy.textContent = energyNum.toFixed(3);
 
-    // 5. Cumulative Energy
-    const elCumEnergy = document.getElementById('metric-cum-energy');
-    if (elCumEnergy) elCumEnergy.textContent = energyNum.toFixed(1);
-
-    // 6. Temperature
+    // 5. Temperature
     const elTemp = document.getElementById('metric-temperature');
     if (elTemp) elTemp.textContent = (data.temperature !== undefined && data.temperature !== null) ? Number(data.temperature).toFixed(1) : '--';
 
-    // 7. Cost estimation
+    // 6. Cost (Fixed 0.00 taka sign)
     const elCost = document.getElementById('kpi-est-cost');
     if (elCost) {
-      const cost = (energyNum * 0.34).toFixed(2);
-      elCost.textContent = `$${cost}`;
-    }
-
-    // 8. Peak load
-    const elPeak = document.getElementById('kpi-peak-load');
-    if (elPeak) {
-      elPeak.textContent = `${powerNum.toFixed(3)} kW`;
+      elCost.textContent = '0.00 ৳';
     }
 
     // 9. Status & Pulse: only Connected or Disconnected
@@ -727,7 +712,7 @@ const Dashboard = {
         <tr>
           <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
             <i class="fa-solid fa-satellite-dish" style="margin-right:8px; color:var(--primary);"></i>
-            Connected to <strong>${this.activeDeviceId}</strong>. Waiting for new telemetry packets from ESP32...
+            Connected to <strong>${this.activeDeviceId}</strong>. Waiting for telemetry packets...
           </td>
         </tr>
       `;

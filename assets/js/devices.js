@@ -67,17 +67,27 @@ function loadUserProfile() {
 
 async function loadDevices() {
   const container = document.getElementById('devices-list');
+  const connectCard = document.getElementById('card-connect-device');
   const widgetTitle = document.querySelector('.sidebar-widget .widget-title');
   const widgetSub = document.querySelector('.sidebar-widget .widget-sub');
   const widgetBtn = document.getElementById('btn-sidebar-connect');
 
   if (!container) return;
 
+  // Show skeleton shimmer while fetching
+  if (container.children.length === 0) {
+    container.innerHTML = `<div class="skeleton-device-card"></div>`;
+  }
+
   try {
     const res = await API.request('/devices/list.php');
     if (res && res.data && res.data.length > 0) {
       const dev = res.data[0];
-      if (widgetTitle) widgetTitle.textContent = dev.device_name || `ESP32 (${dev.device_id})`;
+
+      // User already has a connected device: hide top connect window
+      if (connectCard) connectCard.style.display = 'none';
+
+      if (widgetTitle) widgetTitle.textContent = dev.device_name || 'Hardware Device';
       if (widgetSub) widgetSub.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${dev.device_id}`;
       if (widgetBtn) {
         widgetBtn.className = 'widget-btn connected';
@@ -102,7 +112,7 @@ async function loadDevices() {
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
-                <h3 style="font-size: 17px; font-weight: 800; color: #0F172A; margin: 0;">${dev.device_name}</h3>
+                <h3 style="font-size: 17px; font-weight: 800; color: #0F172A; margin: 0;">${dev.device_name || 'Hardware Device'}</h3>
                 <span style="font-size: 11.5px; background: #EFF6FF; color: #1D4ED8; border: 1px solid #BFDBFE; padding: 3px 10px; border-radius: 9999px; font-weight: 700; display: inline-flex; align-items: center; gap: 4px;">
                   <i class="fa-solid fa-lock" style="font-size: 10px;"></i> Locked to your account
                 </span>
@@ -120,8 +130,8 @@ async function loadDevices() {
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 12px;">
-            <a href="/dashboard" style="background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; border-radius: 9999px; padding: 8px 18px; font-size: 13.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s;">
-              <i class="fa-solid fa-chart-pie"></i> View Telemetry
+            <a href="/dashboard" style="background: #EFF6FF; color: #2563EB; border: 1px solid #BFDBFE; border-radius: 9999px; padding: 8px 20px; font-size: 13.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; gap: 7px; transition: all 0.2s;">
+              <i class="fa-solid fa-chart-line"></i> Analytics
             </a>
             <button onclick="removeDevice('${dev.device_id}')" style="background: #FFF1F2; border: 1px solid #FECDD3; color: #E11D48; border-radius: 9999px; padding: 8px 16px; font-size: 13px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s;">
               <i class="fa-solid fa-trash-can"></i> Disconnect
@@ -130,7 +140,10 @@ async function loadDevices() {
         </div>
       `).join('');
     } else {
-      if (widgetTitle) widgetTitle.textContent = 'ESP32 DevKit V1';
+      // No device connected: show the connect card
+      if (connectCard) connectCard.style.display = 'block';
+
+      if (widgetTitle) widgetTitle.textContent = 'Hardware Device';
       if (widgetSub) widgetSub.textContent = 'No device connected';
       if (widgetBtn) {
         widgetBtn.className = 'widget-btn';
@@ -149,11 +162,10 @@ async function loadDevices() {
         <div class="card" style="text-align: center; padding: 48px 24px; border-radius: 20px;">
           <div style="font-size: 40px; margin-bottom: 16px; color: var(--primary);"><i class="fa-solid fa-plug-circle-exclamation"></i></div>
           <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">No devices connected</h3>
-          <p style="color: #64748B; font-size: 14px; margin-bottom: 0;">Connect your ESP32 device above with device ID <strong>pnw101</strong> to lock it to your account and begin streaming live telemetry.</p>
+          <p style="color: #64748B; font-size: 14px; margin-bottom: 0;">Connect your device above with Device ID <strong>pnw101</strong> to lock it to your account and begin streaming telemetry.</p>
         </div>
       `;
     }
-
   } catch (err) {
     console.error(err);
   }

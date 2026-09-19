@@ -112,6 +112,17 @@ const server = http.createServer((req, res) => {
         return;
       }
 
+      if (apiRoute === '/api/auth/profile') {
+        if (input && input.name) localUser.name = input.name.trim();
+        if (input && input.email) localUser.email = input.email.trim();
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Profile updated successfully!',
+          data: localUser
+        }));
+        return;
+      }
+
       if (apiRoute === '/api/telemetry/latest') {
         const queryDevId = parsedUrl.searchParams.get('device_id') || 'pnw101';
         const latest = (localTelemetry && localTelemetry.length > 0) ? localTelemetry[localTelemetry.length - 1] : null;
@@ -125,7 +136,7 @@ const server = http.createServer((req, res) => {
             energy: 0.0,
             temperature: null,
             is_online: false,
-            last_seen_relative: 'Waiting for ESP32 packets'
+            last_seen_relative: 'Waiting for device packets'
           }
         }));
         return;
