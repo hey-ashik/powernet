@@ -185,9 +185,9 @@ const server = http.createServer((req, res) => {
             id: 1,
             device_id: devId,
             device_name: devName,
-            computed_status: 'offline',
-            status_display: 'Offline',
-            last_seen_relative: 'Just linked'
+            computed_status: 'online',
+            status_display: 'Online',
+            last_seen_relative: 'Just connected'
           });
         }
         res.end(JSON.stringify({

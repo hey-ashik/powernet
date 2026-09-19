@@ -969,6 +969,61 @@ button, input, select, textarea {
   border: 1px solid #E2E8F0;
 }
 
+/* YouTube-style Top Progress Bar */
+#yt-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: linear-gradient(90deg, #2563EB 0%, #38BDF8 60%, #1D4ED8 100%);
+  box-shadow: 0 0 12px rgba(37, 99, 235, 0.8), 0 0 5px rgba(56, 189, 248, 0.5);
+  z-index: 100000;
+  pointer-events: none;
+  opacity: 0;
+  transition: width 0.35s cubic-bezier(0.1, 0.8, 0.2, 1), opacity 0.2s ease;
+}
+
+#yt-progress-bar.active {
+  opacity: 1;
+}
+
+/* Sidebar Widget Skeleton Shimmer */
+.widget-skeleton-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  animation: pageFadeIn 0.15s ease-out;
+}
+
+.widget-skeleton-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  margin: 0 auto 10px auto;
+}
+
+.widget-skeleton-title {
+  height: 14px;
+  width: 72%;
+  margin: 0 auto 8px auto;
+  border-radius: 4px;
+}
+
+.widget-skeleton-sub {
+  height: 11px;
+  width: 52%;
+  margin: 0 auto 12px auto;
+  border-radius: 4px;
+}
+
+.widget-skeleton-btn {
+  height: 36px;
+  width: 100%;
+  border-radius: 9999px;
+}
+
 /* ==========================================================
  * Right Slide-Out Drawer (Profile & Settings)
  * ========================================================== */

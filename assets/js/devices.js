@@ -3,12 +3,20 @@
  * Device ID: pnw101 (Direct pairing without tokens)
  */
 
-document.addEventListener('DOMContentLoaded', () => {
+function initDevicesPage() {
   loadUserProfile();
+
+  // 1. Synchronous state hydration: NO FLICKER
+  const cachedDev = API.getConnectedDevice();
+  renderDevicesView(cachedDev);
+
+  // 2. Fetch fresh server data in background
   loadDevices();
 
+  // 3. Attach form handler
   const connectForm = document.getElementById('form-connect-device-page');
-  if (connectForm) {
+  if (connectForm && !connectForm.dataset.bound) {
+    connectForm.dataset.bound = 'true';
     connectForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const devId = document.getElementById('device_id').value.trim();
@@ -19,15 +27,29 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           body: JSON.stringify({ device_id: devId, device_name: devName })
         });
+        const newDev = {
+          id: 1,
+          device_id: devId,
+          device_name: devName || `Main Panel (${devId})`,
+          computed_status: 'online',
+          status_display: 'Online',
+          last_seen_relative: 'Just connected'
+        };
+        API.setConnectedDevice(newDev);
+        renderDevicesView(newDev);
         API.showToast(res.message || 'Device connected!', 'success');
         connectForm.reset();
-        document.getElementById('device_id').value = 'pnw101';
-        loadDevices();
+        const idField = document.getElementById('device_id');
+        if (idField) idField.value = 'pnw101';
       } catch (err) {
         API.showToast(err.message, 'error');
       }
     });
   }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  initDevicesPage();
 });
 
 function loadUserProfile() {
@@ -65,50 +87,22 @@ function loadUserProfile() {
   }
 }
 
-async function loadDevices() {
+function renderDevicesView(dev) {
   const container = document.getElementById('devices-list');
   const connectCard = document.getElementById('card-connect-device');
-  const widgetTitle = document.querySelector('.sidebar-widget .widget-title');
-  const widgetSub = document.querySelector('.sidebar-widget .widget-sub');
-  const widgetBtn = document.getElementById('btn-sidebar-connect');
 
-  if (!container) return;
-
-  // Show skeleton shimmer while fetching
-  if (container.children.length === 0) {
-    container.innerHTML = `<div class="skeleton-device-card"></div>`;
-  }
-
-  try {
-    const res = await API.request('/devices/list.php');
-    if (res && res.data && res.data.length > 0) {
-      const dev = res.data[0];
-
-      // User already has a connected device: hide top connect window
-      if (connectCard) connectCard.style.display = 'none';
-
-      if (widgetTitle) widgetTitle.textContent = dev.device_name || 'Hardware Device';
-      if (widgetSub) widgetSub.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${dev.device_id}`;
-      if (widgetBtn) {
-        widgetBtn.className = 'widget-btn connected';
-        widgetBtn.setAttribute('title', 'Click to Disconnect');
-        widgetBtn.style.background = '#16A34A';
-        widgetBtn.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.35)';
-        widgetBtn.innerHTML = `
-          <span class="btn-label-connected"><i class="fa-solid fa-circle-check"></i> Connected</span>
-          <span class="btn-label-disconnect"><i class="fa-solid fa-link-slash"></i> Disconnect</span>
-        `;
-        widgetBtn.onclick = (e) => {
-          e.preventDefault();
-          removeDevice(dev.device_id);
-        };
-      }
-
-      container.innerHTML = res.data.map(dev => `
+  if (dev) {
+    if (connectCard) connectCard.style.display = 'none';
+    if (container) {
+      container.innerHTML = `
         <div class="card" style="margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; border-radius: 20px; padding: 22px 26px; background: #FFFFFF; border: 1px solid var(--border-card); box-shadow: var(--shadow-card); flex-wrap: wrap; gap: 16px;">
           <div style="display: flex; align-items: center; gap: 18px;">
-            <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); display: flex; align-items: center; justify-content: center; color: #2563EB; font-size: 22px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);">
-              <i class="fa-solid fa-microchip"></i>
+            <div style="width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%); display: flex; align-items: center; justify-content: center; color: #2563EB; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.12);">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                <line x1="12" y1="22.08" x2="12" y2="12"></line>
+              </svg>
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -122,7 +116,7 @@ async function loadDevices() {
                 <span style="color: #CBD5E1;">&bull;</span>
                 <span style="display: inline-flex; align-items: center; gap: 5px; color: ${dev.computed_status === 'online' ? '#16A34A' : '#F59E0B'}; font-weight: 700;">
                   <span style="width: 8px; height: 8px; border-radius: 50%; background: ${dev.computed_status === 'online' ? '#16A34A' : '#F59E0B'};"></span>
-                  ${dev.status_display}
+                  ${dev.status_display || (dev.computed_status === 'online' ? 'Online' : 'Offline')}
                 </span>
                 <span style="color: #CBD5E1;">&bull;</span>
                 <span>${dev.last_seen_relative || '5s sync'}</span>
@@ -138,26 +132,12 @@ async function loadDevices() {
             </button>
           </div>
         </div>
-      `).join('');
-    } else {
-      // No device connected: show the connect card
-      if (connectCard) connectCard.style.display = 'block';
-
-      if (widgetTitle) widgetTitle.textContent = 'Hardware Device';
-      if (widgetSub) widgetSub.textContent = 'No device connected';
-      if (widgetBtn) {
-        widgetBtn.className = 'widget-btn';
-        widgetBtn.removeAttribute('title');
-        widgetBtn.style.background = 'var(--primary)';
-        widgetBtn.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)';
-        widgetBtn.innerHTML = `<i class="fa-solid fa-link" style="margin-right:6px;"></i> Connect Device`;
-        widgetBtn.onclick = (e) => {
-          e.preventDefault();
-          const inp = document.getElementById('device_id');
-          if (inp) inp.focus();
-        };
-      }
-
+      `;
+    }
+    API.renderWidgetDevice(dev);
+  } else {
+    if (connectCard) connectCard.style.display = 'block';
+    if (container) {
       container.innerHTML = `
         <div class="card" style="text-align: center; padding: 48px 24px; border-radius: 20px;">
           <div style="font-size: 40px; margin-bottom: 16px; color: var(--primary);"><i class="fa-solid fa-plug-circle-exclamation"></i></div>
@@ -165,6 +145,21 @@ async function loadDevices() {
           <p style="color: #64748B; font-size: 14px; margin-bottom: 0;">Connect your device above with Device ID <strong>pnw101</strong> to lock it to your account and begin streaming telemetry.</p>
         </div>
       `;
+    }
+    API.renderWidgetDevice(null);
+  }
+}
+
+async function loadDevices() {
+  try {
+    const res = await API.request('/devices/list.php');
+    if (res && res.data && res.data.length > 0) {
+      const dev = res.data[0];
+      API.setConnectedDevice(dev);
+      renderDevicesView(dev);
+    } else {
+      API.setConnectedDevice(null);
+      renderDevicesView(null);
     }
   } catch (err) {
     console.error(err);
@@ -175,13 +170,18 @@ async function removeDevice(deviceId) {
   if (!confirm(`Are you sure you want to disconnect device ${deviceId}?`)) return;
 
   try {
+    // 1. Immediately update UI state in REAL TIME
+    API.setConnectedDevice(null);
+    renderDevicesView(null);
+
+    // 2. Notify backend
     await API.request('/devices/remove.php', {
       method: 'POST',
       body: JSON.stringify({ device_id: deviceId })
     });
-    API.showToast('Device removed', 'success');
-    loadDevices();
+    API.showToast('Device disconnected successfully', 'info');
   } catch (err) {
-    API.showToast(err.message, 'error');
+    API.showToast(err.message || 'Could not disconnect device', 'error');
+    loadDevices();
   }
 }

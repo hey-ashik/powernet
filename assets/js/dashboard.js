@@ -23,21 +23,50 @@ const Dashboard = {
   waveHistory: { voltage: [], current: [], power: [], energy: [], temperature: [] },
 
   async init() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
+
+    // 1. Synchronous device state hydration: NO FLICKER
+    const cachedDev = API.getConnectedDevice();
+    const statusDot = document.getElementById('status-pulse-dot');
+    const statusText = document.getElementById('status-text');
+
+    if (cachedDev) {
+      this.hasDevice = true;
+      this.activeDevice = cachedDev;
+      this.activeDeviceId = cachedDev.device_id;
+      if (statusDot) statusDot.className = 'pulse-dot';
+      if (statusText) statusText.textContent = 'Connected';
+      API.renderWidgetDevice(cachedDev);
+    } else {
+      this.hasDevice = false;
+      this.activeDevice = null;
+      this.activeDeviceId = null;
+      if (statusDot) statusDot.className = 'pulse-dot offline';
+      if (statusText) statusText.textContent = 'Disconnected';
+      API.renderWidgetDevice(null);
+    }
+
     this.loadUserProfile();
     this.updateDateRange();
     this.initEventListeners();
     this.initChartSwitchers();
     await this.checkUserDevices();
 
-    // Sync devices on tab visibility change or window focus
-    document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') {
+    // Attach visibility/focus listeners only once
+    if (!this._visibilityBound) {
+      this._visibilityBound = true;
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          this.checkUserDevices(true);
+        }
+      });
+      window.addEventListener('focus', () => {
         this.checkUserDevices(true);
-      }
-    });
-    window.addEventListener('focus', () => {
-      this.checkUserDevices(true);
-    });
+      });
+    }
 
     // Start 10-second polling loop
     this.pollTimer = setInterval(async () => {
@@ -48,6 +77,13 @@ const Dashboard = {
         await this.fetchLogs();
       }
     }, this.pollIntervalMs);
+  },
+
+  destroy() {
+    if (this.pollTimer) {
+      clearInterval(this.pollTimer);
+      this.pollTimer = null;
+    }
   },
 
   loadUserProfile() {
@@ -380,6 +416,13 @@ const Dashboard = {
         this.hasDevice = true;
         this.activeDevice = dev;
         this.activeDeviceId = dev.device_id;
+        API.setConnectedDevice(dev);
+
+        const statusDot = document.getElementById('status-pulse-dot');
+        const statusText = document.getElementById('status-text');
+        if (statusDot) statusDot.className = 'pulse-dot';
+        if (statusText) statusText.textContent = 'Connected';
+
         this.updateSidebarWidget(this.activeDevice);
 
         if (wasUnconnected || !isBackground) {
@@ -392,6 +435,13 @@ const Dashboard = {
         this.hasDevice = false;
         this.activeDevice = null;
         this.activeDeviceId = null;
+        API.setConnectedDevice(null);
+
+        const statusDot = document.getElementById('status-pulse-dot');
+        const statusText = document.getElementById('status-text');
+        if (statusDot) statusDot.className = 'pulse-dot offline';
+        if (statusText) statusText.textContent = 'Disconnected';
+
         this.updateSidebarWidget(null);
         if (wasConnected || !isBackground) {
           this.renderZeroState();
@@ -400,42 +450,12 @@ const Dashboard = {
     } catch (err) {
       if (!isBackground) {
         console.warn('Could not verify user devices:', err);
-        this.hasDevice = false;
-        this.updateSidebarWidget(null);
-        this.renderZeroState();
       }
     }
   },
 
   updateSidebarWidget(device) {
-    const titleEl = document.querySelector('.sidebar-widget .widget-title');
-    const subEl = document.querySelector('.sidebar-widget .widget-sub');
-    const btnEl = document.getElementById('btn-open-connect') || document.getElementById('btn-sidebar-connect');
-
-    if (device) {
-      if (titleEl) titleEl.textContent = device.device_name || 'Hardware Device';
-      if (subEl) subEl.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${device.device_id}`;
-      if (btnEl) {
-        btnEl.className = 'widget-btn connected';
-        btnEl.setAttribute('title', 'Click to Disconnect');
-        btnEl.style.background = '#16A34A';
-        btnEl.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.35)';
-        btnEl.innerHTML = `
-          <span class="btn-label-connected"><i class="fa-solid fa-circle-check"></i> Connected</span>
-          <span class="btn-label-disconnect"><i class="fa-solid fa-link-slash"></i> Disconnect</span>
-        `;
-      }
-    } else {
-      if (titleEl) titleEl.textContent = 'Hardware Device';
-      if (subEl) subEl.textContent = 'No device connected';
-      if (btnEl) {
-        btnEl.className = 'widget-btn';
-        btnEl.removeAttribute('title');
-        btnEl.style.background = 'var(--primary)';
-        btnEl.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)';
-        btnEl.innerHTML = `<i class="fa-solid fa-link" style="margin-right:6px;"></i> Connect Device`;
-      }
-    }
+    API.renderWidgetDevice(device);
   },
 
   async disconnectDevice(devId) {
@@ -444,6 +464,7 @@ const Dashboard = {
       this.hasDevice = false;
       this.activeDevice = null;
       this.activeDeviceId = null;
+      API.setConnectedDevice(null);
       this.updateSidebarWidget(null);
       this.renderZeroState();
 
@@ -577,10 +598,20 @@ const Dashboard = {
           this.hasDevice = true;
           this.activeDeviceId = devId;
           this.activeDevice = {
+            id: 1,
             device_id: devId,
-            device_name: devName || `Main Panel (${devId})`
+            device_name: devName || `Main Panel (${devId})`,
+            computed_status: 'online',
+            status_display: 'Online',
+            last_seen_relative: 'Just connected'
           };
+          API.setConnectedDevice(this.activeDevice);
           this.updateSidebarWidget(this.activeDevice);
+
+          const statusDot = document.getElementById('status-pulse-dot');
+          const statusText = document.getElementById('status-text');
+          if (statusDot) statusDot.className = 'pulse-dot';
+          if (statusText) statusText.textContent = 'Connected';
 
           API.showToast(res.message || `Device '${devId}' connected successfully!`, 'success');
 

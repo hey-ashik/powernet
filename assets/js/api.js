@@ -173,6 +173,146 @@ const API = {
   },
 
 
+  getConnectedDevice() {
+    try {
+      const raw = localStorage.getItem('pnet_device') || localStorage.getItem('pnet_cached_dev');
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  },
+
+  setConnectedDevice(dev) {
+    if (dev) {
+      try {
+        localStorage.setItem('pnet_device', JSON.stringify(dev));
+        localStorage.setItem('pnet_cached_dev', JSON.stringify(dev));
+      } catch {}
+    } else {
+      try {
+        localStorage.removeItem('pnet_device');
+        localStorage.removeItem('pnet_cached_dev');
+      } catch {}
+    }
+  },
+
+  startTopLoader() {
+    let bar = document.getElementById('yt-progress-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.id = 'yt-progress-bar';
+      document.body.prepend(bar);
+    }
+    if (this._loaderTimer) clearTimeout(this._loaderTimer);
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    bar.classList.add('active');
+    void bar.offsetWidth;
+    bar.style.transition = 'width 0.35s cubic-bezier(0.1, 0.8, 0.2, 1), opacity 0.2s ease';
+    bar.style.width = '35%';
+    this._loaderTimer = setTimeout(() => {
+      if (bar && bar.classList.contains('active')) {
+        bar.style.width = '80%';
+      }
+    }, 120);
+  },
+
+  finishTopLoader() {
+    if (this._loaderTimer) clearTimeout(this._loaderTimer);
+    const bar = document.getElementById('yt-progress-bar');
+    if (bar) {
+      bar.style.width = '100%';
+      setTimeout(() => {
+        bar.classList.remove('active');
+        setTimeout(() => {
+          bar.style.transition = 'none';
+          bar.style.width = '0%';
+        }, 220);
+      }, 200);
+    }
+  },
+
+  renderWidgetSkeleton() {
+    const widget = document.querySelector('.sidebar-widget');
+    if (!widget) return;
+    widget.innerHTML = `
+      <div class="widget-skeleton-wrap">
+        <div class="widget-skeleton-icon skeleton-shimmer"></div>
+        <div class="widget-skeleton-title skeleton-shimmer"></div>
+        <div class="widget-skeleton-sub skeleton-shimmer"></div>
+        <div class="widget-skeleton-btn skeleton-shimmer"></div>
+      </div>
+    `;
+  },
+
+  renderWidgetDevice(dev) {
+    const widget = document.querySelector('.sidebar-widget');
+    if (!widget) return;
+    if (dev) {
+      this.setConnectedDevice(dev);
+      widget.innerHTML = `
+        <div class="widget-content-wrap" style="animation: pageFadeIn 0.2s ease;">
+          <div class="widget-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+          </div>
+          <div class="widget-title">${dev.device_name || 'Hardware Device'}</div>
+          <div class="widget-sub"><span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${dev.device_id}</div>
+          <button class="widget-btn connected" id="btn-sidebar-connect" title="Click to Disconnect">
+            <span class="btn-label-connected"><i class="fa-solid fa-circle-check"></i> Connected</span>
+            <span class="btn-label-disconnect"><i class="fa-solid fa-link-slash"></i> Disconnect</span>
+          </button>
+        </div>
+      `;
+      const btn = widget.querySelector('#btn-sidebar-connect');
+      if (btn) {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          if (typeof removeDevice === 'function') {
+            removeDevice(dev.device_id);
+          } else if (typeof Dashboard !== 'undefined' && typeof Dashboard.disconnectDevice === 'function') {
+            Dashboard.disconnectDevice(dev.device_id);
+          } else {
+            API.setConnectedDevice(null);
+            API.renderWidgetDevice(null);
+            if (typeof renderDevicesView === 'function') renderDevicesView(null);
+          }
+        };
+      }
+    } else {
+      this.setConnectedDevice(null);
+      widget.innerHTML = `
+        <div class="widget-content-wrap" style="animation: pageFadeIn 0.2s ease;">
+          <div class="widget-icon-box">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
+          </div>
+          <div class="widget-title">Hardware Device</div>
+          <div class="widget-sub">No device connected</div>
+          <button class="widget-btn" id="btn-open-connect">
+            <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
+          </button>
+        </div>
+      `;
+      const btn = widget.querySelector('#btn-open-connect');
+      if (btn) {
+        btn.onclick = (e) => {
+          e.preventDefault();
+          const modal = document.getElementById('modal-connect-device');
+          if (modal) modal.classList.add('active');
+          else if (typeof API.navigateTo === 'function') API.navigateTo('/devices');
+          else window.location.href = '/devices';
+        };
+      }
+    }
+  },
+
   showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -194,6 +334,155 @@ const API = {
       toast.style.opacity = '0';
       setTimeout(() => toast.remove(), 300);
     }, 3500);
+  },
+
+  // ─── Smooth Client-Side Router (YouTube-style with Skeleton Shimmer) ───
+  initRouter() {
+    if (this._routerInitialized) return;
+    this._routerInitialized = true;
+
+    document.addEventListener('click', (e) => {
+      const link = e.target.closest('a');
+      if (!link) return;
+
+      const href = link.getAttribute('href');
+      if (!href || href.startsWith('#') || href.startsWith('mailto:') || href.startsWith('javascript:')) return;
+      if (link.id === 'btn-logout' || link.classList.contains('no-spa') || link.target === '_blank') return;
+      if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+
+      let targetPath;
+      try {
+        const url = new URL(href, window.location.origin);
+        if (url.origin !== window.location.origin) return;
+        targetPath = url.pathname;
+      } catch {
+        return;
+      }
+
+      const supported = ['/dashboard', '/devices', '/analytics'];
+      const match = supported.some(r => targetPath === r || targetPath === `${r}.html`);
+      if (!match) return;
+
+      // Normalize
+      const currentNorm = window.location.pathname.replace(/\.html$/, '');
+      const targetNorm = targetPath.replace(/\.html$/, '');
+      if (currentNorm === targetNorm) {
+        e.preventDefault();
+        return;
+      }
+
+      e.preventDefault();
+      this.navigateTo(targetPath);
+    });
+
+    window.addEventListener('popstate', () => {
+      const currentPath = window.location.pathname;
+      const supported = ['/dashboard', '/devices', '/analytics'];
+      if (supported.some(r => currentPath === r || currentPath === `${r}.html`)) {
+        this.navigateTo(currentPath, false);
+      }
+    });
+  },
+
+  async navigateTo(targetUrl, pushState = true) {
+    const main = document.querySelector('.main-content');
+    if (!main) {
+      window.location.href = targetUrl;
+      return;
+    }
+
+    // 1. Highlight nav link in sidebar immediately
+    const targetNorm = targetUrl.replace(/\.html$/, '');
+    document.querySelectorAll('.sidebar .nav-link').forEach(l => {
+      const h = (l.getAttribute('href') || '').replace(/\.html$/, '');
+      if (h === targetNorm || (h === '/dashboard' && targetNorm === '/analytics')) {
+        l.classList.add('active');
+      } else {
+        l.classList.remove('active');
+      }
+    });
+
+    // 2. Start YouTube progress bar
+    this.startTopLoader();
+
+    // 3. Stop background dashboard polling if navigating away
+    if (!targetUrl.includes('/dashboard') && !targetUrl.includes('/analytics')) {
+      if (typeof Dashboard !== 'undefined' && typeof Dashboard.destroy === 'function') {
+        Dashboard.destroy();
+      }
+    }
+
+    // 4. Render smooth YouTube-style skeleton shimmer in main area
+    if (targetUrl.includes('/devices')) {
+      main.innerHTML = `
+        <div style="animation: pageFadeIn 0.2s ease;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px;">
+            <div class="skeleton-shimmer" style="height: 32px; width: 220px;"></div>
+            <div class="skeleton-shimmer" style="height: 38px; width: 140px; border-radius: 9999px;"></div>
+          </div>
+          <div class="skeleton-shimmer" style="height: 98px; width: 100%; border-radius: 20px; margin-bottom: 18px;"></div>
+          <div class="skeleton-shimmer" style="height: 98px; width: 100%; border-radius: 20px;"></div>
+        </div>
+      `;
+    } else {
+      // Dashboard skeleton
+      main.innerHTML = `
+        <div style="animation: pageFadeIn 0.2s ease;">
+          <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px;">
+            <div class="skeleton-shimmer" style="height: 32px; width: 180px;"></div>
+            <div class="skeleton-shimmer" style="height: 36px; width: 140px; border-radius: 9999px;"></div>
+          </div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px;">
+            <div class="skeleton-shimmer" style="height: 110px; border-radius: 18px;"></div>
+            <div class="skeleton-shimmer" style="height: 110px; border-radius: 18px;"></div>
+            <div class="skeleton-shimmer" style="height: 110px; border-radius: 18px;"></div>
+            <div class="skeleton-shimmer" style="height: 110px; border-radius: 18px;"></div>
+          </div>
+          <div class="skeleton-shimmer" style="height: 260px; border-radius: 20px; margin-bottom: 24px;"></div>
+          <div class="skeleton-shimmer" style="height: 200px; border-radius: 20px;"></div>
+        </div>
+      `;
+    }
+
+    // 5. Silky smooth YouTube timing (~260ms) so the user perceives the skeleton shimmer
+    const minDelay = new Promise(resolve => setTimeout(resolve, 260));
+
+    try {
+      const fetchReq = fetch(targetUrl).then(r => r.text());
+      const [_, html] = await Promise.all([minDelay, fetchReq]);
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const incomingMain = doc.querySelector('.main-content');
+
+      if (incomingMain) {
+        main.innerHTML = incomingMain.innerHTML;
+        main.style.animation = 'none';
+        void main.offsetHeight; // trigger reflow
+        main.style.animation = 'pageFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
+
+        if (doc.title) document.title = doc.title;
+        if (pushState) history.pushState({ path: targetUrl }, '', targetUrl);
+
+        // Re-initialize controller for the target view
+        if (targetUrl.includes('/devices')) {
+          if (typeof initDevicesPage === 'function') {
+            initDevicesPage();
+          }
+        } else if (targetUrl.includes('/dashboard') || targetUrl.includes('/analytics')) {
+          if (typeof Dashboard !== 'undefined' && typeof Dashboard.init === 'function') {
+            Dashboard.init();
+          }
+        }
+      } else {
+        window.location.href = targetUrl;
+      }
+    } catch (err) {
+      console.error('Smooth router error:', err);
+      window.location.href = targetUrl;
+    } finally {
+      this.finishTopLoader();
+    }
   }
 };
 
@@ -304,7 +593,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             <div class="drawer-card device-card">
               <div class="drawer-card-header">
-                <span class="drawer-section-title"><i class="fa-solid fa-microchip" style="color: var(--primary); margin-right: 6px;"></i> Connected Device</span>
+                <span class="drawer-section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary); margin-right: 6px; vertical-align: -2px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Connected Device</span>
                 <span class="drawer-device-badge" id="drawer-device-status">No Device</span>
               </div>
               <div class="drawer-device-details">
@@ -426,14 +715,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // Clicking user profile in top-right header opens right drawer
-  const userProfileTrigger = document.getElementById('user-profile-trigger');
-  if (userProfileTrigger) {
-    userProfileTrigger.addEventListener('click', (e) => {
+  // Clicking user profile in top-right header opens right drawer (delegated)
+  document.addEventListener('click', (e) => {
+    if (e.target.closest('#user-profile-trigger')) {
       e.preventDefault();
       openDrawer();
-    });
-  }
+    }
+  });
 
   // Inline pencil edit
   if (btnEditName && drawerNameView && drawerNameEdit && inputEditName) {
@@ -508,6 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e) e.preventDefault();
     API.setToken('');
     API.setUser(null);
+    API.setConnectedDevice(null);
     window.location.href = '/';
   };
 
@@ -515,19 +804,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const mainLogoutBtn = document.getElementById('btn-logout');
   if (mainLogoutBtn) mainLogoutBtn.addEventListener('click', handleLogout);
 
-  // ─── 3. Smooth Navigation Menu Transition ────────────────────────
-  const navLinks = document.querySelectorAll('.nav-menu .nav-link');
-  navLinks.forEach(link => {
-    link.addEventListener('click', () => {
-      const href = link.getAttribute('href');
-      if (!href || href.startsWith('#') || link.id === 'btn-logout') return;
-      if (window.location.pathname !== href) {
-        const main = document.querySelector('.main-content');
-        if (main) {
-          main.style.opacity = '0.45';
-          main.style.transition = 'opacity 0.12s ease';
-        }
-      }
-    });
-  });
+  // ─── 3. Synchronous Widget Hydration & Smooth YouTube Navigation ──────
+  // Render sidebar widget from cached device state immediately (no skeleton flicker)
+  const cachedDev = API.getConnectedDevice();
+  if (cachedDev) {
+    API.renderWidgetDevice(cachedDev);
+  } else {
+    API.renderWidgetDevice(null);
+  }
+
+  // Initialize YouTube-style router
+  API.initRouter();
+
+  // Finish top loader on page load
+  API.finishTopLoader();
 });

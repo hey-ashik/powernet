@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/assets/css/responsive.css">
 </head>
 <body>
+  <div id="yt-progress-bar"></div>
   <div class="app-container">
     <!-- Left Sidebar -->
     <aside class="sidebar">
@@ -53,16 +54,9 @@
             <a href="/devices" class="nav-link" id="nav-devices" data-tooltip="Devices">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <rect x="4" y="4" width="16" height="16" rx="3"></rect>
-                  <rect x="9" y="9" width="6" height="6" rx="1"></rect>
-                  <line x1="9" y1="1" x2="9" y2="4"></line>
-                  <line x1="15" y1="1" x2="15" y2="4"></line>
-                  <line x1="9" y1="20" x2="9" y2="23"></line>
-                  <line x1="15" y1="20" x2="15" y2="23"></line>
-                  <line x1="20" y1="9" x2="23" y2="9"></line>
-                  <line x1="20" y1="15" x2="23" y2="15"></line>
-                  <line x1="1" y1="9" x2="4" y2="9"></line>
-                  <line x1="1" y1="15" x2="4" y2="15"></line>
+                  <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                  <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                  <line x1="12" y1="22.08" x2="12" y2="12"></line>
                 </svg>
               </div>
               <span class="nav-text">Devices</span>
@@ -98,16 +92,14 @@
         </ul>
       </div>
 
-      <!-- Support / Hardware Widget -->
+      <!-- Support / Hardware Widget (Smooth Skeleton Loading) -->
       <div class="sidebar-widget">
-        <div class="widget-icon-box">
-          <i class="fa-solid fa-microchip" style="font-size: 20px;"></i>
+        <div class="widget-skeleton-wrap">
+          <div class="widget-skeleton-icon skeleton-shimmer"></div>
+          <div class="widget-skeleton-title skeleton-shimmer"></div>
+          <div class="widget-skeleton-sub skeleton-shimmer"></div>
+          <div class="widget-skeleton-btn skeleton-shimmer"></div>
         </div>
-        <div class="widget-title">Hardware Device</div>
-        <div class="widget-sub">No device connected</div>
-        <button class="widget-btn" id="btn-open-connect">
-          <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
-        </button>
       </div>
     </aside>
 
@@ -344,8 +336,12 @@
     <div class="modal-box">
       <div class="modal-header">
         <h3 class="modal-title">
-          <span style="width: 38px; height: 38px; border-radius: 12px; background: #EFF6FF; color: var(--primary); display: inline-flex; align-items: center; justify-content: center; font-size: 18px;">
-            <i class="fa-solid fa-microchip"></i>
+          <span style="width: 38px; height: 38px; border-radius: 12px; background: #EFF6FF; color: var(--primary); display: inline-flex; align-items: center; justify-content: center;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+              <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+              <line x1="12" y1="22.08" x2="12" y2="12"></line>
+            </svg>
           </span>
           Connect Device
         </h3>
@@ -412,7 +408,7 @@
       <!-- Connected Device Information Card -->
       <div class="drawer-card device-card">
         <div class="drawer-card-header">
-          <span class="drawer-section-title"><i class="fa-solid fa-microchip" style="color: var(--primary); margin-right: 6px;"></i> Connected Device</span>
+          <span class="drawer-section-title"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: var(--primary); margin-right: 6px; vertical-align: -2px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg> Connected Device</span>
           <span class="drawer-device-badge" id="drawer-device-status">No Device</span>
         </div>
         <div class="drawer-device-details">
@@ -445,6 +441,7 @@
   </aside>
 
   <script src="/assets/js/api.js"></script>
+  <script src="/assets/js/devices.js"></script>
   <script src="/assets/js/dashboard.js"></script>
 </body>
 </html>
