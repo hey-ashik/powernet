@@ -618,7 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
             <div class="drawer-actions" style="margin-top: auto;">
               <button type="button" class="drawer-btn-logout" id="drawer-btn-logout">
-                <i class="fa-solid fa-arrow-right-from-bracket" style="margin-right: 8px;"></i> Sign Out
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px; vertical-align: -2px;"><path d="M18 20a6 6 0 0 0-12 0"></path><circle cx="12" cy="10" r="4"></circle><circle cx="12" cy="12" r="10"></circle></svg> Sign Out
               </button>
             </div>
           </div>
