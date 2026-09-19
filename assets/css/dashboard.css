@@ -266,10 +266,20 @@
 
 /* Charts & Logs Main Grid Layout */
 .dashboard-main-grid {
-  display: grid;
-  grid-template-columns: 7fr 5fr;
+  display: flex;
+  flex-direction: column;
   gap: 24px;
   margin-bottom: 24px;
+}
+
+.charts-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.charts-row .chart-card {
+  margin-bottom: 0;
 }
 
 .chart-card {
@@ -285,12 +295,67 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .chart-title {
   font-size: 17px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.chart-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chart-switcher {
+  display: flex;
+  background: #F1F5F9;
+  border-radius: var(--radius-pill);
+  padding: 3px;
+  gap: 2px;
+}
+
+.sw-btn {
+  padding: 5px 12px;
+  border: none;
+  background: none;
+  border-radius: var(--radius-pill);
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.sw-btn.active {
+  background: var(--primary);
+  color: #FFFFFF;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.25);
+}
+
+.sw-btn:hover:not(.active) {
+  color: var(--primary);
+}
+
+/* Skeleton loading placeholder */
+.skeleton-chart {
+  width: 100%;
+  height: 100%;
+  min-height: 180px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #F1F5F9 25%, #E2E8F0 50%, #F1F5F9 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
 }
 
 .chart-filter-pill {

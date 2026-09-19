@@ -129,6 +129,10 @@ const API = {
       return { success: true, data: [] };
     }
 
+    if (endpoint.startsWith('/telemetry/history')) {
+      return { success: true, data: { device_id: 'pnw101', range: '7d', points: [] } };
+    }
+
     if (endpoint.startsWith('/devices/list')) {
       return {
         success: true,
@@ -180,3 +184,55 @@ const API = {
     }, 3500);
   }
 };
+
+// Global App Sidebar Handler (ChatGPT & Gemini style collapsible sidebar)
+document.addEventListener('DOMContentLoaded', () => {
+  const sidebar = document.querySelector('.sidebar');
+  if (!sidebar) return;
+
+  const appContainer = document.querySelector('.app-container') || document.body;
+  const toggleBtn = document.getElementById('btn-sidebar-toggle');
+  const topbarToggleBtn = document.getElementById('btn-topbar-toggle');
+
+  let backdrop = document.querySelector('.sidebar-backdrop');
+  if (!backdrop) {
+    backdrop = document.createElement('div');
+    backdrop.className = 'sidebar-backdrop';
+    document.body.appendChild(backdrop);
+  }
+
+  // Restore desktop collapsed state
+  const isCollapsed = localStorage.getItem('powernet_sidebar_collapsed') === 'true';
+  if (isCollapsed && window.innerWidth > 768) {
+    appContainer.classList.add('sidebar-collapsed');
+  }
+
+  const toggleSidebar = (e) => {
+    if (e) e.preventDefault();
+    if (window.innerWidth <= 768) {
+      const isOpen = sidebar.classList.toggle('mobile-open');
+      backdrop.classList.toggle('active', isOpen);
+    } else {
+      const collapsed = appContainer.classList.toggle('sidebar-collapsed');
+      localStorage.setItem('powernet_sidebar_collapsed', String(collapsed));
+    }
+  };
+
+  if (toggleBtn) toggleBtn.addEventListener('click', toggleSidebar);
+  if (topbarToggleBtn) topbarToggleBtn.addEventListener('click', toggleSidebar);
+
+  backdrop.addEventListener('click', () => {
+    sidebar.classList.remove('mobile-open');
+    backdrop.classList.remove('active');
+  });
+
+  // Auto-close mobile drawer when navigation links are clicked
+  document.querySelectorAll('.sidebar .nav-link').forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        sidebar.classList.remove('mobile-open');
+        backdrop.classList.remove('active');
+      }
+    });
+  });
+});

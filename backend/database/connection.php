@@ -91,6 +91,8 @@ class Connection
             if (!$u1 || (strpos($u1['email'], 'ashikul') === false && strpos($u1['email'], 'ashik') === false)) {
                 $db->exec("UPDATE `devices` SET `user_id` = NULL WHERE `device_id` = 'pnw101' AND `user_id` = 1");
             }
+            // Purge fake demo telemetry seed rows for pnw101 so connecting device has zero demo data
+            $db->exec("DELETE FROM `telemetry` WHERE `device_id` = 'pnw101' AND (`voltage` = 230.50 OR `voltage` = 230.10 OR `energy` = 12.500 OR `energy` = 12.380 OR `recorded_at` < '2026-09-19 00:00:00')");
         } catch (\Throwable $e) {
             // Safe to ignore
         }

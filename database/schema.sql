@@ -82,23 +82,10 @@ CREATE TABLE IF NOT EXISTS `predictions` (
     KEY `idx_predictions_device_time` (`device_id`, `prediction_target_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ==========================================================
--- Initial Hardware Seed (Device: pnw101)
+-- Initial Hardware Seed (Device: pnw101 - ready for first user claiming)
 -- ==========================================================
 
 INSERT INTO `devices` (`id`, `user_id`, `device_id`, `device_name`, `status`, `created_at`)
 VALUES (1, NULL, 'pnw101', 'Main Panel (pnw101)', 'offline', NOW())
 ON DUPLICATE KEY UPDATE `status` = 'offline';
 
--- Seed initial telemetry samples for pnw101
-INSERT INTO `telemetry` (`device_id`, `voltage`, `current`, `power`, `energy`, `temperature`, `recorded_at`) VALUES
-('pnw101', 230.10, 4.65, 1.070, 12.380, 31.2, DATE_SUB(NOW(), INTERVAL 50 SECOND)),
-('pnw101', 230.25, 4.70, 1.082, 12.395, 31.3, DATE_SUB(NOW(), INTERVAL 45 SECOND)),
-('pnw101', 229.90, 4.80, 1.103, 12.410, 31.4, DATE_SUB(NOW(), INTERVAL 40 SECOND)),
-('pnw101', 230.40, 4.75, 1.094, 12.425, 31.4, DATE_SUB(NOW(), INTERVAL 35 SECOND)),
-('pnw101', 230.50, 4.82, 1.110, 12.440, 31.5, DATE_SUB(NOW(), INTERVAL 30 SECOND)),
-('pnw101', 230.30, 4.78, 1.100, 12.455, 31.5, DATE_SUB(NOW(), INTERVAL 25 SECOND)),
-('pnw101', 230.60, 4.85, 1.118, 12.470, 31.6, DATE_SUB(NOW(), INTERVAL 20 SECOND)),
-('pnw101', 230.50, 4.82, 1.110, 12.485, 31.6, DATE_SUB(NOW(), INTERVAL 15 SECOND)),
-('pnw101', 230.40, 4.80, 1.105, 12.495, 31.7, DATE_SUB(NOW(), INTERVAL 10 SECOND)),
-('pnw101', 230.50, 4.82, 1.110, 12.500, 31.6, DATE_SUB(NOW(), INTERVAL 5 SECOND));

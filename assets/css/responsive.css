@@ -19,25 +19,12 @@
   .dashboard-main-grid {
     grid-template-columns: 1fr;
   }
+  .charts-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
-  .sidebar {
-    width: 80px;
-    min-width: 80px;
-    padding: 20px 10px;
-  }
-  .brand-text, .nav-text, .widget-title, .widget-sub, .widget-btn {
-    display: none;
-  }
-  .brand-wrapper {
-    justify-content: center;
-    padding: 0 0 20px 0;
-  }
-  .nav-link {
-    justify-content: center;
-    padding: 12px;
-  }
   .main-content {
     padding: 20px 24px;
   }
@@ -46,30 +33,56 @@
 @media (max-width: 768px) {
   .app-container {
     flex-direction: column;
+    position: relative;
   }
   .sidebar {
-    width: 100%;
-    height: auto;
-    position: relative;
-    flex-direction: row;
-    align-items: center;
-    padding: 12px 16px;
-    border-right: none;
-    border-bottom: 1px solid var(--border-subtle);
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    height: 100vh;
+    width: 260px;
+    min-width: 260px;
+    z-index: 100;
+    transform: translateX(-100%);
+    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.04);
+    background-color: var(--bg-sidebar);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 24px 16px;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: none;
+    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .sidebar.mobile-open {
+    transform: translateX(0);
   }
   .brand-text {
-    display: inline-block;
+    display: inline-block !important;
   }
   .nav-menu {
-    flex-direction: row;
-    flex: none;
-    gap: 4px;
+    flex-direction: column;
+    flex: 1;
+    gap: 6px;
   }
-  .sidebar-divider, .sidebar-widget {
-    display: none;
+  .nav-text {
+    display: inline-block !important;
+  }
+  .sidebar-divider {
+    display: block !important;
+  }
+  .sidebar-widget {
+    display: block !important;
+  }
+  .sidebar-widget .widget-title,
+  .sidebar-widget .widget-sub,
+  .sidebar-widget .widget-btn {
+    display: block !important;
   }
   .main-content {
     padding: 16px;
+    width: 100%;
   }
   .top-bar {
     flex-direction: column;

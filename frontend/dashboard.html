@@ -21,15 +21,23 @@
     <aside class="sidebar">
       <div>
         <div class="brand-wrapper">
-          <div class="brand-icon">
-            <i class="fa-solid fa-bolt-lightning" style="font-size: 18px;"></i>
-          </div>
-          <div class="brand-text">Power<span>Net</span></div>
+          <a href="/dashboard" class="brand-logo-group">
+            <div class="brand-icon">
+              <i class="fa-solid fa-bolt-lightning" style="font-size: 18px;"></i>
+            </div>
+            <div class="brand-text">PowerNet</div>
+          </a>
+          <button class="sidebar-toggle-btn" id="btn-sidebar-toggle" title="Collapse sidebar" aria-label="Collapse sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect width="18" height="18" x="3" y="3" rx="3" ry="3"/>
+              <line x1="9" x2="9" y1="3" y2="21"/>
+            </svg>
+          </button>
         </div>
 
         <ul class="nav-menu">
           <li class="nav-item">
-            <a href="/dashboard" class="nav-link active" id="nav-dashboard">
+            <a href="/dashboard" class="nav-link active" id="nav-dashboard" data-tooltip="Analytics">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="3.5" y="3.5" width="7" height="7" rx="2.2"></rect>
@@ -42,7 +50,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="/devices" class="nav-link" id="nav-devices">
+            <a href="/devices" class="nav-link" id="nav-devices" data-tooltip="Devices">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <rect x="4" y="4" width="16" height="16" rx="3"></rect>
@@ -61,7 +69,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="/analytics" class="nav-link" id="nav-analytics">
+            <a href="/analytics" class="nav-link" id="nav-analytics" data-tooltip="Reports">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M3 3v18h18"></path>
@@ -72,7 +80,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="#logs-section" class="nav-link" id="nav-logs">
+            <a href="#logs-section" class="nav-link" id="nav-logs" data-tooltip="Telemetry Logs">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="8" y1="6" x2="21" y2="6"></line>
@@ -92,7 +100,7 @@
 
         <ul class="nav-menu">
           <li class="nav-item">
-            <a href="/devices" class="nav-link">
+            <a href="/devices" class="nav-link" data-tooltip="Settings">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <circle cx="12" cy="12" r="3"></circle>
@@ -103,7 +111,7 @@
             </a>
           </li>
           <li class="nav-item">
-            <a href="/login" class="nav-link" id="btn-logout" onclick="API.setToken(''); API.setUser(null);">
+            <a href="/login" class="nav-link" id="btn-logout" data-tooltip="Sign Out" onclick="API.setToken(''); API.setUser(null);">
               <div class="nav-icon">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
@@ -135,9 +143,16 @@
       <!-- Top Bar -->
       <header class="top-bar">
         <div class="page-title-group">
+          <button class="topbar-toggle-btn" id="btn-topbar-toggle" title="Toggle sidebar" aria-label="Toggle sidebar">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="4" x2="20" y1="6" y2="6"/>
+              <line x1="4" x2="20" y1="12" y2="12"/>
+              <line x1="4" x2="20" y1="18" y2="18"/>
+            </svg>
+          </button>
           <h1 class="page-title">Analytics</h1>
           <div class="date-pill" id="dashboard-date-range">
-            <span>01.09.2024 - 30.09.2024</span>
+            <span>--.--.----</span>
             <i class="fa-regular fa-calendar" style="margin-left: 6px; font-size: 13px;"></i>
           </div>
         </div>
@@ -155,7 +170,6 @@
           <div class="live-pulse-badge">
             <span class="pulse-dot offline" id="status-pulse-dot"></span>
             <span id="status-text">Disconnected</span>
-            <span style="color: var(--text-muted); font-size: 11px;" id="status-last-seen">&bull; No Device Linked</span>
           </div>
 
           <div class="user-profile">
@@ -328,34 +342,48 @@
         </div>
       </section>
 
-      <!-- Main Visual Grid: Bar Chart & Waveform Load Curve + Logs -->
+      <!-- Main Visual Grid: Charts Row + Logs Below -->
       <section class="dashboard-main-grid">
-        <!-- Left Column: Bar Chart + Waveform Curve -->
-        <div>
+        <!-- Top Row: Power Dynamics + Overall Load Waveform side by side -->
+        <div class="charts-row">
           <div class="chart-card">
             <div class="chart-header">
               <h2 class="chart-title"><i class="fa-solid fa-chart-column" style="margin-right: 8px; color: var(--primary);"></i> Power Dynamics</h2>
-              <div class="chart-filter-pill">
-                <span>Current Cycle</span>
-                <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i>
+              <div class="chart-controls">
+                <div class="chart-switcher" id="power-unit-switcher">
+                  <button class="sw-btn active" data-unit="kw">kW</button>
+                  <button class="sw-btn" data-unit="kwh">kWh</button>
+                </div>
+                <div class="chart-switcher" id="power-range-switcher">
+                  <button class="sw-btn active" data-range="7d">7D</button>
+                  <button class="sw-btn" data-range="30d">30D</button>
+                  <button class="sw-btn" data-range="12m">12M</button>
+                </div>
               </div>
             </div>
-            <div class="bar-chart-visual" id="bar-chart-container"></div>
+            <div class="bar-chart-visual" id="bar-chart-container">
+              <div class="skeleton-chart"></div>
+            </div>
           </div>
 
           <div class="chart-card">
             <div class="chart-header">
-              <h2 class="chart-title"><i class="fa-solid fa-chart-line" style="margin-right: 8px; color: #8B5CF6;"></i> Overall Load Waveform</h2>
-              <div class="chart-filter-pill">
-                <span>Live Sampling</span>
-                <i class="fa-solid fa-chevron-down" style="font-size: 10px; margin-left: 4px;"></i>
+              <h2 class="chart-title"><i class="fa-solid fa-chart-line" style="margin-right: 8px; color: #8B5CF6;"></i> Live Waveform</h2>
+              <div class="chart-switcher" id="waveform-metric-switcher">
+                <button class="sw-btn active" data-metric="voltage">Voltage</button>
+                <button class="sw-btn" data-metric="current">Current</button>
+                <button class="sw-btn" data-metric="power">Power</button>
+                <button class="sw-btn" data-metric="energy">Energy</button>
+                <button class="sw-btn" data-metric="temperature">Temp</button>
               </div>
             </div>
-            <div class="waveform-canvas-container" id="waveform-container"></div>
+            <div class="waveform-canvas-container" id="waveform-container">
+              <div class="skeleton-chart"></div>
+            </div>
           </div>
         </div>
 
-        <!-- Right Column: Telemetry Event Logs Table -->
+        <!-- Bottom Row: Telemetry Event Logs spanning full width -->
         <div id="logs-section">
           <div class="logs-card">
             <div class="logs-header">

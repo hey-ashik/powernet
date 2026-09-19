@@ -107,14 +107,23 @@ button, input, select, textarea {
   top: 0;
   height: 100vh;
   z-index: 50;
-  transition: width var(--transition-normal);
+  transition: width 0.25s cubic-bezier(0.4, 0, 0.2, 1), min-width 0.25s cubic-bezier(0.4, 0, 0.2, 1), padding 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow-x: hidden;
 }
 
 .brand-wrapper {
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 8px 24px 8px;
+}
+
+.brand-logo-group {
+  display: flex;
+  align-items: center;
   gap: 12px;
-  padding: 0 12px 28px 12px;
+  text-decoration: none;
 }
 
 .brand-icon {
@@ -127,17 +136,147 @@ button, input, select, textarea {
   justify-content: center;
   color: #FFFFFF;
   box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+  flex-shrink: 0;
 }
 
+/* Brand Text: Bold Black, zero gradient or AI slop look */
 .brand-text {
   font-size: 20px;
   font-weight: 800;
   letter-spacing: -0.5px;
-  color: var(--text-primary);
+  color: #0F172A;
 }
 
 .brand-text span {
-  color: var(--primary);
+  color: #0F172A;
+}
+
+/* Sidebar Toggle Buttons (ChatGPT & Gemini style) */
+.sidebar-toggle-btn {
+  background: transparent;
+  border: none;
+  color: #64748B;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.sidebar-toggle-btn:hover {
+  background-color: #F1F5F9;
+  color: #0F172A;
+}
+
+.topbar-toggle-btn {
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  color: #334155;
+  cursor: pointer;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.topbar-toggle-btn:hover {
+  background-color: #F8FAFC;
+  color: #0F172A;
+  border-color: #CBD5E1;
+}
+
+/* Collapsed Sidebar Mode (ChatGPT & Gemini style) */
+.app-container.sidebar-collapsed .sidebar {
+  width: 76px;
+  min-width: 76px;
+  padding: 24px 12px;
+}
+
+.app-container.sidebar-collapsed .brand-text,
+.app-container.sidebar-collapsed .nav-text,
+.app-container.sidebar-collapsed .sidebar-widget .widget-title,
+.app-container.sidebar-collapsed .sidebar-widget .widget-sub,
+.app-container.sidebar-collapsed .sidebar-widget .btn-label-connected,
+.app-container.sidebar-collapsed .sidebar-widget .btn-label-disconnect,
+.app-container.sidebar-collapsed .sidebar-divider,
+.app-container.sidebar-collapsed .brand-wrapper .sidebar-toggle-btn {
+  display: none !important;
+}
+
+.app-container.sidebar-collapsed .brand-wrapper {
+  justify-content: center;
+  padding: 0 0 24px 0;
+}
+
+.app-container.sidebar-collapsed .nav-link {
+  justify-content: center;
+  padding: 12px;
+  position: relative;
+}
+
+.app-container.sidebar-collapsed .sidebar-widget {
+  padding: 10px 4px;
+  background: transparent;
+  border: none;
+}
+
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn {
+  padding: 10px;
+  font-size: 0;
+  border-radius: 12px;
+  justify-content: center;
+}
+
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn i {
+  margin: 0 !important;
+  font-size: 14px;
+}
+
+/* Hover tooltips when sidebar is collapsed */
+@media (min-width: 769px) {
+  .app-container.sidebar-collapsed .nav-link[data-tooltip]:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: calc(100% + 12px);
+    top: 50%;
+    transform: translateY(-50%);
+    background: #0F172A;
+    color: #FFFFFF;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    z-index: 1000;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+    pointer-events: none;
+  }
+}
+
+/* Mobile drawer backdrop */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.sidebar-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 .nav-menu {
@@ -239,21 +378,57 @@ button, input, select, textarea {
 }
 
 .widget-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 9px 16px;
   background-color: var(--primary);
   color: #FFFFFF;
-  border: none;
   border-radius: var(--radius-pill);
-  padding: 8px 16px;
-  font-size: 12.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  border: none;
   cursor: pointer;
-  transition: background var(--transition-fast);
-  display: inline-block;
-  width: 100%;
 }
 
 .widget-btn:hover {
   background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.widget-btn.connected {
+  background: #16A34A !important;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35) !important;
+  cursor: pointer;
+}
+
+.widget-btn.connected:hover {
+  background: #DC2626 !important;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35) !important;
+}
+
+.widget-btn.connected .btn-label-connected {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.widget-btn.connected .btn-label-disconnect {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.widget-btn.connected:hover .btn-label-connected {
+  display: none;
+}
+
+.widget-btn.connected:hover .btn-label-disconnect {
+  display: inline-flex;
 }
 
 /* Main Content Area */

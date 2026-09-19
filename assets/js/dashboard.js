@@ -14,19 +14,38 @@ const Dashboard = {
   activeDeviceId: null,
   activeDevice: null,
   hasDevice: false,
-  historicalWaveData: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+
+  // Chart state
+  powerUnit: 'kw',     // 'kw' or 'kwh'
+  powerRange: '7d',    // '7d', '30d', '12m'
+  waveMetric: 'voltage', // 'voltage', 'current', 'power', 'energy', 'temperature'
+  historyData: [],       // cached history points from API
+  waveHistory: { voltage: [], current: [], power: [], energy: [], temperature: [] },
 
   async init() {
     this.loadUserProfile();
     this.updateDateRange();
     this.initEventListeners();
+    this.initChartSwitchers();
     await this.checkUserDevices();
 
+    // Sync devices on tab visibility change or window focus
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.checkUserDevices(true);
+      }
+    });
+    window.addEventListener('focus', () => {
+      this.checkUserDevices(true);
+    });
+
     // Start 10-second polling loop
-    this.pollTimer = setInterval(() => {
+    this.pollTimer = setInterval(async () => {
+      this.updateDateRange(); // Automatically syncs today's date across midnight
+      await this.checkUserDevices(true);
       if (this.hasDevice && this.activeDeviceId) {
-        this.fetchLatestTelemetry();
-        this.fetchLogs();
+        await this.fetchLatestTelemetry();
+        await this.fetchLogs();
       }
     }, this.pollIntervalMs);
   },
@@ -69,72 +88,383 @@ const Dashboard = {
   updateDateRange() {
     const el = document.getElementById('dashboard-date-range');
     if (!el) return;
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const lastDay = new Date(year, now.getMonth() + 1, 0).getDate();
-    el.innerHTML = `<span>01.${month}.${year} - ${lastDay}.${month}.${year}</span><i class="fa-regular fa-calendar" style="margin-left: 6px; font-size: 13px;"></i>`;
+    try {
+      // Calculate today's date in Bangladesh timezone (Asia/Dhaka, UTC+6)
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: 'Asia/Dhaka',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).formatToParts(new Date());
+
+      const day = parts.find(p => p.type === 'day')?.value || '01';
+      const month = parts.find(p => p.type === 'month')?.value || '01';
+      const year = parts.find(p => p.type === 'year')?.value || '2026';
+      const bdDate = `${day}.${month}.${year}`;
+
+      el.innerHTML = `<span>${bdDate}</span><i class="fa-regular fa-calendar" style="margin-left: 6px; font-size: 13px;"></i>`;
+    } catch {
+      const now = new Date();
+      const bdDate = `${String(now.getDate()).padStart(2, '0')}.${String(now.getMonth() + 1).padStart(2, '0')}.${now.getFullYear()}`;
+      el.innerHTML = `<span>${bdDate}</span><i class="fa-regular fa-calendar" style="margin-left: 6px; font-size: 13px;"></i>`;
+    }
   },
 
-  async checkUserDevices() {
+  // ─── Chart Switcher Wiring ────────────────────────────────
+  initChartSwitchers() {
+    // Power unit switcher (kW / kWh)
+    const unitSwitcher = document.getElementById('power-unit-switcher');
+    if (unitSwitcher) {
+      unitSwitcher.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sw-btn');
+        if (!btn || btn.classList.contains('active')) return;
+        unitSwitcher.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.powerUnit = btn.dataset.unit;
+        this.renderBarChartFromHistory();
+      });
+    }
+
+    // Power time range switcher (7D / 30D / 12M)
+    const rangeSwitcher = document.getElementById('power-range-switcher');
+    if (rangeSwitcher) {
+      rangeSwitcher.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sw-btn');
+        if (!btn || btn.classList.contains('active')) return;
+        rangeSwitcher.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.powerRange = btn.dataset.range;
+        this.fetchBarChartHistory();
+      });
+    }
+
+    // Waveform metric switcher
+    const metricSwitcher = document.getElementById('waveform-metric-switcher');
+    if (metricSwitcher) {
+      metricSwitcher.addEventListener('click', (e) => {
+        const btn = e.target.closest('.sw-btn');
+        if (!btn || btn.classList.contains('active')) return;
+        metricSwitcher.querySelectorAll('.sw-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.waveMetric = btn.dataset.metric;
+        this.renderWaveformChart();
+      });
+    }
+  },
+
+  // ─── History Fetch for Bar Chart ──────────────────────────
+  async fetchBarChartHistory() {
+    if (!this.activeDeviceId) {
+      this.historyData = [];
+      this.renderBarChartFromHistory();
+      return;
+    }
+
+    // Show skeleton
+    const container = document.getElementById('bar-chart-container');
+    if (container) container.innerHTML = '<div class="skeleton-chart"></div>';
+
+    // Map UI range to API range
+    const rangeMap = { '7d': '7d', '30d': '30d', '12m': '12m' };
+    const apiRange = rangeMap[this.powerRange] || '7d';
+
+    try {
+      const res = await API.request(`/telemetry/history.php?device_id=${this.activeDeviceId}&range=${apiRange}`);
+      this.historyData = (res && res.data && res.data.points) ? res.data.points : [];
+    } catch {
+      this.historyData = [];
+    }
+    this.renderBarChartFromHistory();
+  },
+
+  // ─── Render Bar Chart from History ────────────────────────
+  renderBarChartFromHistory() {
+    const chartContainer = document.getElementById('bar-chart-container');
+    if (!chartContainer) return;
+
+    const points = this.historyData;
+    const unit = this.powerUnit; // 'kw' or 'kwh'
+    const range = this.powerRange;
+
+    // Build buckets based on range
+    let buckets = [];
+
+    if (range === '1d') {
+      // 24 hour buckets
+      for (let h = 0; h < 24; h++) {
+        const label = String(h).padStart(2, '0') + ':00';
+        buckets.push({ label, value: 0 });
+      }
+      points.forEach(p => {
+        const d = new Date(p.bucket_time);
+        const h = d.getHours();
+        if (h >= 0 && h < 24) {
+          buckets[h].value += unit === 'kwh' ? Number(p.max_energy || 0) : Number(p.avg_power || 0);
+          // ponytail: avg across samples sharing the same hour bucket; good enough for bar heights
+        }
+      });
+    } else if (range === '7d') {
+      const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const today = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().substring(0, 10);
+        buckets.push({ label: dayNames[d.getDay()], value: 0, key });
+      }
+      points.forEach(p => {
+        const key = (p.bucket_time || '').substring(0, 10);
+        const bucket = buckets.find(b => b.key === key);
+        if (bucket) {
+          bucket.value += unit === 'kwh' ? Number(p.max_energy || 0) : Number(p.avg_power || 0);
+          bucket._count = (bucket._count || 0) + 1;
+        }
+      });
+      // Average for kW
+      if (unit === 'kw') buckets.forEach(b => { if (b._count > 1) b.value /= b._count; });
+    } else if (range === '30d') {
+      const today = new Date();
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const key = d.toISOString().substring(0, 10);
+        const label = String(d.getDate()).padStart(2, '0');
+        buckets.push({ label, value: 0, key });
+      }
+      points.forEach(p => {
+        const key = (p.bucket_time || '').substring(0, 10);
+        const bucket = buckets.find(b => b.key === key);
+        if (bucket) {
+          bucket.value += unit === 'kwh' ? Number(p.max_energy || 0) : Number(p.avg_power || 0);
+          bucket._count = (bucket._count || 0) + 1;
+        }
+      });
+      if (unit === 'kw') buckets.forEach(b => { if (b._count > 1) b.value /= b._count; });
+    } else {
+      // 12m — show month names
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      const today = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+        const key = d.toISOString().substring(0, 7); // YYYY-MM
+        buckets.push({ label: monthNames[d.getMonth()], value: 0, key });
+      }
+      points.forEach(p => {
+        const key = (p.bucket_time || '').substring(0, 7);
+        const bucket = buckets.find(b => b.key === key);
+        if (bucket) {
+          bucket.value += unit === 'kwh' ? Number(p.max_energy || 0) : Number(p.avg_power || 0);
+          bucket._count = (bucket._count || 0) + 1;
+        }
+      });
+      if (unit === 'kw') buckets.forEach(b => { if (b._count > 1) b.value /= b._count; });
+    }
+
+    // Calculate max for scaling
+    const maxVal = Math.max(...buckets.map(b => b.value), 0.001);
+
+    // Build Y-axis labels
+    const yLabels = [];
+    for (let i = 4; i >= 0; i--) {
+      const v = (maxVal * i) / 4;
+      yLabels.push(v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(v < 1 ? 2 : 1));
+    }
+
+    let html = `<div class="chart-y-axis">${yLabels.map(l => `<span>${l}</span>`).join('')}</div>`;
+
+    // Limit visible bars to avoid overcrowding
+    const showEvery = buckets.length > 24 ? 2 : 1;
+
+    buckets.forEach((b, idx) => {
+      const pct = maxVal > 0 ? Math.round((b.value / maxVal) * 100) : 0;
+      const showLabel = idx % showEvery === 0;
+      html += `
+        <div class="bar-column-group">
+          <div class="bar-track">
+            ${pct > 0 ? `<div class="bar-fill" style="height: ${Math.max(2, pct)}%;"></div>` : ''}
+          </div>
+          <span class="bar-label" ${!showLabel ? 'style="visibility:hidden;"' : ''}>${b.label}</span>
+        </div>
+      `;
+    });
+
+    chartContainer.innerHTML = html;
+  },
+
+  // ─── Waveform Chart ───────────────────────────────────────
+  renderWaveformChart() {
+    const container = document.getElementById('waveform-container');
+    if (!container) return;
+
+    const metric = this.waveMetric;
+    const points = this.waveHistory[metric] || [];
+
+    // Colors per metric
+    const colors = {
+      voltage: '#2563EB',
+      current: '#F59E0B',
+      power: '#8B5CF6',
+      energy: '#10B981',
+      temperature: '#EF4444'
+    };
+    const color = colors[metric] || '#8B5CF6';
+
+    if (points.length < 2) {
+      // Zero state
+      const units = { voltage: 'V', current: 'A', power: 'kW', energy: 'kWh', temperature: '°C' };
+      container.innerHTML = `
+        <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94A3B8;font-size:13px;flex-direction:column;gap:8px;">
+          <i class="fa-solid fa-wave-square" style="font-size:28px;color:${color};opacity:0.4;"></i>
+          <span>Waiting for live ${metric} data (${units[metric]})</span>
+        </div>
+      `;
+      return;
+    }
+
+    // Scale: find max for the current metric
+    const maxVal = Math.max(...points, 0.01) * 1.15;
+    const width = 600;
+    const height = 180;
+    const stepX = width / (points.length - 1);
+
+    let pathD = `M 0 ${height - (points[0] / maxVal) * (height - 30)}`;
+    for (let i = 1; i < points.length; i++) {
+      const xPrev = (i - 1) * stepX;
+      const yPrev = height - (points[i - 1] / maxVal) * (height - 30);
+      const xCurr = i * stepX;
+      const yCurr = height - (points[i] / maxVal) * (height - 30);
+      const xMid = (xPrev + xCurr) / 2;
+      pathD += ` C ${xMid} ${yPrev}, ${xMid} ${yCurr}, ${xCurr} ${yCurr}`;
+    }
+
+    const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
+    const lastY = height - (points[points.length - 1] / maxVal) * (height - 30);
+
+    container.innerHTML = `
+      <svg viewBox="0 0 ${width} ${height}" style="width:100%;height:100%;overflow:visible;">
+        <defs>
+          <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${color}" stop-opacity="0.25"/>
+            <stop offset="100%" stop-color="${color}" stop-opacity="0.0"/>
+          </linearGradient>
+        </defs>
+        <line x1="0" y1="30" x2="${width}" y2="30" stroke="#F1F5F9" stroke-width="1.5" stroke-dasharray="4,4" />
+        <line x1="0" y1="90" x2="${width}" y2="90" stroke="#F1F5F9" stroke-width="1.5" stroke-dasharray="4,4" />
+        <line x1="0" y1="150" x2="${width}" y2="150" stroke="#F1F5F9" stroke-width="1.5" stroke-dasharray="4,4" />
+        <path d="${areaD}" fill="url(#waveGradient)" />
+        <path d="${pathD}" fill="none" stroke="${color}" stroke-width="3" stroke-linecap="round" />
+        <circle cx="${width}" cy="${lastY}" r="5" fill="${color}" stroke="#FFFFFF" stroke-width="2.5" />
+      </svg>
+    `;
+  },
+
+  pushWaveformPoint(data) {
+    const maxPoints = 20;
+    const fields = ['voltage', 'current', 'power', 'energy', 'temperature'];
+    fields.forEach(f => {
+      const val = Number(data[f] || 0);
+      if (!this.waveHistory[f]) this.waveHistory[f] = [];
+      this.waveHistory[f].push(val);
+      if (this.waveHistory[f].length > maxPoints) this.waveHistory[f].shift();
+    });
+    this.renderWaveformChart();
+  },
+
+  // ─── Device Check & Sidebar ───────────────────────────────
+  async checkUserDevices(isBackground = false) {
     try {
       const res = await API.request('/devices/list.php');
       if (res && res.data && res.data.length > 0) {
-        // User has a connected device!
+        const dev = res.data[0];
+        const wasUnconnected = !this.hasDevice || this.activeDeviceId !== dev.device_id;
         this.hasDevice = true;
-        this.activeDevice = res.data[0];
-        this.activeDeviceId = res.data[0].device_id;
+        this.activeDevice = dev;
+        this.activeDeviceId = dev.device_id;
         this.updateSidebarWidget(this.activeDevice);
-        await this.fetchLatestTelemetry();
-        await this.fetchLogs();
+
+        if (wasUnconnected || !isBackground) {
+          await this.fetchLatestTelemetry();
+          await this.fetchLogs();
+          await this.fetchBarChartHistory();
+        }
       } else {
-        // Brand new user — no devices linked, show clean zero state (NO demo data)
+        const wasConnected = this.hasDevice;
         this.hasDevice = false;
         this.activeDevice = null;
         this.activeDeviceId = null;
         this.updateSidebarWidget(null);
-        this.renderZeroState();
+        if (wasConnected || !isBackground) {
+          this.renderZeroState();
+        }
       }
     } catch (err) {
-      console.warn('Could not verify user devices:', err);
-      this.hasDevice = false;
-      this.updateSidebarWidget(null);
-      this.renderZeroState();
+      if (!isBackground) {
+        console.warn('Could not verify user devices:', err);
+        this.hasDevice = false;
+        this.updateSidebarWidget(null);
+        this.renderZeroState();
+      }
     }
   },
 
   updateSidebarWidget(device) {
     const titleEl = document.querySelector('.sidebar-widget .widget-title');
     const subEl = document.querySelector('.sidebar-widget .widget-sub');
-    const btnEl = document.getElementById('btn-open-connect');
+    const btnEl = document.getElementById('btn-open-connect') || document.getElementById('btn-sidebar-connect');
 
     if (device) {
-      if (titleEl) titleEl.textContent = device.device_name || 'ESP32 DevKit V1';
+      if (titleEl) titleEl.textContent = device.device_name || `ESP32 (${device.device_id})`;
       if (subEl) subEl.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${device.device_id}`;
       if (btnEl) {
-        btnEl.innerHTML = `<i class="fa-solid fa-circle-check" style="margin-right:6px;"></i> Connected`;
+        btnEl.className = 'widget-btn connected';
+        btnEl.setAttribute('title', 'Click to Disconnect');
         btnEl.style.background = '#16A34A';
         btnEl.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.35)';
+        btnEl.innerHTML = `
+          <span class="btn-label-connected"><i class="fa-solid fa-circle-check"></i> Connected</span>
+          <span class="btn-label-disconnect"><i class="fa-solid fa-link-slash"></i> Disconnect</span>
+        `;
       }
     } else {
       if (titleEl) titleEl.textContent = 'ESP32 DevKit V1';
       if (subEl) subEl.textContent = 'No device connected';
       if (btnEl) {
-        btnEl.innerHTML = `<i class="fa-solid fa-link" style="margin-right:6px;"></i> Connect Device`;
+        btnEl.className = 'widget-btn';
+        btnEl.removeAttribute('title');
         btnEl.style.background = 'var(--primary)';
         btnEl.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)';
+        btnEl.innerHTML = `<i class="fa-solid fa-link" style="margin-right:6px;"></i> Connect Device`;
       }
     }
   },
 
+  async disconnectDevice(devId) {
+    try {
+      // 1. Immediately update UI state in REAL TIME
+      this.hasDevice = false;
+      this.activeDevice = null;
+      this.activeDeviceId = null;
+      this.updateSidebarWidget(null);
+      this.renderZeroState();
+
+      // 2. Call backend
+      await API.request('/devices/remove.php', {
+        method: 'POST',
+        body: JSON.stringify({ device_id: devId })
+      });
+      API.showToast(`Device '${devId}' disconnected successfully.`, 'info');
+    } catch (err) {
+      API.showToast(err.message || 'Could not disconnect device', 'error');
+      await this.checkUserDevices(true);
+    }
+  },
+
   renderZeroState() {
-    // Reset top status badge
+    // Reset top status badge: only Connected or Disconnected
     const statusDot = document.getElementById('status-pulse-dot');
     const statusText = document.getElementById('status-text');
-    const lastSeenText = document.getElementById('status-last-seen');
     if (statusDot) statusDot.className = 'pulse-dot offline';
     if (statusText) statusText.textContent = 'Disconnected';
-    if (lastSeenText) lastSeenText.textContent = '• No Device Linked';
 
     // Zero out all metric cards
     const elVoltage = document.getElementById('metric-voltage');
@@ -157,11 +487,12 @@ const Dashboard = {
     // Empty Donuts (0%)
     this.renderDonuts(0, 0);
 
-    // Empty Bar Chart (0% heights)
-    this.renderBarChart(true);
+    // Empty Bar Chart
+    this.historyData = [];
+    this.renderBarChartFromHistory();
 
     // Flat Waveform
-    this.historicalWaveData = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    this.waveHistory = { voltage: [], current: [], power: [], energy: [], temperature: [] };
     this.renderWaveformChart();
 
     // Clean empty logs table
@@ -200,19 +531,25 @@ const Dashboard = {
 
     if (btnOpenConnect && modal) {
       btnOpenConnect.addEventListener('click', () => {
-        if (this.hasDevice && this.activeDevice) {
-          // Pre-populate with existing device ID
-          const devIdInput = document.getElementById('input-device-id');
-          if (devIdInput) devIdInput.value = this.activeDevice.device_id;
-          const devNameInput = document.getElementById('input-device-name');
-          if (devNameInput) devNameInput.value = this.activeDevice.device_name || '';
+        if (this.hasDevice && this.activeDeviceId) {
+          // Device is already connected: prompt to disconnect in real time
+          if (confirm(`Disconnect device '${this.activeDeviceId}' from your account?`)) {
+            this.disconnectDevice(this.activeDeviceId);
+          }
+          return;
         }
+
+        // Open connect modal
+        const devIdInput = document.getElementById('input-device-id');
+        if (devIdInput) devIdInput.value = 'pnw101';
         modal.classList.add('active');
       });
     }
+
     if (btnCloseModal && modal) {
       btnCloseModal.addEventListener('click', () => modal.classList.remove('active'));
     }
+
     if (formConnect) {
       formConnect.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -224,6 +561,12 @@ const Dashboard = {
           return;
         }
 
+        const submitBtn = formConnect.querySelector('button[type="submit"]');
+        if (submitBtn) {
+          submitBtn.disabled = true;
+          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+        }
+
         try {
           const res = await API.request('/devices/connect.php', {
             method: 'POST',
@@ -233,13 +576,30 @@ const Dashboard = {
             })
           });
 
-          API.showToast(res.message || `Device '${devId}' connected successfully!`, 'success');
+          // 1. Immediately update UI state in REAL TIME
           modal.classList.remove('active');
+          this.hasDevice = true;
+          this.activeDeviceId = devId;
+          this.activeDevice = {
+            device_id: devId,
+            device_name: devName || `Main Panel (${devId})`
+          };
+          this.updateSidebarWidget(this.activeDevice);
 
-          // Refresh device list and immediately show connected state + live data
-          await this.checkUserDevices();
+          API.showToast(res.message || `Device '${devId}' connected successfully!`, 'success');
+
+          // 2. Refresh telemetry & logs immediately
+          await this.fetchLatestTelemetry();
+          await this.fetchLogs();
+          await this.fetchBarChartHistory();
+          await this.checkUserDevices(true);
         } catch (err) {
           API.showToast(err.message, 'error');
+        } finally {
+          if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<i class="fa-solid fa-link" style="margin-right: 8px;"></i> Connect ESP32';
+          }
         }
       });
     }
@@ -311,19 +671,16 @@ const Dashboard = {
       elPeak.textContent = `${powerNum.toFixed(3)} kW`;
     }
 
-    // 9. Status & Pulse
+    // 9. Status & Pulse: only Connected or Disconnected
     const statusDot = document.getElementById('status-pulse-dot');
     const statusText = document.getElementById('status-text');
-    const lastSeenText = document.getElementById('status-last-seen');
 
-    if (isOnline) {
+    if (this.hasDevice) {
       if (statusDot) statusDot.className = 'pulse-dot';
-      if (statusText) statusText.textContent = 'Online';
-      if (lastSeenText) lastSeenText.textContent = `• ${data.last_seen_relative || '5s sync'}`;
+      if (statusText) statusText.textContent = 'Connected';
     } else {
       if (statusDot) statusDot.className = 'pulse-dot offline';
-      if (statusText) statusText.textContent = 'Connected';
-      if (lastSeenText) lastSeenText.textContent = `• ${data.last_seen_relative || 'Awaiting ESP32 packets'}`;
+      if (statusText) statusText.textContent = 'Disconnected';
     }
 
     // Update Donuts with real ratios
@@ -331,13 +688,8 @@ const Dashboard = {
     const energyPct = Math.min(100, Math.round((energyNum / 25.0) * 100));
     this.renderDonuts(powerPct, energyPct);
 
-    // Update Bar Chart
-    this.renderBarChart(false, powerNum);
-
-    // Shift Waveform
-    if (powerNum > 0) {
-      this.shiftWaveformData(powerNum);
-    }
+    // Push live data to waveform
+    this.pushWaveformPoint(data);
   },
 
   renderDonuts(powerPct = 0, energyPct = 0) {
@@ -364,92 +716,6 @@ const Dashboard = {
         </svg>
       `;
     }
-  },
-
-  renderBarChart(isZero = false, currentKw = 0) {
-    const chartContainer = document.getElementById('bar-chart-container');
-    if (!chartContainer) return;
-
-    const months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-    let heights = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-
-    if (!isZero && currentKw > 0) {
-      // Dynamic bars based on telemetry
-      const activeHeight = Math.min(95, Math.max(25, Math.round((currentKw / 4.0) * 100)));
-      heights = [20, 25, 30, 35, 45, 50, 40, 35, 55, 60, 70, activeHeight];
-    }
-
-    let html = `
-      <div class="chart-y-axis">
-        <span>4.0k</span>
-        <span>3.0k</span>
-        <span>2.0k</span>
-        <span>1.0k</span>
-        <span>0</span>
-      </div>
-    `;
-
-    months.forEach((m, idx) => {
-      const h = heights[idx];
-      html += `
-        <div class="bar-column-group">
-          <div class="bar-track">
-            ${h > 0 ? `<div class="bar-fill" style="height: ${h}%;"></div>` : ''}
-          </div>
-          <span class="bar-label">${m}</span>
-        </div>
-      `;
-    });
-
-    chartContainer.innerHTML = html;
-  },
-
-  renderWaveformChart() {
-    const container = document.getElementById('waveform-container');
-    if (!container) return;
-
-    const points = this.historicalWaveData;
-    const maxVal = 450;
-    const width = 600;
-    const height = 180;
-    const stepX = width / (points.length - 1);
-
-    let pathD = `M 0 ${height - (points[0] / maxVal) * (height - 30)}`;
-    for (let i = 1; i < points.length; i++) {
-      const xPrev = (i - 1) * stepX;
-      const yPrev = height - (points[i - 1] / maxVal) * (height - 30);
-      const xCurr = i * stepX;
-      const yCurr = height - (points[i] / maxVal) * (height - 30);
-      const xMid = (xPrev + xCurr) / 2;
-      pathD += ` C ${xMid} ${yPrev}, ${xMid} ${yCurr}, ${xCurr} ${yCurr}`;
-    }
-
-    const areaD = `${pathD} L ${width} ${height} L 0 ${height} Z`;
-
-    container.innerHTML = `
-      <svg viewBox="0 0 ${width} ${height}" style="width:100%;height:100%;overflow:visible;">
-        <defs>
-          <linearGradient id="waveGradient" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#C084FC" stop-opacity="0.35"/>
-            <stop offset="100%" stop-color="#C084FC" stop-opacity="0.0"/>
-          </linearGradient>
-        </defs>
-        <line x1="0" y1="30" x2="${width}" y2="30" stroke="#F1F5F9" stroke-width="1.5" stroke-dasharray="4,4" />
-        <line x1="0" y1="90" x2="${width}" y2="90" stroke="#F1F5F9" stroke-width="1.5" stroke-dasharray="4,4" />
-        <line x1="0" y1="150" x2="${width}" y2="150" stroke="#F1F5F9" stroke-width="1.5" stroke-dasharray="4,4" />
-
-        <path d="${areaD}" fill="url(#waveGradient)" />
-        <path d="${pathD}" fill="none" stroke="#C084FC" stroke-width="4" stroke-linecap="round" />
-        <circle cx="${width}" cy="${height - (points[points.length - 1] / maxVal) * (height - 30)}" r="6" fill="#A855F7" stroke="#FFFFFF" stroke-width="3" />
-      </svg>
-    `;
-  },
-
-  shiftWaveformData(latestKw) {
-    const val = Math.min(440, Math.max(120, Math.round(latestKw * 280)));
-    this.historicalWaveData.shift();
-    this.historicalWaveData.push(val);
-    this.renderWaveformChart();
   },
 
   renderLogsTable(logs) {

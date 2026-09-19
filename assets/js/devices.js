@@ -76,11 +76,22 @@ async function loadDevices() {
   try {
     const res = await API.request('/devices/list.php');
     if (res && res.data && res.data.length > 0) {
-      if (widgetTitle) widgetTitle.textContent = res.data[0].device_name || 'ESP32 DevKit V1';
-      if (widgetSub) widgetSub.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${res.data[0].device_id}`;
+      const dev = res.data[0];
+      if (widgetTitle) widgetTitle.textContent = dev.device_name || `ESP32 (${dev.device_id})`;
+      if (widgetSub) widgetSub.innerHTML = `<span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${dev.device_id}`;
       if (widgetBtn) {
-        widgetBtn.innerHTML = `<i class="fa-solid fa-circle-check" style="margin-right:6px;"></i> Connected`;
+        widgetBtn.className = 'widget-btn connected';
+        widgetBtn.setAttribute('title', 'Click to Disconnect');
         widgetBtn.style.background = '#16A34A';
+        widgetBtn.style.boxShadow = '0 4px 12px rgba(22, 163, 74, 0.35)';
+        widgetBtn.innerHTML = `
+          <span class="btn-label-connected"><i class="fa-solid fa-circle-check"></i> Connected</span>
+          <span class="btn-label-disconnect"><i class="fa-solid fa-link-slash"></i> Disconnect</span>
+        `;
+        widgetBtn.onclick = (e) => {
+          e.preventDefault();
+          removeDevice(dev.device_id);
+        };
       }
 
       container.innerHTML = res.data.map(dev => `
@@ -122,8 +133,16 @@ async function loadDevices() {
       if (widgetTitle) widgetTitle.textContent = 'ESP32 DevKit V1';
       if (widgetSub) widgetSub.textContent = 'No device connected';
       if (widgetBtn) {
-        widgetBtn.innerHTML = `<i class="fa-solid fa-link" style="margin-right:6px;"></i> Connect Device`;
+        widgetBtn.className = 'widget-btn';
+        widgetBtn.removeAttribute('title');
         widgetBtn.style.background = 'var(--primary)';
+        widgetBtn.style.boxShadow = '0 4px 14px rgba(37, 99, 235, 0.3)';
+        widgetBtn.innerHTML = `<i class="fa-solid fa-link" style="margin-right:6px;"></i> Connect Device`;
+        widgetBtn.onclick = (e) => {
+          e.preventDefault();
+          const inp = document.getElementById('device_id');
+          if (inp) inp.focus();
+        };
       }
 
       container.innerHTML = `

@@ -20,6 +20,7 @@ let localUser = {
 };
 
 let localDevices = [];
+let localTelemetry = [];
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=UTF-8',
@@ -112,17 +113,19 @@ const server = http.createServer((req, res) => {
       }
 
       if (apiRoute === '/api/telemetry/latest') {
+        const queryDevId = parsedUrl.searchParams.get('device_id') || 'pnw101';
+        const latest = (localTelemetry && localTelemetry.length > 0) ? localTelemetry[localTelemetry.length - 1] : null;
         res.end(JSON.stringify({
           success: true,
-          data: {
-            device_id: 'pnw101',
-            voltage: 230.2,
-            current: 4.82,
-            power: 1.110,
-            energy: 12.450,
-            temperature: 31.5,
-            is_online: true,
-            last_seen_relative: '5s sync'
+          data: latest || {
+            device_id: queryDevId,
+            voltage: 0.0,
+            current: 0.0,
+            power: 0.0,
+            energy: 0.0,
+            temperature: null,
+            is_online: false,
+            last_seen_relative: 'Waiting for ESP32 packets'
           }
         }));
         return;
@@ -131,9 +134,16 @@ const server = http.createServer((req, res) => {
       if (apiRoute === '/api/telemetry/logs') {
         res.end(JSON.stringify({
           success: true,
-          data: [
-            { id: 1, device_id: 'pnw101', voltage: 230.2, current: 4.82, power: 1.110, energy: 12.450, recorded_at: new Date().toISOString(), status_badge: 'Normal', status_type: 'success' }
-          ]
+          data: localTelemetry || []
+        }));
+        return;
+      }
+
+      if (apiRoute === '/api/telemetry/history') {
+        const range = parsedUrl.searchParams.get('range') || '7d';
+        res.end(JSON.stringify({
+          success: true,
+          data: { device_id: 'pnw101', range: range, points: [] }
         }));
         return;
       }
@@ -146,6 +156,16 @@ const server = http.createServer((req, res) => {
         return;
       }
 
+      if (apiRoute === '/api/devices/remove') {
+        const devId = input.device_id;
+        localDevices = localDevices.filter(d => d.device_id !== devId);
+        res.end(JSON.stringify({
+          success: true,
+          message: `Device '${devId}' disconnected successfully.`
+        }));
+        return;
+      }
+
       if (apiRoute === '/api/devices/connect') {
         const devId = input.device_id || 'pnw101';
         const devName = input.device_name || 'Main Panel (' + devId + ')';
@@ -154,9 +174,9 @@ const server = http.createServer((req, res) => {
             id: 1,
             device_id: devId,
             device_name: devName,
-            computed_status: 'online',
-            status_display: 'Online',
-            last_seen_relative: '5s sync'
+            computed_status: 'offline',
+            status_display: 'Offline',
+            last_seen_relative: 'Just linked'
           });
         }
         res.end(JSON.stringify({

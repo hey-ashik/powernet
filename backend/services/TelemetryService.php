@@ -209,16 +209,20 @@ class TelemetryService
                 break;
             case '7d':
                 $intervalQuery = "recorded_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)";
-                $groupBy = "%Y-%m-%d %H:00:00";
+                $groupBy = "%Y-%m-%d";
                 break;
             case '30d':
                 $intervalQuery = "recorded_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)";
                 $groupBy = "%Y-%m-%d";
                 break;
+            case '12m':
+                $intervalQuery = "recorded_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)";
+                $groupBy = "%Y-%m";
+                break;
             case '24h':
             default:
                 $intervalQuery = "recorded_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)";
-                $groupBy = "%Y-%m-%d %H:%i:00";
+                $groupBy = "%Y-%m-%d %H:00:00";
                 break;
         }
 
@@ -236,7 +240,7 @@ class TelemetryService
             WHERE device_id = :device_id AND {$intervalQuery}
             GROUP BY bucket_time
             ORDER BY bucket_time ASC
-            LIMIT 120
+            LIMIT 400
         ";
 
         $stmt = $db->prepare($query);
