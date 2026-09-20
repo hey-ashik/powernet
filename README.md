@@ -10,7 +10,7 @@ Smart Electrical Energy Monitoring & Predictive Intelligence Web Platform.
 * **Local Dev Server**: Zero-dependency native Node.js (`server.js`) on `http://localhost:3000`.
 * **Production Server**: PHP 8.x + MySQL + Apache/LiteSpeed (`.htaccess`) on Hostinger Business Hosting (`https://powernet.ashiik.com`).
 * **IoT / Telemetry**: ESP32 DevKit V1 streaming to HiveMQ MQTT (`broker.hivemq.com:1883`) with HTTPS fallback (`/api/telemetry/push.php`).
-* **Mailing**: Hostinger SMTP via TLS port 465 (`noreply@powernet.ashiik.com`).
+* **Mailing**: Hostinger SMTP via TLS port 465 (configured securely in `.env`).
 
 ---
 
@@ -43,7 +43,7 @@ Deploy to Hostinger Business Hosting with Apache/LiteSpeed and MySQL.
 3. Upload **`powernet.zip`** and click **Extract**, or upload the project files directly:
    ```text
    public_html/
-   ├── .env                     # Pre-configured production database & SMTP credentials
+   ├── .env                     # Production database & SMTP credentials (keep private)
    ├── .htaccess                # Clean URL rewrite rules for LiteSpeed/Apache
    ├── assets/                  # Stylesheets, JavaScript, icons
    ├── backend/                 # PHP API controllers & services
@@ -53,27 +53,27 @@ Deploy to Hostinger Business Hosting with Apache/LiteSpeed and MySQL.
    ```
 
 ### Step 2: Import Database in Hostinger phpMyAdmin
-1. In Hostinger hPanel, go to **Databases** &rarr; **phpMyAdmin** &rarr; select **`u697802579_powernetdb`**.
+1. In Hostinger hPanel, go to **Databases** &rarr; **phpMyAdmin** &rarr; select your database.
 2. Click the **Import** tab at the top.
 3. Choose the file **`database/schema.sql`** and click **Go**.
 4. Creates all necessary tables: `users`, `devices`, `telemetry`, `email_verifications`, `password_resets`, and `predictions`.
 
 ### Step 3: Configuration (`.env`)
-The `.env` file in `public_html/` is pre-configured for your Hostinger setup:
+Configure your database and mail settings in your `.env` file:
 ```ini
 APP_ENV=production
-APP_URL=https://powernet.ashiik.com
+APP_URL=https://yourdomain.com
 
 DB_HOST=localhost
 DB_PORT=3306
-DB_NAME=u697802579_powernetdb
-DB_USER=u697802579_powernetuser
-DB_PASSWORD=Ashik@21032001
+DB_NAME=your_database_name
+DB_USER=your_database_user
+DB_PASSWORD=your_database_password
 
 MAIL_HOST=smtp.hostinger.com
 MAIL_PORT=465
-MAIL_USERNAME=noreply@powernet.ashiik.com
-MAIL_PASSWORD=Ashik@21032001
+MAIL_USERNAME=your_email@yourdomain.com
+MAIL_PASSWORD=your_email_password
 ```
 
 ### Step 4: Production Clean URLs

@@ -1,10 +1,26 @@
+# Environment & Secrets
 .env
+.env.*
 .env.local
 .env.*.local
+
+# Agent configs & internal guidelines
+.agents/
+AGENTS.md
+GEMINI.md
+
+# Design, reference folders & archives
+RedesignHomePage/
+Ref/
+Reference/
+powernet.zip
+
+# Logs & scratch files
 *.log
-vendor/
-node_modules/
+scratch/
 .DS_Store
 Thumbs.db
-RedesignHomePage/
-Reference/
+
+# Dependencies
+vendor/
+node_modules/
