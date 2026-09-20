@@ -1,90 +1,134 @@
-# PowerNet — Hostinger Deployment & Smart Energy Monitoring
+# PowerNet Ai Web
 
-**Monitor. Analyze. Predict.**
-
-PowerNet is configured specifically for deployment to **Hostinger** (`powernet.ashik.com`) and connects an **ESP32 DevKit V1** (Device ID: `pnw101`) to a modern rounded energy dashboard inspired by enterprise monitoring tools.
+Smart Electrical Energy Monitoring & Predictive Intelligence Web Platform.
 
 ---
 
-## 1. Production Configuration Summary
+## ⚡ Quick Architecture Overview
 
-* **Domain**: `https://powernet.ashik.com`
-* **MySQL Database**: `u697802579_powernetdb`
-* **Database Username**: `u697802579_powernetuser`
-* **Database Host**: `localhost`
-* **Default Device ID**: `pnw101` (No token required!)
-* **HiveMQ Broker**: `broker.hivemq.com:1883`
-* **Telemetry Topic**: `powernet/device/pnw101/telemetry`
-* **Direct HTTP Fallback Endpoint**: `https://powernet.ashik.com/api/telemetry/push.php`
+* **Frontend**: Vanilla HTML5, CSS3, JavaScript (Glassmorphism, responsive, mobile-optimized).
+* **Local Dev Server**: Zero-dependency native Node.js (`server.js`) on `http://localhost:3000`.
+* **Production Server**: PHP 8.x + MySQL + Apache/LiteSpeed (`.htaccess`) on Hostinger Business Hosting (`https://powernet.ashiik.com`).
+* **IoT / Telemetry**: ESP32 DevKit V1 streaming to HiveMQ MQTT (`broker.hivemq.com:1883`) with HTTPS fallback (`/api/telemetry/push.php`).
+* **Mailing**: Hostinger SMTP via TLS port 465 (`noreply@powernet.ashiik.com`).
 
 ---
 
-## 2. Hostinger Step-by-Step Deployment Guide
+## 💻 1. Local Development Setup
 
-### Step 1: Upload Project Files to Hostinger
-1. Log in to your **Hostinger hPanel**.
-2. Go to **Websites** &rarr; `powernet.ashik.com` &rarr; **File Manager** (or connect via SFTP / FileZilla).
-3. Open `public_html/`.
-4. Upload the files and folders from this project into `public_html/`:
+Run the entire application locally with zero npm dependencies or external web servers.
+
+### Start the Local Server
+```bash
+node server.js
+```
+Open your browser at: **`http://localhost:3000`**
+
+### Local Features & Routes
+* `/login` & `/register`: User authentication with bottom-right toast notifications.
+* `/dashboard`: Real-time gauges, live power/voltage charts, cost calculations, and event log.
+* `/devices`: Live device pairing and database collision detection.
+* `/analytics`: Historical analytics, daily kWh usage, and load distribution.
+* **Email Verification & Password Reset**: Dispatches real emails via Hostinger SMTP over TLS 465. Verification links are also logged directly to the server terminal.
+
+---
+
+## 🌐 2. Hostinger Server Deployment Setup
+
+Deploy to Hostinger Business Hosting with Apache/LiteSpeed and MySQL.
+
+### Step 1: Upload Files
+1. Log in to **Hostinger hPanel** &rarr; **Websites** &rarr; **File Manager** (or SFTP).
+2. Open the **`public_html/`** folder.
+3. Upload **`powernet.zip`** and click **Extract**, or upload the project files directly:
    ```text
    public_html/
-   ├── .env                     <-- Pre-configured with your database credentials
-   ├── .htaccess                <-- Clean URL rewrites (powernet.ashik.com/register)
-   ├── assets/
-   ├── backend/
-   ├── frontend/
-   ├── database/
-   └── esp32/
+   ├── .env                     # Pre-configured production database & SMTP credentials
+   ├── .htaccess                # Clean URL rewrite rules for LiteSpeed/Apache
+   ├── assets/                  # Stylesheets, JavaScript, icons
+   ├── backend/                 # PHP API controllers & services
+   ├── frontend/                # Dashboard, auth, and device views
+   ├── database/                # MySQL schema & sample seed data
+   └── esp32/                   # Arduino C++ ESP32 firmware
    ```
 
 ### Step 2: Import Database in Hostinger phpMyAdmin
-1. In Hostinger hPanel, go to **Databases** &rarr; **phpMyAdmin** and enter `u697802579_powernetdb`.
+1. In Hostinger hPanel, go to **Databases** &rarr; **phpMyAdmin** &rarr; select **`u697802579_powernetdb`**.
 2. Click the **Import** tab at the top.
-3. Choose the file [database/schema.sql](file:///c:/Users/DIU/Desktop/powernetweb/database/schema.sql) and click **Go**.
-4. The schema creates the required tables (`users`, `devices`, `telemetry`, `email_verifications`, `password_resets`, `predictions`) and pre-seeds the `pnw101` device and demo account.
+3. Choose the file **`database/schema.sql`** and click **Go**.
+4. Creates all necessary tables: `users`, `devices`, `telemetry`, `email_verifications`, `password_resets`, and `predictions`.
 
-### Step 3: Flash the ESP32 (Device: `pnw101`)
-1. Open [esp32/PowerNetESP32/PowerNetESP32.ino](file:///c:/Users/DIU/Desktop/powernetweb/esp32/PowerNetESP32/PowerNetESP32.ino) in the Arduino IDE.
-2. In the configuration section:
+### Step 3: Configuration (`.env`)
+The `.env` file in `public_html/` is pre-configured for your Hostinger setup:
+```ini
+APP_ENV=production
+APP_URL=https://powernet.ashiik.com
+
+DB_HOST=localhost
+DB_PORT=3306
+DB_NAME=u697802579_powernetdb
+DB_USER=u697802579_powernetuser
+DB_PASSWORD=Ashik@21032001
+
+MAIL_HOST=smtp.hostinger.com
+MAIL_PORT=465
+MAIL_USERNAME=noreply@powernet.ashiik.com
+MAIL_PASSWORD=Ashik@21032001
+```
+
+### Step 4: Production Clean URLs
+Hostinger LiteSpeed/Apache automatically routes all endpoints cleanly via `.htaccess`:
+* `https://powernet.ashiik.com/login`
+* `https://powernet.ashiik.com/register`
+* `https://powernet.ashiik.com/dashboard`
+* `https://powernet.ashiik.com/devices`
+* `https://powernet.ashiik.com/analytics`
+
+---
+
+## 🔌 3. Device Pairing Rules & Logic
+
+PowerNet enforces a strict, secure 1-to-1 device pairing model:
+
+1. **One Active Device Per Account**: Each user can connect exactly one active device at a time.
+2. **Real-Time Collision Detection**:
+   * When a user inputs a Device ID, the system queries the database.
+   * If the device is already paired to another user account (`user_id IS NOT NULL`), the system rejects the connection and displays:
+     > ⚠️ **"Enter Correct Device ID"**
+   * If the Device ID is unclaimed or newly entered, it binds securely to the current user.
+3. **Flexible Disconnect & Swap**:
+   * Clicking **Disconnect** immediately unbinds the device in the database (`user_id = NULL`).
+   * The user is now free to connect a different Device ID anytime, or another user can claim the released device.
+
+---
+
+## 📡 4. ESP32 Hardware & Telemetry Pipeline
+
+### Flash the ESP32 Firmware
+1. Open **`esp32/PowerNetESP32/PowerNetESP32.ino`** in the Arduino IDE.
+2. Set your Wi-Fi credentials and Device ID:
    ```cpp
    const char* WIFI_SSID     = "YOUR_WIFI_SSID";
    const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
-   const char* DEVICE_ID     = "pnw101"; // No token needed!
+   const char* DEVICE_ID     = "pnw101"; // Or pnw102, pnw103, etc.
    ```
-3. Upload to your ESP32 DevKit V1.
-4. The ESP32 will immediately begin transmitting telemetry:
-   - **Primary**: Publishes JSON to `broker.hivemq.com:1883` on topic `powernet/device/pnw101/telemetry`.
-   - **Hostinger HTTP Fallback**: Also equipped to POST directly to `https://powernet.ashik.com/api/telemetry/push.php` if MQTT port 1883 is ever blocked on local Wi-Fi.
+3. Upload to your **ESP32 DevKit V1**.
 
-### Step 4: MQTT Ingestion on Hostinger
-
-#### Option A: Direct HTTP Push (Recommended for Shared Hosting)
-Hostinger shared hosting plans may stop long-running background CLI processes. The included firmware and `backend/api/telemetry/push.php` endpoint allow the ESP32 to push telemetry directly over HTTPS with zero background process management!
-
-#### Option B: Cron Job / CLI Worker (Hostinger VPS or hPanel Cron)
-If you run the MQTT subscriber daemon via SSH or Hostinger Cron Jobs:
-1. In hPanel, go to **Advanced** &rarr; **Cron Jobs**.
-2. Run command:
-   ```bash
-   /usr/bin/php /home/u697802579/domains/powernet.ashik.com/public_html/backend/mqtt/subscriber/subscriber.php
-   ```
+### Telemetry Flow
+* **MQTT Ingestion (Primary)**: Publishes live JSON packets to HiveMQ:
+  * Broker: `broker.hivemq.com:1883`
+  * Topic: `powernet/device/<DEVICE_ID>/telemetry`
+* **Direct HTTPS Push (Fallback)**: If port 1883 is blocked on local Wi-Fi, the ESP32 automatically posts directly to:
+  * `https://powernet.ashiik.com/api/telemetry/push.php`
+* **Software Telemetry Simulator**: To test telemetry without ESP32 hardware:
+  ```bash
+  php backend/mqtt/subscriber/simulate_esp32.php
+  ```
 
 ---
 
-## 3. Testing with Simulator
+## 📧 5. Authentication & Email Services
 
-To simulate live telemetry for device `pnw101` without ESP32 hardware:
-```bash
-php backend/mqtt/subscriber/simulate_esp32.php
-```
-
----
-
-## 4. Clean URLs on Hostinger
-
-Hostinger LiteSpeed/Apache will automatically route:
-* `https://powernet.ashik.com/register` &rarr; Registration page
-* `https://powernet.ashik.com/login` &rarr; Login page
-* `https://powernet.ashik.com/dashboard` &rarr; Live dashboard
-* `https://powernet.ashik.com/devices` &rarr; Device pairing (just enter `pnw101`)
-* `https://powernet.ashik.com/analytics` &rarr; Historical charts
+* **Hostinger Authenticated SMTP**: Direct SSL/TLS socket connection to `smtp.hostinger.com:465`.
+* **Clean Email Templates**: Account verification and password reset emails feature modern call-to-action buttons without exposed raw tokens or messy URLs.
+* **Bottom-Right Toast Notifications**: All login, register, device pairing, and reset feedback messages appear cleanly in the bottom-right corner (bottom-docked on mobile) without blocking UI components.
