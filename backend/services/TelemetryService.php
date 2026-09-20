@@ -30,8 +30,8 @@ class TelemetryService
 
         $voltage = isset($payload['voltage']) ? (float)$payload['voltage'] : null;
         $current = isset($payload['current']) ? (float)$payload['current'] : null;
-        $power   = isset($payload['power'])   ? (float)$payload['power']   : null;
-        $energy  = isset($payload['energy'])  ? (float)$payload['energy']  : null;
+        $power   = isset($payload['power'])   ? (float)$payload['power']   : (isset($payload['power_kw']) ? (float)$payload['power_kw'] : null);
+        $energy  = isset($payload['energy'])  ? (float)$payload['energy']  : (isset($payload['energy_kwh']) ? (float)$payload['energy_kwh'] : null);
         $temp    = isset($payload['temperature']) ? (float)$payload['temperature'] : null;
 
         if ($voltage === null || $current === null || $power === null || $energy === null || $temp === null) {
