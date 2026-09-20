@@ -196,14 +196,14 @@ const API = {
       }
       let body = {};
       try { body = options.body ? JSON.parse(options.body) : {}; } catch {}
-      const devId = (body.device_id || '').trim().toLowerCase();
+      const devId = (body.device_id || '').trim();
       const devName = (body.device_name && body.device_name.trim()) ? body.device_name.trim() : 'Device';
 
-      // Devices in DB already in use or invalid
-      const occupiedOrInUse = ['pnw107', 'pnw202', 'pnw303', 'pnw404'];
+      // Devices simulated as claimed by another user
+      const occupiedByOtherUsers = ['pnw107', 'pnw202', 'pnw303'];
       const activeDev = this.getConnectedDevice();
 
-      if (!devId || occupiedOrInUse.includes(devId) || devId !== 'pnw101' || (activeDev && activeDev.device_id.toLowerCase() === devId)) {
+      if (!devId || devId.length < 3 || occupiedByOtherUsers.includes(devId.toLowerCase()) || (activeDev && activeDev.device_id.toLowerCase() === devId.toLowerCase())) {
         throw new Error('Enter Correct Device ID');
       }
 
@@ -212,7 +212,7 @@ const API = {
         message: 'Device connected successfully',
         data: {
           id: 1,
-          device_id: 'pnw101',
+          device_id: devId,
           device_name: devName,
           computed_status: 'online',
           status_display: 'Online',

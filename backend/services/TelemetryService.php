@@ -62,10 +62,10 @@ class TelemetryService
         $db->beginTransaction();
         try {
             if (!$device) {
-                // Auto-provision device for default user (id=1) so telemetry is never lost
+                // Auto-provision device with NULL user_id so it can be claimed by any user account
                 $autoProv = $db->prepare("
                     INSERT INTO devices (user_id, device_id, device_name, status, last_seen, created_at, updated_at)
-                    VALUES (1, :device_id, :device_name, 'online', NOW(), NOW(), NOW())
+                    VALUES (NULL, :device_id, :device_name, 'online', NOW(), NOW(), NOW())
                 ");
                 $autoProv->execute([
                     'device_id'   => $deviceId,

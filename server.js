@@ -203,15 +203,14 @@ function getPasswordResetHtml(name, resetUrl) {
 // user_id === null: Available to be claimed/connected
 // user_id !== null: In use by that user account
 let hardwareRegistry = [
-  { device_id: 'pnw101', device_name: 'Device', user_id: 1 },
+  { device_id: 'pnw101', device_name: 'Device', user_id: null },
+  { device_id: 'pnw105', device_name: 'Device', user_id: null },
   { device_id: 'pnw107', device_name: 'Device', user_id: 2 }, // Already in DB / claimed
   { device_id: 'pnw202', device_name: 'Main Distribution Sub-Meter', user_id: 3 }, // In use
   { device_id: 'pnw303', device_name: 'Solar Phase Inverter', user_id: 4 } // In use
 ];
 
-let localDevices = [
-  { id: 1, device_id: 'pnw101', device_name: 'Device', computed_status: 'online', status_display: 'Online', last_seen_relative: '2 seconds ago' }
-];
+let localDevices = [];
 
 // Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
 const localTelemetry = (() => {
@@ -705,17 +704,14 @@ const server = http.createServer((req, res) => {
 
         const devIdLower = devId.toLowerCase();
 
-        // 2. Check if device is already active in current user's session
-        const alreadyActive = localDevices.some(d => d.device_id.toLowerCase() === devIdLower);
+        const currentUserId = localUser ? localUser.id : 1;
 
-        // 3. Check hardware database registry
-        const registryEntry = hardwareRegistry.find(d => d.device_id.toLowerCase() === devIdLower);
+        // 2. Check if device is claimed / in-use by ANOTHER user account
+        const claimedByOther = hardwareRegistry.find(
+          d => d.device_id.toLowerCase() === devIdLower && d.user_id !== null && d.user_id !== currentUserId
+        );
 
-        // In-use or invalid condition:
-        // - Already active in current session
-        // - Does not exist in database registry
-        // - Already claimed / in use in database (user_id !== null)
-        if (alreadyActive || !registryEntry || registryEntry.user_id !== null) {
+        if (claimedByOther) {
           res.end(JSON.stringify({
             success: false,
             message: 'Enter Correct Device ID'
@@ -723,8 +719,22 @@ const server = http.createServer((req, res) => {
           return;
         }
 
-        const currentUserId = localUser ? localUser.id : 1;
-        registryEntry.user_id = currentUserId;
+        // Release any previous device this user had connected (1 device per user)
+        hardwareRegistry.forEach(d => {
+          if (d.user_id === currentUserId && d.device_id.toLowerCase() !== devIdLower) {
+            d.user_id = null;
+          }
+        });
+
+        // 3. Connect device (add to registry if brand new, or claim if available)
+        let registryEntry = hardwareRegistry.find(d => d.device_id.toLowerCase() === devIdLower);
+        if (!registryEntry) {
+          registryEntry = { device_id: devId, device_name: devName, user_id: currentUserId };
+          hardwareRegistry.push(registryEntry);
+        } else {
+          registryEntry.user_id = currentUserId;
+          registryEntry.device_name = devName;
+        }
 
         const connectedDev = {
           id: 1,
@@ -736,6 +746,14 @@ const server = http.createServer((req, res) => {
         };
 
         localDevices = [connectedDev];
+
+        // Update telemetry data so stream is tied to the connected device
+        if (localTelemetry && localTelemetry.length > 0) {
+          localTelemetry.forEach(pt => {
+            pt.device_id = registryEntry.device_id;
+            pt.device_name = devName;
+          });
+        }
 
         res.end(JSON.stringify({
           success: true,

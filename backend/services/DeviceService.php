@@ -33,22 +33,48 @@ class DeviceService
         $stmt->execute(['device_id' => $deviceId]);
         $device = $stmt->fetch();
 
-        // If device does not exist in DB or is already in use, reject with error
-        if (!$device || ($device['user_id'] !== null && (int)$device['user_id'] !== 0)) {
+        // If device is already claimed by ANOTHER user, reject with error
+        if ($device && $device['user_id'] !== null && (int)$device['user_id'] !== 0 && (int)$device['user_id'] !== $userId) {
             throw new Exception('Enter Correct Device ID');
         }
 
-        // Assign and lock device to current user
-        $name = !empty($deviceName) ? trim($deviceName) : $device['device_name'];
-        $update = $db->prepare("UPDATE devices SET user_id = :user_id, device_name = :device_name, updated_at = NOW() WHERE id = :id");
-        $update->execute([
-            'user_id'     => $userId,
-            'device_name' => $name,
-            'id'          => $device['id']
-        ]);
+        $name = !empty($deviceName) ? trim($deviceName) : ($device['device_name'] ?? 'Device');
+
+        $db->beginTransaction();
+        try {
+            // Each user gets only ONE active device: unassign any other device currently assigned to this user
+            $unassign = $db->prepare("UPDATE devices SET user_id = NULL, updated_at = NOW() WHERE user_id = :user_id AND device_id != :device_id");
+            $unassign->execute([
+                'user_id'   => $userId,
+                'device_id' => $deviceId
+            ]);
+
+            if ($device) {
+                // Assign and lock device to current user
+                $update = $db->prepare("UPDATE devices SET user_id = :user_id, device_name = :device_name, status = 'online', last_seen = NOW(), updated_at = NOW() WHERE id = :id");
+                $update->execute([
+                    'user_id'     => $userId,
+                    'device_name' => $name,
+                    'id'          => $device['id']
+                ]);
+            } else {
+                // Register new device and assign to current user
+                $insert = $db->prepare("INSERT INTO devices (user_id, device_id, device_name, status, last_seen, created_at, updated_at) VALUES (:user_id, :device_id, :device_name, 'online', NOW(), NOW(), NOW())");
+                $insert->execute([
+                    'user_id'     => $userId,
+                    'device_id'   => $deviceId,
+                    'device_name' => $name
+                ]);
+            }
+
+            $db->commit();
+        } catch (Exception $e) {
+            $db->rollBack();
+            throw $e;
+        }
 
         return [
-            'device_id'    => $device['device_id'],
+            'device_id'    => $deviceId,
             'device_name'  => $name,
             'status'       => 'connected',
             'message'      => 'Device connected successfully'
