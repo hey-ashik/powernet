@@ -551,7 +551,7 @@
     grid-template-columns: 1fr;
     width: 100%;
     max-width: 100%;
-    overflow: hidden;
+    overflow: visible;
     gap: 16px;
   }
 
@@ -559,7 +559,7 @@
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
-    overflow: hidden;
+    overflow: visible;
     padding: 18px 14px;
     border-radius: var(--radius-xl);
   }
