@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PowerNet — Smart Electrical Energy Monitoring & AI Load Prediction</title>
-  <meta name="description" content="PowerNet is an enterprise IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, active power, and temperature with automated telemetry.">
+  <title>PowerNet Ai Web — Smart Electrical Energy Monitoring & Predictive Intelligence</title>
+  <meta name="description" content="PowerNet is an IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, active power, and temperature with automated telemetry.">
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,32 +18,29 @@
   <!-- Floating Island Header (Pulse AI Style) -->
   <header class="landing-header-wrapper" role="banner">
     <div class="landing-header-pill">
-      <!-- Logo: Exact Dashboard Style (superpowers icon + PowerNet) -->
+      <!-- Logo on Left -->
       <a href="/" class="header-brand" aria-label="PowerNet Home">
         <div class="header-brand-icon">
-          <i class="fa-brands fa-superpowers"></i>
+          <i class="fa-solid fa-bolt"></i>
         </div>
         <span class="header-brand-name">PowerNet</span>
       </a>
 
-      <!-- Desktop Navigation Links -->
+      <!-- Desktop Navigation in the Middle (Home, Problems, Solutions, FAQs) -->
       <nav class="header-nav" aria-label="Main Navigation">
         <a href="#hero" class="header-nav-link">Home</a>
         <a href="#problems" class="header-nav-link">Problems</a>
         <a href="#solutions" class="header-nav-link">Solutions</a>
-        <a href="#architecture" class="header-nav-link">Architecture</a>
-        <a href="/dashboard" class="header-nav-link">Dashboard</a>
+        <a href="#faqs" class="header-nav-link">FAQs</a>
       </nav>
 
-      <!-- Action Buttons -->
+      <!-- Action Buttons on Right -->
       <div class="header-actions">
         <a href="/login" class="btn-header-login">Login</a>
-        <a href="/register" class="btn-header-cta">
-          <span>Get Started</span>
-        </a>
+        <a href="/register" class="btn-header-cta">Get Started</a>
       </div>
 
-      <!-- Mobile Hamburger Button -->
+      <!-- Mobile Hamburger Toggle -->
       <button type="button" class="btn-mobile-toggle" id="btn-mobile-menu" aria-label="Toggle navigation menu">
         <i class="fa-solid fa-bars" id="menu-icon"></i>
       </button>
@@ -54,10 +51,7 @@
       <a href="#hero" class="mobile-nav-link">Home</a>
       <a href="#problems" class="mobile-nav-link">Problems</a>
       <a href="#solutions" class="mobile-nav-link">Solutions</a>
-      <a href="#architecture" class="mobile-nav-link">Architecture</a>
-      <a href="/dashboard" class="mobile-nav-link">Dashboard</a>
-      <a href="/devices" class="mobile-nav-link">Devices</a>
-      <a href="/analytics" class="mobile-nav-link">Analytics</a>
+      <a href="#faqs" class="mobile-nav-link">FAQs</a>
       <div class="mobile-actions-row">
         <a href="/login" class="btn-header-login">Login</a>
         <a href="/register" class="btn-header-cta">Get Started</a>
@@ -69,7 +63,8 @@
   <section class="hero-section" id="hero">
     <div class="hero-blur-orb"></div>
 
-    <div class="hero-content">
+    <div class="hero-container">
+      <!-- Badge from Image 1 -->
       <div class="hero-pill-badge anim-fade-up">
         <span class="pulse-dot"></span>
         <span>Real-Time Power Telemetry &amp; AI Load Intelligence</span>
@@ -86,326 +81,408 @@
       <div class="hero-cta-group anim-fade-up anim-delay-3">
         <a href="/register" class="btn-hero-primary">
           <span>Get Started</span>
-          <i class="fa-solid fa-arrow-right" style="font-size: 14px;"></i>
+          <i class="fa-solid fa-arrow-right" style="font-size: 13px;"></i>
         </a>
-        <a href="/dashboard" class="btn-hero-secondary">
-          <span>Live Dashboard</span>
-          <i class="fa-solid fa-chart-pie" style="font-size: 14px;"></i>
+        <a href="#problems" class="btn-hero-secondary">
+          <span>Explore Platform</span>
+          <i class="fa-solid fa-chevron-down" style="font-size: 13px;"></i>
         </a>
       </div>
 
-      <!-- Interactive Dashboard Mockup Card -->
-      <div class="hero-mockup-wrapper anim-fade-up anim-delay-4">
-        <div class="mockup-top-bar">
-          <div class="mockup-dots">
-            <div class="mockup-dot" style="background: #EF4444;"></div>
-            <div class="mockup-dot" style="background: #F59E0B;"></div>
-            <div class="mockup-dot" style="background: #10B981;"></div>
-          </div>
-          <div class="mockup-title-chip">
-            <i class="fa-solid fa-bolt" style="color: #60A5FA;"></i>
-            <span>PowerNet Live Telemetry Monitor &bull; pnw101</span>
-          </div>
-          <div class="mockup-status-badge">
-            <span class="pulse-dot"></span>
-            <span>HiveMQ Connected</span>
-          </div>
-        </div>
-
-        <div class="mockup-body">
-          <div class="mockup-metrics-grid">
-            <div class="metric-mini-card">
-              <div class="metric-mini-label">Voltage</div>
-              <div class="metric-mini-value" id="disp-voltage">220.4<span class="metric-mini-unit">V</span></div>
-            </div>
-            <div class="metric-mini-card">
-              <div class="metric-mini-label">Current</div>
-              <div class="metric-mini-value" id="disp-current">5.82<span class="metric-mini-unit">A</span></div>
-            </div>
-            <div class="metric-mini-card">
-              <div class="metric-mini-label">Active Power</div>
-              <div class="metric-mini-value" id="disp-power">1,283<span class="metric-mini-unit">W</span></div>
-            </div>
-            <div class="metric-mini-card">
-              <div class="metric-mini-label">Power Factor</div>
-              <div class="metric-mini-value" id="disp-pf">0.98<span class="metric-mini-unit">PF</span></div>
-            </div>
-          </div>
-
-          <div class="mockup-chart-strip">
-            <div class="chart-strip-left">
-              <div style="width: 38px; height: 38px; border-radius: 10px; background: #EFF6FF; color: #1A5AF0; display: flex; align-items: center; justify-content: center; font-size: 16px;">
-                <i class="fa-solid fa-wave-square"></i>
-              </div>
-              <div>
-                <div class="chart-strip-title">Real-Time Sine Telemetry Waveform</div>
-                <div class="chart-strip-sub">Sampling interval: 1,000ms &bull; Zero packet loss buffer</div>
-              </div>
-            </div>
-            <svg width="220" height="36" viewBox="0 0 220 36" fill="none" style="max-width: 100%;">
-              <path d="M0 18 Q 27 0, 55 18 T 110 18 T 165 18 T 220 18" stroke="#1A5AF0" stroke-width="2.5" fill="none"/>
-            </svg>
-          </div>
-        </div>
+      <!-- Hero Image: User specified homepage.png -->
+      <div class="hero-image-wrapper anim-fade-up anim-delay-4">
+        <img src="/assets/images/pulse/homepage.png" alt="PowerNet Platform Dashboard" class="hero-image-preview" />
       </div>
 
-      <!-- Marquee inside hero (Pulse AI pattern) -->
-      <div class="marquee-section anim-fade-up anim-delay-5">
-        <div class="marquee-title">Trusted By Leading IoT Protocols</div>
-        <div class="marquee-wrapper">
-          <div class="marquee-content">
-            <!-- Logos + hardware badges -->
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_1.svg" alt="Partner 1"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-tower-broadcast"></i> HiveMQ MQTT</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_2.svg" alt="Partner 2"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-microchip"></i> ESP32 DevKit V1</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_3.svg" alt="Partner 3"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-brain"></i> AI Load Forecaster</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_4.svg" alt="Partner 4"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-gauge-high"></i> PZEM-004T Meter</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_5.svg" alt="Partner 5"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-shield-halved"></i> Dual Ingestion</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_6.svg" alt="Partner 6"></div>
-
+      <!-- Marquee below Hero Image -->
+      <div class="hero-marquee-section anim-fade-up anim-delay-5">
+        <div class="hero-marquee-title">Trusted By Leading IoT Protocols</div>
+        <div class="hero-marquee-wrapper">
+          <div class="hero-marquee-track">
+            <img src="/assets/images/pulse/logo_1.svg" alt="Protocol 1" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_2.svg" alt="Protocol 2" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_3.svg" alt="Protocol 3" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_4.svg" alt="Protocol 4" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_5.svg" alt="Protocol 5" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_6.svg" alt="Protocol 6" class="hero-brand-logo">
             <!-- Duplicated for seamless loop -->
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_1.svg" alt="Partner 1"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-tower-broadcast"></i> HiveMQ MQTT</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_2.svg" alt="Partner 2"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-microchip"></i> ESP32 DevKit V1</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_3.svg" alt="Partner 3"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-brain"></i> AI Load Forecaster</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_4.svg" alt="Partner 4"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-gauge-high"></i> PZEM-004T Meter</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_5.svg" alt="Partner 5"></div>
-            <div class="marquee-badge"><i class="fa-solid fa-shield-halved"></i> Dual Ingestion</div>
-            <div class="marquee-item"><img src="/assets/images/pulse/logo_6.svg" alt="Partner 6"></div>
+            <img src="/assets/images/pulse/logo_1.svg" alt="Protocol 1" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_2.svg" alt="Protocol 2" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_3.svg" alt="Protocol 3" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_4.svg" alt="Protocol 4" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_5.svg" alt="Protocol 5" class="hero-brand-logo">
+            <img src="/assets/images/pulse/logo_6.svg" alt="Protocol 6" class="hero-brand-logo">
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Problem Section -->
-  <section class="problems-section anim-fade-up" id="problems">
-    <div style="text-align: center;">
-      <div class="section-tag tag-problem">
-        <i class="fa-solid fa-circle-exclamation"></i>
-        <span>The Problem</span>
+  <!-- Problem Section (Image 2 — Infinite 2-Row Marquee) -->
+  <section class="section-wrapper" id="problems">
+    <div class="section-container">
+      <div class="section-tag-pill anim-fade-up">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+        <span>Problems</span>
       </div>
-      <h2 class="section-h2">Hidden Power Inefficiencies Cost Real Revenue</h2>
-      <p class="section-desc">
-        Traditional electrical installations operate in the dark, leading to equipment stress, unmonitored tariff penalties, and unplanned breaker outages.
+
+      <h2 class="section-heading anim-fade-up anim-delay-1">The problems holding you back</h2>
+      <p class="section-subheading anim-fade-up anim-delay-2">
+        Most facilities struggle not because they lack tools, but because electrical faults, vampire loads, and peak surges go unnoticed until downtime or costly utility penalties hit.
       </p>
-    </div>
 
-    <div class="cards-grid-3">
-      <div class="info-card anim-fade-up">
-        <div class="info-card-icon icon-red">
-          <i class="fa-solid fa-bolt-lightning"></i>
-        </div>
-        <h3 class="info-card-title">Unmonitored Peak Spikes</h3>
-        <p class="info-card-body">
-          Surpassing contracted breaker limits triggers unexpected shutdowns and costly utility peak demand surcharges.
-        </p>
-      </div>
+      <div class="problems-carousel-container anim-fade-up anim-delay-3">
+        <!-- Row 1: Leftward Scrolling Carousel -->
+        <div class="carousel-row">
+          <div class="carousel-fade-left"></div>
+          <div class="carousel-fade-right"></div>
+          <div class="carousel-track-left">
+            <!-- Card 1 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m14 14-4 4"></path><path d="m10 14 4 4"></path></svg>
+              </div>
+              <p class="problem-card-title">Inconsistent Power Tracking</p>
+            </div>
+            <!-- Card 2 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17h6v-6"></path><path d="m22 17-8.5-8.5-5 5L2 7"></path></svg>
+              </div>
+              <p class="problem-card-title">Low Power Factor Penalties</p>
+            </div>
+            <!-- Card 3 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"></path><path d="m7 16.5-4.74-2.85"></path><path d="m7 16.5 5-3"></path><path d="M7 16.5v5.17"></path><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"></path><path d="m17 16.5-5-3"></path><path d="m17 16.5 4.74-2.85"></path><path d="M17 16.5v5.17"></path><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"></path><path d="M12 8 7.26 5.15"></path><path d="m12 8 4.74-2.85"></path><path d="M12 13.5V8"></path></svg>
+              </div>
+              <p class="problem-card-title">Multiple Tools, Yet No Results</p>
+            </div>
+            <!-- Card 4 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6h4"></path></svg>
+              </div>
+              <p class="problem-card-title">Time-Consuming Manual Audits</p>
+            </div>
 
-      <div class="info-card anim-fade-up anim-delay-1">
-        <div class="info-card-icon icon-red">
-          <i class="fa-solid fa-chart-line-down"></i>
+            <!-- Duplicated Row 1 Items for Seamless Infinity -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m14 14-4 4"></path><path d="m10 14 4 4"></path></svg>
+              </div>
+              <p class="problem-card-title">Inconsistent Power Tracking</p>
+            </div>
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17h6v-6"></path><path d="m22 17-8.5-8.5-5 5L2 7"></path></svg>
+              </div>
+              <p class="problem-card-title">Low Power Factor Penalties</p>
+            </div>
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.97 12.92A2 2 0 0 0 2 14.63v3.24a2 2 0 0 0 .97 1.71l3 1.8a2 2 0 0 0 2.06 0L12 19v-5.5l-5-3-4.03 2.42Z"></path><path d="m7 16.5-4.74-2.85"></path><path d="m7 16.5 5-3"></path><path d="M7 16.5v5.17"></path><path d="M12 13.5V19l3.97 2.38a2 2 0 0 0 2.06 0l3-1.8a2 2 0 0 0 .97-1.71v-3.24a2 2 0 0 0-.97-1.71L17 10.5l-5 3Z"></path><path d="m17 16.5-5-3"></path><path d="m17 16.5 4.74-2.85"></path><path d="M17 16.5v5.17"></path><path d="M7.97 4.42A2 2 0 0 0 7 6.13v4.37l5 3 5-3V6.13a2 2 0 0 0-.97-1.71l-3-1.8a2 2 0 0 0-2.06 0l-3 1.8Z"></path><path d="M12 8 7.26 5.15"></path><path d="m12 8 4.74-2.85"></path><path d="M12 13.5V8"></path></svg>
+              </div>
+              <p class="problem-card-title">Multiple Tools, Yet No Results</p>
+            </div>
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6h4"></path></svg>
+              </div>
+              <p class="problem-card-title">Time-Consuming Manual Audits</p>
+            </div>
+          </div>
         </div>
-        <h3 class="info-card-title">Low Power Factor Losses</h3>
-        <p class="info-card-body">
-          Uncompensated inductive machinery degrades system power factor, drawing excess current and wearing out conductors.
-        </p>
-      </div>
 
-      <div class="info-card anim-fade-up anim-delay-2">
-        <div class="info-card-icon icon-red">
-          <i class="fa-solid fa-clock-rotate-left"></i>
+        <!-- Row 2: Rightward Scrolling Carousel -->
+        <div class="carousel-row">
+          <div class="carousel-fade-left"></div>
+          <div class="carousel-fade-right"></div>
+          <div class="carousel-track-right">
+            <!-- Card 5 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+              </div>
+              <p class="problem-card-title">Unmonitored Peak Spikes</p>
+            </div>
+            <!-- Card 6 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <p class="problem-card-title">Phantom Energy Drains</p>
+            </div>
+            <!-- Card 7 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17h6v-6"></path><path d="m22 17-8.5-8.5-5 5L2 7"></path></svg>
+              </div>
+              <p class="problem-card-title">Silent Equipment Overheating</p>
+            </div>
+            <!-- Card 8 -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m14 14-4 4"></path><path d="m10 14 4 4"></path></svg>
+              </div>
+              <p class="problem-card-title">Voltage Sags &amp; Surges</p>
+            </div>
+
+            <!-- Duplicated Row 2 Items for Seamless Infinity -->
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg>
+              </div>
+              <p class="problem-card-title">Unmonitored Peak Spikes</p>
+            </div>
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+              <p class="problem-card-title">Phantom Energy Drains</p>
+            </div>
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 17h6v-6"></path><path d="m22 17-8.5-8.5-5 5L2 7"></path></svg>
+              </div>
+              <p class="problem-card-title">Silent Equipment Overheating</p>
+            </div>
+            <div class="problem-card">
+              <div class="problem-card-icon">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path><path d="m14 14-4 4"></path><path d="m10 14 4 4"></path></svg>
+              </div>
+              <p class="problem-card-title">Voltage Sags &amp; Surges</p>
+            </div>
+          </div>
         </div>
-        <h3 class="info-card-title">Delayed Energy Audits</h3>
-        <p class="info-card-body">
-          Relying on monthly bills means finding out about equipment faults and phantom consumption weeks after damage occurred.
-        </p>
       </div>
     </div>
   </section>
 
-  <!-- Solution Section -->
-  <section class="problems-section anim-fade-up" id="solutions" style="padding-top: 20px;">
-    <div style="text-align: center;">
-      <div class="section-tag tag-solution">
-        <i class="fa-solid fa-circle-check"></i>
-        <span>The Solution</span>
+  <!-- Solutions / Benefits Section (Image 3 — 3 Cards Grid) -->
+  <section class="section-wrapper" id="solutions" style="padding-top: 40px;">
+    <div class="section-container">
+      <div class="section-tag-pill anim-fade-up">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11.017 2.814a1 1 0 0 1 1.966 0l1.051 5.558a2 2 0 0 0 1.594 1.594l5.558 1.051a1 1 0 0 1 0 1.966l-5.558 1.051a2 2 0 0 0-1.594 1.594l-1.051 5.558a1 1 0 0 1-1.966 0l-1.051-5.558a2 2 0 0 0-1.594-1.594l-5.558-1.051a1 1 0 0 1 0-1.966l5.558-1.051a2 2 0 0 0 1.594-1.594z"></path><path d="M20 2v4"></path><path d="M22 4h-4"></path><circle cx="4" cy="20" r="2"></circle></svg>
+        <span>Benefits</span>
       </div>
-      <h2 class="section-h2">Sub-Second Telemetry Coupled with AI Predictive Control</h2>
-      <p class="section-desc">
-        PowerNet bridges hardware sensors with instant cloud telemetry to give engineers continuous visibility and automated load forecasting.
+
+      <h2 class="section-heading anim-fade-up anim-delay-1">Grow Faster with Less Effort</h2>
+      <p class="section-subheading anim-fade-up anim-delay-2">
+        PowerNet helps you monitor, analyze, and optimize electrical loads in real-time so you can cut utility costs and prevent downtime instead of managing complex legacy hardware.
       </p>
-    </div>
 
-    <div class="cards-grid-3">
-      <div class="info-card anim-fade-up">
-        <div class="info-card-icon icon-green">
-          <i class="fa-solid fa-microchip"></i>
+      <div class="solutions-grid anim-fade-up anim-delay-3">
+        <!-- Card 1 -->
+        <div class="solution-card">
+          <div class="solution-icon-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="10" x2="14" y1="2" y2="2"></line><line x1="12" x2="15" y1="14" y2="11"></line><circle cx="12" cy="14" r="8"></circle></svg>
+          </div>
+          <h3 class="solution-card-title">Save Hours Every Week</h3>
+          <p class="solution-card-desc">
+            Automate energy telemetry logging and threshold alerts so you can focus on facility strategy, not repetitive manual multimeter readings.
+          </p>
         </div>
-        <h3 class="info-card-title">Automated IoT Telemetry</h3>
-        <p class="info-card-body">
-          Sensors stream voltage, current, and active wattage at sub-second frequencies over lightweight MQTT broker queues.
-        </p>
-      </div>
 
-      <div class="info-card anim-fade-up anim-delay-1">
-        <div class="info-card-icon icon-blue">
-          <i class="fa-solid fa-brain"></i>
+        <!-- Card 2 -->
+        <div class="solution-card">
+          <div class="solution-icon-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m17 2 4 4-4 4"></path><path d="M3 11v-1a4 4 0 0 1 4-4h14"></path><path d="m7 22-4-4 4-4"></path><path d="M21 13v1a4 4 0 0 1-4 4H3"></path></svg>
+          </div>
+          <h3 class="solution-card-title">Stay Consistent Everywhere</h3>
+          <p class="solution-card-desc">
+            Sync and stream packets across distribution panels with millisecond timing, zero packet drop buffers, and dual-transport failover.
+          </p>
         </div>
-        <h3 class="info-card-title">AI Peak Breaker Forecast</h3>
-        <p class="info-card-body">
-          Predictive algorithms analyze load curves to project breaker overloads in advance, preventing breaker tripping.
-        </p>
-      </div>
 
-      <div class="info-card anim-fade-up anim-delay-2">
-        <div class="info-card-icon icon-green">
-          <i class="fa-solid fa-cubes"></i>
+        <!-- Card 3 -->
+        <div class="solution-card">
+          <div class="solution-icon-circle">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 7h6v6"></path><path d="m22 7-8.5 8.5-5-5L2 17"></path></svg>
+          </div>
+          <h3 class="solution-card-title">Grow Faster with AI Insights</h3>
+          <p class="solution-card-desc">
+            Use historical consumption data to forecast next-day peak demand spikes and optimize high-load machinery schedules before penalties occur.
+          </p>
         </div>
-        <h3 class="info-card-title">Instant Device Pairing</h3>
-        <p class="info-card-body">
-          Simple Device ID binding (e.g. <code>pnw101</code>) links equipment instantly to your account with zero firmware friction.
-        </p>
       </div>
     </div>
   </section>
 
-  <!-- Bento Core Architecture Grid -->
-  <section class="bento-section anim-fade-up" id="architecture">
-    <div style="text-align: center; margin-bottom: 40px;">
-      <div class="section-tag" style="background: #EFF6FF; color: #1A5AF0; border-color: #BFDBFE;">
-        <i class="fa-solid fa-layer-group"></i>
-        <span>System Architecture</span>
+  <!-- FAQs Section (Image 4 — Interactive Accordion) -->
+  <section class="section-wrapper" id="faqs" style="padding-top: 40px;">
+    <div class="section-container">
+      <div class="section-tag-pill anim-fade-up">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><path d="M12 17h.01"></path></svg>
+        <span>FAQs</span>
       </div>
-      <h2 class="section-h2">Built for Industrial Uptime &amp; Resilience</h2>
-      <p class="section-desc">
-        Engineered with edge-to-cloud redundancy, TLS-encrypted telemetry, and zero-dependency microservices.
+
+      <h2 class="section-heading anim-fade-up anim-delay-1">Frequently Asked Questions</h2>
+      <p class="section-subheading anim-fade-up anim-delay-2">
+        Everything you need to know about using PowerNet to monitor, protect, and optimize your electrical infrastructure.
       </p>
-    </div>
 
-    <div class="bento-grid">
-      <div class="bento-card anim-fade-up">
-        <div class="bento-card-header">
-          <div class="bento-badge-icon">
-            <i class="fa-solid fa-tower-broadcast"></i>
+      <div class="faq-accordion-list anim-fade-up anim-delay-3" role="region" aria-label="Frequently Asked Questions">
+        <!-- FAQ 1 -->
+        <div class="faq-item" id="faq-1">
+          <button type="button" class="faq-header" aria-expanded="false" aria-controls="faq-content-1">
+            <span class="faq-question">What platforms and microcontrollers does PowerNet support?</span>
+            <div class="faq-toggle-btn" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </div>
+          </button>
+          <div class="faq-content" id="faq-content-1">
+            <p class="faq-answer">
+              PowerNet natively supports the ESP32 DevKit V1 and compatible microcontrollers paired with PZEM-004T or CT current clamps. It supports both MQTT (HiveMQ broker) and HTTPS direct REST fallback ingestion.
+            </p>
           </div>
-          <h3 class="bento-card-title">HiveMQ MQTT Cloud Broker</h3>
         </div>
-        <p class="bento-card-desc">
-          Bi-directional telemetry streaming over standard port 1883 with automatic reconnection, heartbeat keepalive, and payload verification.
-        </p>
-        <div class="bento-highlight-box">
-          <i class="fa-solid fa-circle-check"></i>
-          <span>1,000ms heartbeat &bull; Zero socket starvation buffer</span>
-        </div>
-      </div>
 
-      <div class="bento-card anim-fade-up anim-delay-1">
-        <div class="bento-card-header">
-          <div class="bento-badge-icon">
-            <i class="fa-solid fa-shield-halved"></i>
+        <!-- FAQ 2 -->
+        <div class="faq-item" id="faq-2">
+          <button type="button" class="faq-header" aria-expanded="false" aria-controls="faq-content-2">
+            <span class="faq-question">How does real-time AI load forecasting work?</span>
+            <div class="faq-toggle-btn" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </div>
+          </button>
+          <div class="faq-content" id="faq-content-2">
+            <p class="faq-answer">
+              PowerNet feeds historical voltage, current, active power, and power factor curves into automated regression models to project hourly demand curves and trigger early alerts before breaker capacity limits are reached.
+            </p>
           </div>
-          <h3 class="bento-card-title">Dual-Ingestion Fallback</h3>
         </div>
-        <p class="bento-card-desc">
-          Full resilience for shared hosting environments. If MQTT CLI daemon access is unavailable, telemetry automatically falls back to direct REST endpoints.
-        </p>
-        <div class="bento-highlight-box">
-          <i class="fa-solid fa-circle-check"></i>
-          <span>HTTPS REST fallback &bull; Hostinger Apache / Nginx ready</span>
-        </div>
-      </div>
 
-      <div class="bento-card anim-fade-up anim-delay-2">
-        <div class="bento-card-header">
-          <div class="bento-badge-icon">
-            <i class="fa-solid fa-microchip"></i>
+        <!-- FAQ 3 -->
+        <div class="faq-item" id="faq-3">
+          <button type="button" class="faq-header" aria-expanded="false" aria-controls="faq-content-3">
+            <span class="faq-question">Can multiple users share the same Device ID simultaneously?</span>
+            <div class="faq-toggle-btn" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </div>
+          </button>
+          <div class="faq-content" id="faq-content-3">
+            <p class="faq-answer">
+              No. PowerNet enforces a strict 1-to-1 device ownership rule with database collision checking. If a Device ID is already active under another user, the system prompts with "Enter Correct Device ID". Clicking Disconnect immediately releases the device for others.
+            </p>
           </div>
-          <h3 class="bento-card-title">Hardware Telemetry Stack</h3>
         </div>
-        <p class="bento-card-desc">
-          Compatible with PZEM-004T and ACS712 current transformers. Pre-configured firmware computes true RMS current, active power, and cumulative kWh.
-        </p>
-        <div class="bento-highlight-box">
-          <i class="fa-solid fa-circle-check"></i>
-          <span>True RMS computation &bull; Built-in flash memory safety</span>
-        </div>
-      </div>
 
-      <div class="bento-card anim-fade-up anim-delay-3">
-        <div class="bento-card-header">
-          <div class="bento-badge-icon">
-            <i class="fa-solid fa-chart-line"></i>
+        <!-- FAQ 4 -->
+        <div class="faq-item" id="faq-4">
+          <button type="button" class="faq-header" aria-expanded="false" aria-controls="faq-content-4">
+            <span class="faq-question">What happens if local Wi-Fi blocks MQTT port 1883?</span>
+            <div class="faq-toggle-btn" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </div>
+          </button>
+          <div class="faq-content" id="faq-content-4">
+            <p class="faq-answer">
+              The included ESP32 firmware features built-in dual ingestion. If the MQTT broker connection is refused or firewalled, the device seamlessly falls back to pushing telemetry over standard HTTPS POST to your web server endpoint.
+            </p>
           </div>
-          <h3 class="bento-card-title">AI Forecast &amp; Peak Shaving</h3>
         </div>
-        <p class="bento-card-desc">
-          Real-time telemetry feeds regression models that forecast hourly energy trends, anomalous power spikes, and scheduled load shifts.
-        </p>
-        <div class="bento-highlight-box">
-          <i class="fa-solid fa-circle-check"></i>
-          <span>Historical energy analytics &bull; Breaker protection limits</span>
+
+        <!-- FAQ 5 -->
+        <div class="faq-item" id="faq-5">
+          <button type="button" class="faq-header" aria-expanded="false" aria-controls="faq-content-5">
+            <span class="faq-question">Can I export historical energy audit data?</span>
+            <div class="faq-toggle-btn" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </div>
+          </button>
+          <div class="faq-content" id="faq-content-5">
+            <p class="faq-answer">
+              Yes, authenticated accounts have access to the Analytics suite where you can inspect 24-hour, 7-day, and 30-day historical energy charts, phase logs, and export telemetry tables for certified energy audits.
+            </p>
+          </div>
+        </div>
+
+        <!-- FAQ 6 -->
+        <div class="faq-item" id="faq-6">
+          <button type="button" class="faq-header" aria-expanded="false" aria-controls="faq-content-6">
+            <span class="faq-question">Can I deploy PowerNet to shared web hosting?</span>
+            <div class="faq-toggle-btn" aria-hidden="true">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>
+            </div>
+          </button>
+          <div class="faq-content" id="faq-content-6">
+            <p class="faq-answer">
+              Yes. PowerNet is pre-configured for Hostinger Business Hosting (PHP 8.x + MySQL + LiteSpeed / Apache .htaccess) and requires no Node.js or background CLI daemons on the production server.
+            </p>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
-  <!-- Call to Action Banner -->
-  <section class="cta-banner-section anim-fade-up">
-    <div class="cta-banner-card">
-      <div class="cta-banner-content">
-        <h2 class="cta-banner-h2">Take Control of Your Power Infrastructure Today</h2>
-        <p class="cta-banner-p">
-          Connect your devices in minutes. Real-time telemetry, predictive overload protection, and deep energy visibility in one unified dashboard.
-        </p>
-        <div class="cta-banner-buttons">
-          <a href="/register" class="btn-hero-primary" style="background: #FFFFFF; color: #1A5AF0;">
-            <span>Get Started Free</span>
-            <i class="fa-solid fa-arrow-right"></i>
-          </a>
-          <a href="/dashboard" class="btn-hero-secondary" style="background: rgba(255,255,255,0.12); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.25);">
-            <i class="fa-solid fa-chart-pie"></i>
-            <span>Launch Dashboard</span>
-          </a>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- Footer -->
+  <!-- Footer (Image 5 — Pulse AI Identical) -->
   <footer class="landing-footer">
     <div class="footer-container">
-      <a href="/" class="footer-brand">
-        <div class="header-brand-icon" style="color: #60A5FA;">
-          <i class="fa-brands fa-superpowers" style="color: #60A5FA !important;"></i>
+      <div class="footer-top-grid">
+        <!-- Brand & Socials on Left -->
+        <div class="footer-brand-col">
+          <a class="header-brand" href="/" aria-label="PowerNet Home">
+            <div class="header-brand-icon">
+              <i class="fa-solid fa-bolt"></i>
+            </div>
+            <span class="header-brand-name">PowerNet</span>
+          </a>
+          <p class="footer-tagline">
+            Building modern digital power experiences with speed and clarity.
+          </p>
+          <div class="footer-social-row">
+            <a href="https://twitter.com" target="_blank" rel="noopener noreferrer" class="footer-social-link" aria-label="X (Twitter)">
+              <i class="fa-brands fa-x-twitter"></i>
+            </a>
+            <a href="https://facebook.com" target="_blank" rel="noopener noreferrer" class="footer-social-link" aria-label="Facebook">
+              <i class="fa-brands fa-facebook-f"></i>
+            </a>
+            <a href="https://linkedin.com" target="_blank" rel="noopener noreferrer" class="footer-social-link" aria-label="LinkedIn">
+              <i class="fa-brands fa-linkedin-in"></i>
+            </a>
+          </div>
         </div>
-        <span>PowerNet</span>
-      </a>
 
-      <div class="footer-links-row">
-        <a href="/dashboard" class="footer-link-item">Dashboard</a>
-        <a href="/devices" class="footer-link-item">Devices</a>
-        <a href="/analytics" class="footer-link-item">Analytics</a>
-        <a href="/login" class="footer-link-item">Sign In</a>
-        <a href="/register" class="footer-link-item">Sign Up</a>
+        <!-- 3 Link Columns on Right -->
+        <div class="footer-links-grid">
+          <div>
+            <div class="footer-col-title">Company</div>
+            <ul class="footer-links-list">
+              <li><a href="#hero" class="footer-link">About</a></li>
+              <li><a href="#problems" class="footer-link">Problems</a></li>
+              <li><a href="#solutions" class="footer-link">Solutions</a></li>
+              <li><a href="#faqs" class="footer-link">Contact Us</a></li>
+            </ul>
+          </div>
+          <div>
+            <div class="footer-col-title">Resources</div>
+            <ul class="footer-links-list">
+              <li><a href="/login" class="footer-link">Docs</a></li>
+              <li><a href="/login" class="footer-link">Integrations</a></li>
+              <li><a href="/register" class="footer-link">Get Started</a></li>
+            </ul>
+          </div>
+          <div>
+            <div class="footer-col-title">Legal</div>
+            <ul class="footer-links-list">
+              <li><a href="#" class="footer-link">Privacy Policy</a></li>
+              <li><a href="#" class="footer-link">Terms of Service</a></li>
+            </ul>
+          </div>
+        </div>
       </div>
 
-      <div class="footer-copy">
-        &copy; 2026 PowerNet. All rights reserved.
+      <!-- Copyright Bar -->
+      <div class="footer-bottom-bar">
+        <p>&copy; 2026 PowerNet. All rights reserved.</p>
       </div>
     </div>
   </footer>
 
-  <!-- Scripts -->
+  <!-- Scripts: Mobile Drawer & FAQ Accordion & IntersectionObserver -->
   <script>
-    // Mobile Drawer Toggle
+    // 1. Mobile Drawer Toggle
     const btnMobile = document.getElementById('btn-mobile-menu');
     const mobileDrawer = document.getElementById('mobile-drawer');
     const menuIcon = document.getElementById('menu-icon');
@@ -429,7 +506,31 @@
       });
     }
 
-    // Scroll-triggered fade-in animations (IntersectionObserver)
+    // 2. Interactive FAQ Accordion
+    const faqItems = document.querySelectorAll('.faq-item');
+    faqItems.forEach(item => {
+      const header = item.querySelector('.faq-header');
+      header.addEventListener('click', () => {
+        const isActive = item.classList.contains('active');
+        // Close all other items
+        faqItems.forEach(otherItem => {
+          if (otherItem !== item) {
+            otherItem.classList.remove('active');
+            otherItem.querySelector('.faq-header').setAttribute('aria-expanded', 'false');
+          }
+        });
+        // Toggle current
+        if (isActive) {
+          item.classList.remove('active');
+          header.setAttribute('aria-expanded', 'false');
+        } else {
+          item.classList.add('active');
+          header.setAttribute('aria-expanded', 'true');
+        }
+      });
+    });
+
+    // 3. Scroll-triggered entrance animations (IntersectionObserver)
     const animEls = document.querySelectorAll('.anim-fade-up');
     if ('IntersectionObserver' in window) {
       const obs = new IntersectionObserver((entries) => {
@@ -439,32 +540,11 @@
             obs.unobserve(e.target);
           }
         });
-      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+      }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
       animEls.forEach(el => obs.observe(el));
     } else {
-      // Fallback: show all immediately
       animEls.forEach(el => el.classList.add('visible'));
     }
-
-    // Dynamic Live Simulation Ticker for the Hero Mockup Card
-    setInterval(() => {
-      const vElem = document.getElementById('disp-voltage');
-      const cElem = document.getElementById('disp-current');
-      const pElem = document.getElementById('disp-power');
-      const pfElem = document.getElementById('disp-pf');
-
-      if (vElem && cElem && pElem) {
-        const v = (220.0 + (Math.random() * 1.2 - 0.6)).toFixed(1);
-        const c = (5.75 + (Math.random() * 0.2 - 0.1)).toFixed(2);
-        const pf = (0.97 + (Math.random() * 0.02)).toFixed(2);
-        const p = Math.round(v * c * pf);
-
-        vElem.innerHTML = `${v}<span class="metric-mini-unit">V</span>`;
-        cElem.innerHTML = `${c}<span class="metric-mini-unit">A</span>`;
-        pElem.innerHTML = `${p.toLocaleString()}<span class="metric-mini-unit">W</span>`;
-        if (pfElem) pfElem.innerHTML = `${pf}<span class="metric-mini-unit">PF</span>`;
-      }
-    }, 2500);
   </script>
 </body>
 </html>

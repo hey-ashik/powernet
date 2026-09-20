@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — PowerNet Smart Electrical Energy Monitoring</title>
   <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, energy, and temperature with automated device telemetry.">
+  <!-- Instant Auth Guard for Protected Dashboard -->
+  <script>
+    (function() {
+      try {
+        var token = localStorage.getItem('pnet_token');
+        var user = localStorage.getItem('pnet_user');
+        var signedOut = localStorage.getItem('pnet_signed_out');
+        if (!token || !user || signedOut === '1') {
+          window.location.replace('/login');
+        }
+      } catch (e) {
+        window.location.replace('/login');
+      }
+    })();
+  </script>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

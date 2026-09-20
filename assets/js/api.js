@@ -38,8 +38,21 @@ const API = {
     }
     const token = this.getToken();
     const rawUser = localStorage.getItem('pnet_user');
-    // If explicitly authenticated with token, or active local session
-    return Boolean(token || rawUser);
+    if (!token || !rawUser) return false;
+    try {
+      const u = JSON.parse(rawUser);
+      return Boolean(u && (u.id || u.email));
+    } catch {
+      return false;
+    }
+  },
+
+  requireAuth() {
+    if (!this.isLoggedIn()) {
+      window.location.replace('/login');
+      return false;
+    }
+    return true;
   },
 
   logout() {
@@ -54,12 +67,12 @@ const API = {
 
   getUser() {
     try {
-      const u = JSON.parse(localStorage.getItem('pnet_user') || 'null');
-      if (u && u.name) return u;
       if (localStorage.getItem('pnet_signed_out') === '1') return null;
-      return { id: 1, name: 'Ashikul Islam', email: 'ashikulislam2070@gmail.com' };
+      const u = JSON.parse(localStorage.getItem('pnet_user') || 'null');
+      if (u && (u.name || u.email)) return u;
+      return null;
     } catch {
-      return { id: 1, name: 'Ashikul Islam', email: 'ashikulislam2070@gmail.com' };
+      return null;
     }
   },
 

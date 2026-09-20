@@ -5,6 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Reports & Analytics — PowerNet</title>
   <meta name="description" content="Historical electrical telemetry and consumption trends">
+  <!-- Instant Auth Guard for Protected Analytics View -->
+  <script>
+    (function() {
+      try {
+        var token = localStorage.getItem('pnet_token');
+        var user = localStorage.getItem('pnet_user');
+        var signedOut = localStorage.getItem('pnet_signed_out');
+        if (!token || !user || signedOut === '1') {
+          window.location.replace('/login');
+        }
+      } catch (e) {
+        window.location.replace('/login');
+      }
+    })();
+  </script>
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
