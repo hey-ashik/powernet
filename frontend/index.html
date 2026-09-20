@@ -4,759 +4,377 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PowerNet — Smart Electrical Energy Monitoring & AI Load Prediction</title>
-  <meta name="description" content="PowerNet is an enterprise-grade IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, active power, energy, and temperature with automated ESP32 telemetry.">
+  <meta name="description" content="PowerNet is an enterprise IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, active power, and temperature with automated telemetry.">
   <!-- Google Fonts: Inter -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <!-- FontAwesome 6 Pro-Style Icons -->
+  <!-- FontAwesome 6 Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/assets/css/style.css">
-  <style>
-    :root {
-      --primary: #2563EB;
-      --primary-hover: #1D4ED8;
-      --primary-light: #EFF6FF;
-      --accent-purple: #8B5CF6;
-      --dark: #0F172A;
-      --slate: #475569;
-      --slate-light: #94A3B8;
-      --bg-page: #F8FAFC;
-      --card-bg: #FFFFFF;
-      --border-color: #E2E8F0;
-    }
-
-    body {
-      display: block;
-      width: 100%;
-      margin: 0;
-      padding: 0;
-      background-color: var(--bg-page);
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      color: var(--dark);
-      overflow-x: hidden;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    /* Top Navigation Bar */
-    .landing-nav {
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.85);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom: 1px solid rgba(226, 232, 240, 0.8);
-      transition: all 0.2s ease;
-    }
-    .nav-container {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .nav-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: var(--dark);
-    }
-    .brand-icon-box {
-      width: 40px;
-      height: 40px;
-      border-radius: 12px;
-      background: linear-gradient(135deg, #2563EB 0%, #3B82F6 100%);
-      color: #FFFFFF;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 19px;
-      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
-    }
-    .brand-title {
-      font-size: 21px;
-      font-weight: 800;
-      letter-spacing: -0.6px;
-    }
-    .brand-title span {
-      color: var(--primary);
-    }
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 28px;
-    }
-    .nav-link-item {
-      text-decoration: none;
-      color: var(--slate);
-      font-size: 14.5px;
-      font-weight: 600;
-      transition: color 0.15s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-    }
-    .nav-link-item:hover {
-      color: var(--primary);
-    }
-    .nav-actions {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .btn-nav-login {
-      text-decoration: none;
-      color: var(--dark);
-      background: #FFFFFF;
-      border: 1px solid var(--border-color);
-      padding: 9px 20px;
-      border-radius: 9999px;
-      font-size: 14px;
-      font-weight: 600;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .btn-nav-login:hover {
-      background: #F1F5F9;
-      border-color: #CBD5E1;
-    }
-    .btn-nav-register {
-      text-decoration: none;
-      color: #FFFFFF;
-      background: var(--primary);
-      padding: 9px 22px;
-      border-radius: 9999px;
-      font-size: 14px;
-      font-weight: 600;
-      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.28);
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 7px;
-    }
-    .btn-nav-register:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.35);
-    }
-
-    /* Hero Section */
-    .hero-section {
-      padding: 64px 24px 72px;
-      max-width: 1240px;
-      margin: 0 auto;
-      text-align: center;
-    }
-    .hero-badge-wrap {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      background: #EFF6FF;
-      color: #1D4ED8;
-      border: 1px solid #BFDBFE;
-      padding: 8px 18px;
-      border-radius: 9999px;
-      font-size: 13.5px;
-      font-weight: 600;
-      margin-bottom: 24px;
-    }
-    .hero-badge-wrap i {
-      color: var(--primary);
-      font-size: 14px;
-    }
-    .badge-live-pulse {
-      display: inline-block;
-      width: 8px;
-      height: 8px;
-      background: #16A34A;
-      border-radius: 50%;
-      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.25);
-    }
-    .hero-h1 {
-      font-size: 54px;
-      line-height: 1.12;
-      font-weight: 800;
-      letter-spacing: -1.8px;
-      color: #0F172A;
-      max-width: 920px;
-      margin: 0 auto 20px;
-    }
-    .gradient-hero-text {
-      background: linear-gradient(135deg, #2563EB 0%, #7C3AED 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-    .hero-p {
-      font-size: 18.5px;
-      line-height: 1.6;
-      color: #475569;
-      max-width: 760px;
-      margin: 0 auto 36px;
-    }
-    .hero-cta-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 16px;
-      flex-wrap: wrap;
-      margin-bottom: 48px;
-    }
-    .btn-hero-primary {
-      background: linear-gradient(135deg, #2563EB 0%, #1D4ED8 100%);
-      color: #FFFFFF;
-      font-size: 16px;
-      font-weight: 700;
-      padding: 16px 36px;
-      border-radius: 9999px;
-      text-decoration: none;
-      box-shadow: 0 10px 25px rgba(37, 99, 235, 0.3);
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-    }
-    .btn-hero-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 14px 30px rgba(37, 99, 235, 0.4);
-    }
-    .btn-hero-secondary {
-      background: #FFFFFF;
-      color: #0F172A;
-      font-size: 16px;
-      font-weight: 700;
-      padding: 16px 32px;
-      border-radius: 9999px;
-      text-decoration: none;
-      border: 1px solid var(--border-color);
-      box-shadow: 0 4px 12px rgba(0,0,0,0.04);
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 9px;
-    }
-    .btn-hero-secondary:hover {
-      background: #F8FAFC;
-      border-color: #CBD5E1;
-      transform: translateY(-2px);
-    }
-
-    /* Trust & Specs Pills */
-    .specs-strip {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 24px;
-      flex-wrap: wrap;
-      margin-bottom: 56px;
-    }
-    .spec-item {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 13.5px;
-      font-weight: 600;
-      color: #64748B;
-      background: #FFFFFF;
-      padding: 7px 16px;
-      border-radius: 9999px;
-      border: 1px solid #E2E8F0;
-    }
-    .spec-item i {
-      color: var(--primary);
-    }
-
-    /* Interactive Live Dashboard Preview Mockup */
-    .preview-mockup-wrapper {
-      max-width: 1100px;
-      margin: 0 auto;
-      background: #FFFFFF;
-      border-radius: 28px;
-      border: 1px solid #E2E8F0;
-      box-shadow: 0 25px 60px -15px rgba(15, 23, 42, 0.12), 0 0 0 1px rgba(15, 23, 42, 0.03);
-      overflow: hidden;
-      text-align: left;
-    }
-    .mockup-header-bar {
-      background: #0F172A;
-      color: #FFFFFF;
-      padding: 16px 24px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid #1E293B;
-    }
-    .mockup-dots {
-      display: flex;
-      gap: 8px;
-    }
-    .dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-    .dot-red { background: #EF4444; }
-    .dot-yellow { background: #F59E0B; }
-    .dot-green { background: #10B981; }
-    .mockup-header-title {
-      font-size: 13px;
-      font-weight: 600;
-      color: #94A3B8;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .mockup-status-live {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(16, 185, 129, 0.2);
-      color: #34D399;
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 700;
-    }
-    .mockup-body {
-      padding: 32px;
-      background: #F8FAFC;
-    }
-    .mockup-metrics-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-    .mock-card {
-      background: #FFFFFF;
-      border-radius: 18px;
-      padding: 20px;
-      border: 1px solid #E2E8F0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
-    }
-    .mock-card-head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 12px;
-    }
-    .mock-card-title {
-      font-size: 13px;
-      font-weight: 700;
-      color: #64748B;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .mock-card-icon {
-      width: 36px;
-      height: 36px;
-      border-radius: 10px;
-      background: #EFF6FF;
-      color: #2563EB;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 16px;
-    }
-    .mock-card-val {
-      font-size: 28px;
-      font-weight: 800;
-      color: #0F172A;
-      letter-spacing: -0.5px;
-    }
-    .mock-card-unit {
-      font-size: 14px;
-      font-weight: 600;
-      color: #64748B;
-      margin-left: 2px;
-    }
-    .mock-card-sub {
-      font-size: 12px;
-      color: #10B981;
-      font-weight: 600;
-      margin-top: 6px;
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-
-    /* Mock chart area */
-    .mock-chart-box {
-      background: #FFFFFF;
-      border-radius: 20px;
-      padding: 24px;
-      border: 1px solid #E2E8F0;
-    }
-    .mock-chart-header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin-bottom: 16px;
-    }
-    .mock-chart-title {
-      font-size: 15px;
-      font-weight: 700;
-      color: #0F172A;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    /* Feature Grid Section */
-    .features-section {
-      padding: 80px 24px;
-      max-width: 1240px;
-      margin: 0 auto;
-    }
-    .section-header {
-      text-align: center;
-      max-width: 680px;
-      margin: 0 auto 56px;
-    }
-    .section-subtitle {
-      font-size: 13.5px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: var(--primary);
-      margin-bottom: 10px;
-    }
-    .section-title {
-      font-size: 36px;
-      font-weight: 800;
-      letter-spacing: -1px;
-      color: #0F172A;
-      margin-bottom: 14px;
-    }
-    .section-desc {
-      font-size: 16px;
-      color: #64748B;
-      line-height: 1.6;
-    }
-    .feature-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 28px;
-    }
-    .feature-card {
-      background: #FFFFFF;
-      border-radius: 22px;
-      padding: 36px 30px;
-      border: 1px solid #E2E8F0;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
-      transition: all 0.25s ease;
-    }
-    .feature-card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 16px 32px rgba(0,0,0,0.06);
-      border-color: #CBD5E1;
-    }
-    .feature-icon-wrapper {
-      width: 56px;
-      height: 56px;
-      border-radius: 16px;
-      background: #EFF6FF;
-      color: var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 24px;
-      margin-bottom: 24px;
-    }
-    .feature-card-title {
-      font-size: 19px;
-      font-weight: 700;
-      color: #0F172A;
-      margin-bottom: 12px;
-    }
-    .feature-card-p {
-      font-size: 14.5px;
-      line-height: 1.65;
-      color: #64748B;
-      margin: 0;
-    }
-
-    /* Footer */
-    .landing-footer {
-      background: #0F172A;
-      color: #94A3B8;
-      padding: 48px 24px;
-      border-top: 1px solid #1E293B;
-    }
-    .footer-container {
-      max-width: 1240px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      flex-wrap: wrap;
-      gap: 20px;
-    }
-    .footer-brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #FFFFFF;
-      font-weight: 800;
-      font-size: 18px;
-    }
-    .footer-links {
-      display: flex;
-      gap: 24px;
-    }
-    .footer-link {
-      color: #94A3B8;
-      text-decoration: none;
-      font-size: 14px;
-      transition: color 0.2s;
-    }
-    .footer-link:hover {
-      color: #FFFFFF;
-    }
-
-    @media (max-width: 960px) {
-      .hero-h1 { font-size: 38px; }
-      .feature-grid { grid-template-columns: 1fr; }
-      .mockup-metrics-row { grid-template-columns: repeat(2, 1fr); }
-      .nav-links { display: none; }
-    }
-  </style>
+  <link rel="stylesheet" href="/assets/css/landing.css">
 </head>
 <body>
 
-  <!-- Top Navigation Bar -->
-  <nav class="landing-nav">
-    <div class="nav-container">
-      <a href="/" class="nav-brand">
-        <div class="brand-icon-box">
+  <!-- Floating Island Header (Pulse AI Style) -->
+  <header class="landing-header-wrapper" role="banner">
+    <div class="landing-header-pill">
+      <!-- Logo: Exact Dashboard Style (superpowers icon + PowerNet) -->
+      <a href="/" class="header-brand" aria-label="PowerNet Home">
+        <div class="header-brand-icon">
           <i class="fa-brands fa-superpowers"></i>
         </div>
-        <div class="brand-title">Power<span>Net</span></div>
+        <span class="header-brand-name">PowerNet</span>
       </a>
 
-      <div class="nav-links">
-        <a href="/dashboard" class="nav-link-item"><i class="fa-solid fa-chart-pie"></i> Live Dashboard</a>
-        <a href="/devices" class="nav-link-item"><i class="fa-solid fa-microchip"></i> Hardware Devices</a>
-        <a href="/analytics" class="nav-link-item"><i class="fa-solid fa-chart-line"></i> Historical Trends</a>
-      </div>
+      <!-- Desktop Navigation Links -->
+      <nav class="header-nav" aria-label="Main Navigation">
+        <a href="#hero" class="header-nav-link">Home</a>
+        <a href="#problems" class="header-nav-link">Problems</a>
+        <a href="#solutions" class="header-nav-link">Solutions</a>
+        <a href="#architecture" class="header-nav-link">Architecture</a>
+        <a href="/dashboard" class="header-nav-link">Dashboard</a>
+      </nav>
 
-      <div class="nav-actions">
-        <a href="/login" class="btn-nav-login">
-          <i class="fa-solid fa-right-to-bracket"></i> Login
+      <!-- Action Buttons -->
+      <div class="header-actions">
+        <a href="/login" class="btn-header-login">Login</a>
+        <a href="/register" class="btn-header-cta">
+          <span>Get Started</span>
         </a>
-        <a href="/register" class="btn-nav-register">
-          <i class="fa-solid fa-user-plus"></i> Register Free
-        </a>
-      </div>
-    </div>
-  </nav>
-
-  <!-- Hero Section -->
-  <header class="hero-section">
-    <div class="hero-badge-wrap">
-      <i class="fa-solid fa-satellite-dish"></i>
-      <span>Real-Time ESP32 + HiveMQ MQTT Telemetry</span>
-      <span class="badge-live-pulse"></span>
-    </div>
-
-    <h1 class="hero-h1">
-      Smart Electrical Energy Monitoring & <span class="gradient-hero-text">AI Load Prediction</span>
-    </h1>
-
-    <p class="hero-p">
-      Collect voltage, current, active power, daily kWh, and circuit temperature with automated ESP32 telemetry, analyzed in a state-of-the-art rounded intelligence dashboard.
-    </p>
-
-    <div class="hero-cta-row">
-      <a href="/dashboard" class="btn-hero-primary">
-        <i class="fa-solid fa-gauge-high"></i> Launch Live Dashboard
-      </a>
-      <a href="/login" class="btn-hero-secondary">
-        <i class="fa-solid fa-right-to-bracket"></i> User Login
-      </a>
-      <a href="/register" class="btn-hero-secondary">
-        <i class="fa-solid fa-user-plus"></i> Create Account
-      </a>
-    </div>
-
-    <!-- Specs Strip -->
-    <div class="specs-strip">
-      <div class="spec-item"><i class="fa-solid fa-bolt"></i> 230V AC Single/3-Phase</div>
-      <div class="spec-item"><i class="fa-solid fa-tower-broadcast"></i> HiveMQ Cloud MQTT (1883)</div>
-      <div class="spec-item"><i class="fa-solid fa-shield-halved"></i> Hostinger Dual-Ingestion</div>
-      <div class="spec-item"><i class="fa-solid fa-microchip"></i> Device ID: pnw101</div>
-    </div>
-
-    <!-- Interactive Live Dashboard Preview Mockup Card -->
-    <div class="preview-mockup-wrapper">
-      <div class="mockup-header-bar">
-        <div class="mockup-dots">
-          <div class="dot dot-red"></div>
-          <div class="dot dot-yellow"></div>
-          <div class="dot dot-green"></div>
-        </div>
-        <div class="mockup-header-title">
-          <i class="fa-solid fa-terminal" style="font-size: 11px;"></i> powernet.ashiik.com/dashboard &bull; ESP32 Live Stream
-        </div>
-        <div class="mockup-status-live">
-          <i class="fa-solid fa-circle" style="font-size: 8px;"></i> System Live
-        </div>
       </div>
 
-      <div class="mockup-body">
-        <div class="mockup-metrics-row">
-          <!-- Card 1: Voltage -->
-          <div class="mock-card">
-            <div class="mock-card-head">
-              <span class="mock-card-title">Voltage</span>
-              <div class="mock-card-icon"><i class="fa-solid fa-bolt"></i></div>
-            </div>
-            <div>
-              <span class="mock-card-val">230.4</span><span class="mock-card-unit">V</span>
-            </div>
-            <div class="mock-card-sub"><i class="fa-solid fa-arrow-up"></i> Normal grid AC</div>
-          </div>
+      <!-- Mobile Hamburger Button -->
+      <button type="button" class="btn-mobile-toggle" id="btn-mobile-menu" aria-label="Toggle navigation menu">
+        <i class="fa-solid fa-bars" id="menu-icon"></i>
+      </button>
+    </div>
 
-          <!-- Card 2: Current -->
-          <div class="mock-card">
-            <div class="mock-card-head">
-              <span class="mock-card-title">Current</span>
-              <div class="mock-card-icon" style="color:#10B981; background:#ECFDF5;"><i class="fa-solid fa-wave-square"></i></div>
-            </div>
-            <div>
-              <span class="mock-card-val">4.82</span><span class="mock-card-unit">A</span>
-            </div>
-            <div class="mock-card-sub"><i class="fa-solid fa-check"></i> Balanced Load</div>
-          </div>
-
-          <!-- Card 3: Active Power -->
-          <div class="mock-card">
-            <div class="mock-card-head">
-              <span class="mock-card-title">Power</span>
-              <div class="mock-card-icon" style="color:#F59E0B; background:#FFFBEB;"><i class="fa-solid fa-plug-circle-bolt"></i></div>
-            </div>
-            <div>
-              <span class="mock-card-val">1.110</span><span class="mock-card-unit">kW</span>
-            </div>
-            <div class="mock-card-sub" style="color:#F59E0B;"><i class="fa-solid fa-gauge"></i> 62% Breaker</div>
-          </div>
-
-          <!-- Card 4: Daily Energy -->
-          <div class="mock-card">
-            <div class="mock-card-head">
-              <span class="mock-card-title">Daily Energy</span>
-              <div class="mock-card-icon" style="color:#8B5CF6; background:#F5F3FF;"><i class="fa-solid fa-battery-three-quarters"></i></div>
-            </div>
-            <div>
-              <span class="mock-card-val">12.450</span><span class="mock-card-unit">kWh</span>
-            </div>
-            <div class="mock-card-sub" style="color:#8B5CF6;"><i class="fa-solid fa-calendar-day"></i> Today's Accumulation</div>
-          </div>
-        </div>
-
-        <!-- Waveform visual container -->
-        <div class="mock-chart-box">
-          <div class="mock-chart-header">
-            <div class="mock-chart-title">
-              <i class="fa-solid fa-chart-line" style="color:var(--primary);"></i> Live Real-Time Power Waveform (kW)
-            </div>
-            <span style="font-size: 12.5px; font-weight: 700; color: #16A34A; background: #DCFCE7; padding: 4px 12px; border-radius: 9999px;">
-              <i class="fa-solid fa-bolt"></i> Sampling 5s
-            </span>
-          </div>
-          <svg viewBox="0 0 800 120" style="width: 100%; height: 100px; overflow: visible;">
-            <defs>
-              <linearGradient id="liveWaveGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.35"/>
-                <stop offset="100%" stop-color="#3B82F6" stop-opacity="0.0"/>
-              </linearGradient>
-            </defs>
-            <path d="M 0 80 Q 100 20, 200 60 T 400 45 T 600 70 T 800 35 L 800 120 L 0 120 Z" fill="url(#liveWaveGrad)" />
-            <path d="M 0 80 Q 100 20, 200 60 T 400 45 T 600 70 T 800 35" fill="none" stroke="#2563EB" stroke-width="3.5" stroke-linecap="round" />
-            <circle cx="800" cy="35" r="5" fill="#2563EB" stroke="#FFFFFF" stroke-width="2" />
-          </svg>
-        </div>
+    <!-- Mobile Dropdown Drawer -->
+    <div class="mobile-nav-drawer" id="mobile-drawer">
+      <a href="#hero" class="mobile-nav-link">Home</a>
+      <a href="#problems" class="mobile-nav-link">Problems</a>
+      <a href="#solutions" class="mobile-nav-link">Solutions</a>
+      <a href="#architecture" class="mobile-nav-link">Architecture</a>
+      <a href="/dashboard" class="mobile-nav-link">Dashboard</a>
+      <a href="/devices" class="mobile-nav-link">Devices</a>
+      <a href="/analytics" class="mobile-nav-link">Analytics</a>
+      <div class="mobile-actions-row">
+        <a href="/login" class="btn-header-login">Login</a>
+        <a href="/register" class="btn-header-cta">Get Started</a>
       </div>
     </div>
   </header>
 
-  <!-- Feature Grid Section -->
-  <section class="features-section">
-    <div class="section-header">
-      <div class="section-subtitle">System Capabilities</div>
-      <h2 class="section-title">Engineered for Precision & AI Readiness</h2>
-      <p class="section-desc">From bare-metal ESP32 C++ firmware to cloud MQTT ingestion and real-time frontend monitoring.</p>
+  <!-- Hero Section (Full Viewport Blue Gradient + Ambient Glow Orb) -->
+  <section class="hero-section" id="hero">
+    <div class="hero-blur-orb"></div>
+
+    <div class="hero-content">
+      <div class="hero-pill-badge anim-fade-up">
+        <span class="pulse-dot"></span>
+        <span>Real-Time Power Telemetry &amp; AI Load Intelligence</span>
+      </div>
+
+      <h1 class="hero-h1 anim-fade-up anim-delay-1">
+        Real-Time Power Intelligence &amp; Predictive Energy Optimization
+      </h1>
+
+      <p class="hero-sub anim-fade-up anim-delay-2">
+        Monitor voltage, current, active power, and temperature with automated IoT telemetry, sub-second anomaly detection, and AI load forecasts.
+      </p>
+
+      <div class="hero-cta-group anim-fade-up anim-delay-3">
+        <a href="/register" class="btn-hero-primary">
+          <span>Get Started</span>
+          <i class="fa-solid fa-arrow-right" style="font-size: 14px;"></i>
+        </a>
+        <a href="/dashboard" class="btn-hero-secondary">
+          <span>Live Dashboard</span>
+          <i class="fa-solid fa-chart-pie" style="font-size: 14px;"></i>
+        </a>
+      </div>
+
+      <!-- Interactive Dashboard Mockup Card -->
+      <div class="hero-mockup-wrapper anim-fade-up anim-delay-4">
+        <div class="mockup-top-bar">
+          <div class="mockup-dots">
+            <div class="mockup-dot" style="background: #EF4444;"></div>
+            <div class="mockup-dot" style="background: #F59E0B;"></div>
+            <div class="mockup-dot" style="background: #10B981;"></div>
+          </div>
+          <div class="mockup-title-chip">
+            <i class="fa-solid fa-bolt" style="color: #60A5FA;"></i>
+            <span>PowerNet Live Telemetry Monitor &bull; pnw101</span>
+          </div>
+          <div class="mockup-status-badge">
+            <span class="pulse-dot"></span>
+            <span>HiveMQ Connected</span>
+          </div>
+        </div>
+
+        <div class="mockup-body">
+          <div class="mockup-metrics-grid">
+            <div class="metric-mini-card">
+              <div class="metric-mini-label">Voltage</div>
+              <div class="metric-mini-value" id="disp-voltage">220.4<span class="metric-mini-unit">V</span></div>
+            </div>
+            <div class="metric-mini-card">
+              <div class="metric-mini-label">Current</div>
+              <div class="metric-mini-value" id="disp-current">5.82<span class="metric-mini-unit">A</span></div>
+            </div>
+            <div class="metric-mini-card">
+              <div class="metric-mini-label">Active Power</div>
+              <div class="metric-mini-value" id="disp-power">1,283<span class="metric-mini-unit">W</span></div>
+            </div>
+            <div class="metric-mini-card">
+              <div class="metric-mini-label">Power Factor</div>
+              <div class="metric-mini-value" id="disp-pf">0.98<span class="metric-mini-unit">PF</span></div>
+            </div>
+          </div>
+
+          <div class="mockup-chart-strip">
+            <div class="chart-strip-left">
+              <div style="width: 38px; height: 38px; border-radius: 10px; background: #EFF6FF; color: #1A5AF0; display: flex; align-items: center; justify-content: center; font-size: 16px;">
+                <i class="fa-solid fa-wave-square"></i>
+              </div>
+              <div>
+                <div class="chart-strip-title">Real-Time Sine Telemetry Waveform</div>
+                <div class="chart-strip-sub">Sampling interval: 1,000ms &bull; Zero packet loss buffer</div>
+              </div>
+            </div>
+            <svg width="220" height="36" viewBox="0 0 220 36" fill="none" style="max-width: 100%;">
+              <path d="M0 18 Q 27 0, 55 18 T 110 18 T 165 18 T 220 18" stroke="#1A5AF0" stroke-width="2.5" fill="none"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+
+      <!-- Marquee inside hero (Pulse AI pattern) -->
+      <div class="marquee-section anim-fade-up anim-delay-5">
+        <div class="marquee-title">Trusted By Leading IoT Protocols</div>
+        <div class="marquee-wrapper">
+          <div class="marquee-content">
+            <!-- Logos + hardware badges -->
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_1.svg" alt="Partner 1"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-tower-broadcast"></i> HiveMQ MQTT</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_2.svg" alt="Partner 2"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-microchip"></i> ESP32 DevKit V1</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_3.svg" alt="Partner 3"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-brain"></i> AI Load Forecaster</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_4.svg" alt="Partner 4"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-gauge-high"></i> PZEM-004T Meter</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_5.svg" alt="Partner 5"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-shield-halved"></i> Dual Ingestion</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_6.svg" alt="Partner 6"></div>
+
+            <!-- Duplicated for seamless loop -->
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_1.svg" alt="Partner 1"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-tower-broadcast"></i> HiveMQ MQTT</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_2.svg" alt="Partner 2"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-microchip"></i> ESP32 DevKit V1</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_3.svg" alt="Partner 3"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-brain"></i> AI Load Forecaster</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_4.svg" alt="Partner 4"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-gauge-high"></i> PZEM-004T Meter</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_5.svg" alt="Partner 5"></div>
+            <div class="marquee-badge"><i class="fa-solid fa-shield-halved"></i> Dual Ingestion</div>
+            <div class="marquee-item"><img src="/assets/images/pulse/logo_6.svg" alt="Partner 6"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Problem Section -->
+  <section class="problems-section anim-fade-up" id="problems">
+    <div style="text-align: center;">
+      <div class="section-tag tag-problem">
+        <i class="fa-solid fa-circle-exclamation"></i>
+        <span>The Problem</span>
+      </div>
+      <h2 class="section-h2">Hidden Power Inefficiencies Cost Real Revenue</h2>
+      <p class="section-desc">
+        Traditional electrical installations operate in the dark, leading to equipment stress, unmonitored tariff penalties, and unplanned breaker outages.
+      </p>
     </div>
 
-    <div class="feature-grid">
-      <!-- Feature 1 -->
-      <div class="feature-card">
-        <div class="feature-icon-wrapper">
+    <div class="cards-grid-3">
+      <div class="info-card anim-fade-up">
+        <div class="info-card-icon icon-red">
+          <i class="fa-solid fa-bolt-lightning"></i>
+        </div>
+        <h3 class="info-card-title">Unmonitored Peak Spikes</h3>
+        <p class="info-card-body">
+          Surpassing contracted breaker limits triggers unexpected shutdowns and costly utility peak demand surcharges.
+        </p>
+      </div>
+
+      <div class="info-card anim-fade-up anim-delay-1">
+        <div class="info-card-icon icon-red">
+          <i class="fa-solid fa-chart-line-down"></i>
+        </div>
+        <h3 class="info-card-title">Low Power Factor Losses</h3>
+        <p class="info-card-body">
+          Uncompensated inductive machinery degrades system power factor, drawing excess current and wearing out conductors.
+        </p>
+      </div>
+
+      <div class="info-card anim-fade-up anim-delay-2">
+        <div class="info-card-icon icon-red">
+          <i class="fa-solid fa-clock-rotate-left"></i>
+        </div>
+        <h3 class="info-card-title">Delayed Energy Audits</h3>
+        <p class="info-card-body">
+          Relying on monthly bills means finding out about equipment faults and phantom consumption weeks after damage occurred.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Solution Section -->
+  <section class="problems-section anim-fade-up" id="solutions" style="padding-top: 20px;">
+    <div style="text-align: center;">
+      <div class="section-tag tag-solution">
+        <i class="fa-solid fa-circle-check"></i>
+        <span>The Solution</span>
+      </div>
+      <h2 class="section-h2">Sub-Second Telemetry Coupled with AI Predictive Control</h2>
+      <p class="section-desc">
+        PowerNet bridges hardware sensors with instant cloud telemetry to give engineers continuous visibility and automated load forecasting.
+      </p>
+    </div>
+
+    <div class="cards-grid-3">
+      <div class="info-card anim-fade-up">
+        <div class="info-card-icon icon-green">
           <i class="fa-solid fa-microchip"></i>
         </div>
-        <h3 class="feature-card-title">ESP32 DevKit V1 Telemetry</h3>
-        <p class="feature-card-p">
-          Connect voltage sensors and current transformers (PZEM-004T, ACS712). High-precision sampling with sub-second computation.
+        <h3 class="info-card-title">Automated IoT Telemetry</h3>
+        <p class="info-card-body">
+          Sensors stream voltage, current, and active wattage at sub-second frequencies over lightweight MQTT broker queues.
         </p>
       </div>
 
-      <!-- Feature 2 -->
-      <div class="feature-card">
-        <div class="feature-icon-wrapper" style="color: #10B981; background: #ECFDF5;">
-          <i class="fa-solid fa-tower-broadcast"></i>
-        </div>
-        <h3 class="feature-card-title">HiveMQ MQTT Cloud Broker</h3>
-        <p class="feature-card-p">
-          Ultra-low latency telemetry streaming over standard MQTT port 1883 with automatic reconnection and keepalive pulses.
-        </p>
-      </div>
-
-      <!-- Feature 3 -->
-      <div class="feature-card">
-        <div class="feature-icon-wrapper" style="color: #8B5CF6; background: #F5F3FF;">
+      <div class="info-card anim-fade-up anim-delay-1">
+        <div class="info-card-icon icon-blue">
           <i class="fa-solid fa-brain"></i>
         </div>
-        <h3 class="feature-card-title">AI Load Prediction Ready</h3>
-        <p class="feature-card-p">
-          Data schemas and REST APIs structured for machine learning integration, peak breaker forecast, and anomaly alerts.
+        <h3 class="info-card-title">AI Peak Breaker Forecast</h3>
+        <p class="info-card-body">
+          Predictive algorithms analyze load curves to project breaker overloads in advance, preventing breaker tripping.
         </p>
       </div>
 
-      <!-- Feature 4 -->
-      <div class="feature-card">
-        <div class="feature-icon-wrapper" style="color: #F59E0B; background: #FFFBEB;">
-          <i class="fa-solid fa-shield-halved"></i>
-        </div>
-        <h3 class="feature-card-title">Dual-Ingestion Architecture</h3>
-        <p class="feature-card-p">
-          Guaranteed uptime on Hostinger shared hosting with automated fallback from HiveMQ CLI subscriber to direct HTTPS push.
-        </p>
-      </div>
-
-      <!-- Feature 5 -->
-      <div class="feature-card">
-        <div class="feature-icon-wrapper" style="color: #EF4444; background: #FEF2F2;">
-          <i class="fa-solid fa-envelope-circle-check"></i>
-        </div>
-        <h3 class="feature-card-title">Authenticated Mail Service</h3>
-        <p class="feature-card-p">
-          Direct SMTP socket delivery through Hostinger or Gmail with anti-spam multipart boundaries and instantaneous verification.
-        </p>
-      </div>
-
-      <!-- Feature 6 -->
-      <div class="feature-card">
-        <div class="feature-icon-wrapper" style="color: #06B6D4; background: #ECFEFF;">
+      <div class="info-card anim-fade-up anim-delay-2">
+        <div class="info-card-icon icon-green">
           <i class="fa-solid fa-cubes"></i>
         </div>
-        <h3 class="feature-card-title">One-Click Device Pairing</h3>
-        <p class="feature-card-p">
-          Simplified device onboarding with standard Device ID (e.g. <code>pnw101</code>) — zero token friction, instant sync.
+        <h3 class="info-card-title">Instant Device Pairing</h3>
+        <p class="info-card-body">
+          Simple Device ID binding (e.g. <code>pnw101</code>) links equipment instantly to your account with zero firmware friction.
         </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Bento Core Architecture Grid -->
+  <section class="bento-section anim-fade-up" id="architecture">
+    <div style="text-align: center; margin-bottom: 40px;">
+      <div class="section-tag" style="background: #EFF6FF; color: #1A5AF0; border-color: #BFDBFE;">
+        <i class="fa-solid fa-layer-group"></i>
+        <span>System Architecture</span>
+      </div>
+      <h2 class="section-h2">Built for Industrial Uptime &amp; Resilience</h2>
+      <p class="section-desc">
+        Engineered with edge-to-cloud redundancy, TLS-encrypted telemetry, and zero-dependency microservices.
+      </p>
+    </div>
+
+    <div class="bento-grid">
+      <div class="bento-card anim-fade-up">
+        <div class="bento-card-header">
+          <div class="bento-badge-icon">
+            <i class="fa-solid fa-tower-broadcast"></i>
+          </div>
+          <h3 class="bento-card-title">HiveMQ MQTT Cloud Broker</h3>
+        </div>
+        <p class="bento-card-desc">
+          Bi-directional telemetry streaming over standard port 1883 with automatic reconnection, heartbeat keepalive, and payload verification.
+        </p>
+        <div class="bento-highlight-box">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>1,000ms heartbeat &bull; Zero socket starvation buffer</span>
+        </div>
+      </div>
+
+      <div class="bento-card anim-fade-up anim-delay-1">
+        <div class="bento-card-header">
+          <div class="bento-badge-icon">
+            <i class="fa-solid fa-shield-halved"></i>
+          </div>
+          <h3 class="bento-card-title">Dual-Ingestion Fallback</h3>
+        </div>
+        <p class="bento-card-desc">
+          Full resilience for shared hosting environments. If MQTT CLI daemon access is unavailable, telemetry automatically falls back to direct REST endpoints.
+        </p>
+        <div class="bento-highlight-box">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>HTTPS REST fallback &bull; Hostinger Apache / Nginx ready</span>
+        </div>
+      </div>
+
+      <div class="bento-card anim-fade-up anim-delay-2">
+        <div class="bento-card-header">
+          <div class="bento-badge-icon">
+            <i class="fa-solid fa-microchip"></i>
+          </div>
+          <h3 class="bento-card-title">Hardware Telemetry Stack</h3>
+        </div>
+        <p class="bento-card-desc">
+          Compatible with PZEM-004T and ACS712 current transformers. Pre-configured firmware computes true RMS current, active power, and cumulative kWh.
+        </p>
+        <div class="bento-highlight-box">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>True RMS computation &bull; Built-in flash memory safety</span>
+        </div>
+      </div>
+
+      <div class="bento-card anim-fade-up anim-delay-3">
+        <div class="bento-card-header">
+          <div class="bento-badge-icon">
+            <i class="fa-solid fa-chart-line"></i>
+          </div>
+          <h3 class="bento-card-title">AI Forecast &amp; Peak Shaving</h3>
+        </div>
+        <p class="bento-card-desc">
+          Real-time telemetry feeds regression models that forecast hourly energy trends, anomalous power spikes, and scheduled load shifts.
+        </p>
+        <div class="bento-highlight-box">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Historical energy analytics &bull; Breaker protection limits</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Call to Action Banner -->
+  <section class="cta-banner-section anim-fade-up">
+    <div class="cta-banner-card">
+      <div class="cta-banner-content">
+        <h2 class="cta-banner-h2">Take Control of Your Power Infrastructure Today</h2>
+        <p class="cta-banner-p">
+          Connect your devices in minutes. Real-time telemetry, predictive overload protection, and deep energy visibility in one unified dashboard.
+        </p>
+        <div class="cta-banner-buttons">
+          <a href="/register" class="btn-hero-primary" style="background: #FFFFFF; color: #1A5AF0;">
+            <span>Get Started Free</span>
+            <i class="fa-solid fa-arrow-right"></i>
+          </a>
+          <a href="/dashboard" class="btn-hero-secondary" style="background: rgba(255,255,255,0.12); color: #FFFFFF; border: 1px solid rgba(255,255,255,0.25);">
+            <i class="fa-solid fa-chart-pie"></i>
+            <span>Launch Dashboard</span>
+          </a>
+        </div>
       </div>
     </div>
   </section>
@@ -764,21 +382,89 @@
   <!-- Footer -->
   <footer class="landing-footer">
     <div class="footer-container">
-      <div class="footer-brand">
-        <i class="fa-brands fa-superpowers" style="color: #3B82F6;"></i> PowerNet Energy Platform
+      <a href="/" class="footer-brand">
+        <div class="header-brand-icon" style="color: #60A5FA;">
+          <i class="fa-brands fa-superpowers" style="color: #60A5FA !important;"></i>
+        </div>
+        <span>PowerNet</span>
+      </a>
+
+      <div class="footer-links-row">
+        <a href="/dashboard" class="footer-link-item">Dashboard</a>
+        <a href="/devices" class="footer-link-item">Devices</a>
+        <a href="/analytics" class="footer-link-item">Analytics</a>
+        <a href="/login" class="footer-link-item">Sign In</a>
+        <a href="/register" class="footer-link-item">Sign Up</a>
       </div>
-      <div class="footer-links">
-        <a href="/dashboard" class="footer-link"><i class="fa-solid fa-chart-pie"></i> Dashboard</a>
-        <a href="/devices" class="footer-link"><i class="fa-solid fa-microchip"></i> Devices</a>
-        <a href="/analytics" class="footer-link"><i class="fa-solid fa-chart-line"></i> Analytics</a>
-        <a href="/login" class="footer-link"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
-        <a href="/register" class="footer-link"><i class="fa-solid fa-user-plus"></i> Register</a>
-      </div>
-      <div style="font-size: 13px;">
+
+      <div class="footer-copy">
         &copy; 2026 PowerNet. All rights reserved.
       </div>
     </div>
   </footer>
 
+  <!-- Scripts -->
+  <script>
+    // Mobile Drawer Toggle
+    const btnMobile = document.getElementById('btn-mobile-menu');
+    const mobileDrawer = document.getElementById('mobile-drawer');
+    const menuIcon = document.getElementById('menu-icon');
+
+    if (btnMobile && mobileDrawer) {
+      btnMobile.addEventListener('click', () => {
+        mobileDrawer.classList.toggle('open');
+        if (mobileDrawer.classList.contains('open')) {
+          menuIcon.className = 'fa-solid fa-xmark';
+        } else {
+          menuIcon.className = 'fa-solid fa-bars';
+        }
+      });
+
+      // Close drawer on link click
+      mobileDrawer.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+          mobileDrawer.classList.remove('open');
+          menuIcon.className = 'fa-solid fa-bars';
+        });
+      });
+    }
+
+    // Scroll-triggered fade-in animations (IntersectionObserver)
+    const animEls = document.querySelectorAll('.anim-fade-up');
+    if ('IntersectionObserver' in window) {
+      const obs = new IntersectionObserver((entries) => {
+        entries.forEach(e => {
+          if (e.isIntersecting) {
+            e.target.classList.add('visible');
+            obs.unobserve(e.target);
+          }
+        });
+      }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+      animEls.forEach(el => obs.observe(el));
+    } else {
+      // Fallback: show all immediately
+      animEls.forEach(el => el.classList.add('visible'));
+    }
+
+    // Dynamic Live Simulation Ticker for the Hero Mockup Card
+    setInterval(() => {
+      const vElem = document.getElementById('disp-voltage');
+      const cElem = document.getElementById('disp-current');
+      const pElem = document.getElementById('disp-power');
+      const pfElem = document.getElementById('disp-pf');
+
+      if (vElem && cElem && pElem) {
+        const v = (220.0 + (Math.random() * 1.2 - 0.6)).toFixed(1);
+        const c = (5.75 + (Math.random() * 0.2 - 0.1)).toFixed(2);
+        const pf = (0.97 + (Math.random() * 0.02)).toFixed(2);
+        const p = Math.round(v * c * pf);
+
+        vElem.innerHTML = `${v}<span class="metric-mini-unit">V</span>`;
+        cElem.innerHTML = `${c}<span class="metric-mini-unit">A</span>`;
+        pElem.innerHTML = `${p.toLocaleString()}<span class="metric-mini-unit">W</span>`;
+        if (pfElem) pfElem.innerHTML = `${pf}<span class="metric-mini-unit">PF</span>`;
+      }
+    }, 2500);
+  </script>
 </body>
 </html>

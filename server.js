@@ -104,6 +104,22 @@ const server = http.createServer((req, res) => {
         return;
       }
 
+      if (apiRoute === '/api/auth/forgot-password') {
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Password reset link has been sent to your email.'
+        }));
+        return;
+      }
+
+      if (apiRoute === '/api/auth/reset-password') {
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Password successfully reset! You can now log in.'
+        }));
+        return;
+      }
+
       if (apiRoute === '/api/auth/me') {
         res.end(JSON.stringify({
           success: true,

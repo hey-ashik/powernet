@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Login — PowerNet</title>
+  <title>Sign In — PowerNet</title>
   <meta name="description" content="Sign in to your PowerNet electrical energy monitoring dashboard">
   <!-- FontAwesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
@@ -11,51 +11,85 @@
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
-  <div class="auth-wrapper">
-    <div class="auth-card">
-      <div class="auth-header">
-        <div class="auth-logo">
-          <div class="auth-logo-icon">
-            <i class="fa-brands fa-superpowers" style="font-size: 20px;"></i>
-          </div>
-          <span class="auth-logo-text">PowerNet</span>
-        </div>
-        <h1 class="auth-title">Welcome back</h1>
-        <p class="auth-subtitle">Monitor. Analyze. Predict.</p>
+  <div class="auth-page-container">
+    <!-- Left Form Side -->
+    <div class="auth-form-side">
+      <div class="auth-top-bar">
+        <a href="/" class="auth-back-link">
+          <i class="fa-solid fa-chevron-left"></i>
+          <span>Back to home</span>
+        </a>
       </div>
 
-      <div id="alert-box" class="alert-box"></div>
-
-      <form id="form-login">
-        <div class="form-group">
-          <label class="form-label" for="email">
-            <i class="fa-regular fa-envelope" style="margin-right: 6px; color: var(--text-secondary);"></i> Email
-          </label>
-          <input type="email" id="email" class="input-control" placeholder="name@domain.com" required autocomplete="email">
+      <div class="auth-form-wrapper">
+        <div class="auth-header">
+          <h1 class="auth-title">Sign In</h1>
+          <p class="auth-subtitle">Enter your email and password to sign in!</p>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="password">
-            <i class="fa-solid fa-lock" style="margin-right: 6px; color: var(--text-secondary);"></i> Password
-          </label>
-          <input type="password" id="password" class="input-control" placeholder="••••••••" required autocomplete="current-password">
+        <div id="alert-box" class="alert-box"></div>
+
+        <form id="form-login">
+          <div class="form-group">
+            <label class="form-label" for="email">
+              Email<span class="text-required">*</span>
+            </label>
+            <input type="email" id="email" class="input-control" placeholder="info@gmail.com" required autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="password">
+              Password<span class="text-required">*</span>
+            </label>
+            <div class="input-container">
+              <input type="password" id="password" class="input-control" placeholder="Enter your password" required autocomplete="current-password">
+              <button type="button" class="input-icon-btn toggle-password" data-target="password" aria-label="Toggle password visibility">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-row-options">
+            <label class="form-checkbox-label" for="remember">
+              <input type="checkbox" id="remember" checked>
+              <span>Keep me logged in</span>
+            </label>
+            <a href="/forgot-password" class="auth-link">Forgot password?</a>
+          </div>
+
+          <button type="submit" class="btn-auth-primary">
+            Sign In
+          </button>
+        </form>
+
+        <div class="auth-bottom-row">
+          Don't have an account? <a href="/register" class="auth-link">Sign Up</a>
         </div>
+      </div>
 
-        <div class="form-row-space">
-          <label class="form-checkbox">
-            <input type="checkbox" checked>
-            <span>Remember me</span>
-          </label>
-          <a href="/forgot-password" class="forgot-link">Forgot password?</a>
-        </div>
+      <!-- Empty footer spacer for symmetry -->
+      <div style="height: 16px;"></div>
+    </div>
 
-        <button type="submit" class="btn-primary-block">
-          <i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Login
-        </button>
-      </form>
+    <!-- Right Brand Side (TailAdmin Split-Screen with PowerNet Branding) -->
+    <div class="auth-brand-side">
+      <div class="auth-grid-shape auth-grid-top">
+        <img src="/assets/images/shape/grid-01.svg" alt="grid pattern">
+      </div>
+      <div class="auth-grid-shape auth-grid-bottom">
+        <img src="/assets/images/shape/grid-01.svg" alt="grid pattern">
+      </div>
 
-      <div class="auth-footer">
-        Don't have an account? <a href="/register">Create a new account</a>
+      <div class="auth-brand-card">
+        <a href="/" class="auth-brand-logo-group">
+          <div class="auth-brand-icon">
+            <i class="fa-brands fa-superpowers"></i>
+          </div>
+          <span class="auth-brand-title">PowerNet</span>
+        </a>
+        <p class="auth-brand-tagline">
+          Smart Electrical Energy Monitoring &amp; Predictive Intelligence
+        </p>
       </div>
     </div>
   </div>

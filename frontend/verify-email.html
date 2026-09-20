@@ -4,34 +4,64 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Email Verification — PowerNet</title>
+  <meta name="description" content="Verify your PowerNet account email">
   <!-- FontAwesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css">
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
-  <div class="auth-wrapper">
-    <div class="auth-card" style="text-align: center;">
-      <div class="auth-header">
-        <div class="auth-logo">
-          <div class="auth-logo-icon">
-            <i class="fa-brands fa-superpowers" style="font-size: 20px;"></i>
-          </div>
-          <span class="auth-logo-text">PowerNet</span>
+  <div class="auth-page-container">
+    <!-- Left Form Side -->
+    <div class="auth-form-side">
+      <div class="auth-top-bar">
+        <a href="/" class="auth-back-link">
+          <i class="fa-solid fa-chevron-left"></i>
+          <span>Back to home</span>
+        </a>
+      </div>
+
+      <div class="auth-form-wrapper" style="text-align: center;">
+        <div class="auth-header">
+          <h1 class="auth-title" id="verif-title">Verifying your email...</h1>
+          <p class="auth-subtitle" id="verif-desc">Please wait while we confirm your account.</p>
         </div>
-        <h1 class="auth-title" id="verif-title">Verifying your email...</h1>
-        <p class="auth-subtitle" id="verif-desc">Please wait while we confirm your account.</p>
+
+        <div id="verif-status-box" style="margin: 24px 0; font-size: 40px; color: var(--auth-brand-primary);">
+          <i class="fa-solid fa-spinner fa-spin"></i>
+        </div>
+
+        <div id="alert-box" class="alert-box"></div>
+
+        <a href="/login?verified=1" class="btn-auth-primary" id="btn-to-login" style="display: none; text-decoration: none; margin-top: 16px;">
+          <i class="fa-solid fa-right-to-bracket" style="margin-right: 6px;"></i> Continue to Sign In
+        </a>
       </div>
 
-      <div id="verif-status-box" style="margin: 24px 0; font-size: 44px; color: var(--primary);">
-        <i class="fa-solid fa-spinner fa-spin"></i>
+      <!-- Empty footer spacer -->
+      <div style="height: 16px;"></div>
+    </div>
+
+    <!-- Right Brand Side (TailAdmin Split-Screen with PowerNet Branding) -->
+    <div class="auth-brand-side">
+      <div class="auth-grid-shape auth-grid-top">
+        <img src="/assets/images/shape/grid-01.svg" alt="grid pattern">
+      </div>
+      <div class="auth-grid-shape auth-grid-bottom">
+        <img src="/assets/images/shape/grid-01.svg" alt="grid pattern">
       </div>
 
-      <div id="alert-box" class="alert-box"></div>
-
-      <a href="/login?verified=1" class="btn-primary-block" id="btn-to-login" style="display: none; line-height: 48px; text-decoration: none; margin-top: 16px;">
-        <i class="fa-solid fa-right-to-bracket" style="margin-right: 8px;"></i> Continue to Login
-      </a>
+      <div class="auth-brand-card">
+        <a href="/" class="auth-brand-logo-group">
+          <div class="auth-brand-icon">
+            <i class="fa-brands fa-superpowers"></i>
+          </div>
+          <span class="auth-brand-title">PowerNet</span>
+        </a>
+        <p class="auth-brand-tagline">
+          Smart Electrical Energy Monitoring &amp; Predictive Intelligence
+        </p>
+      </div>
     </div>
   </div>
 
@@ -53,21 +83,20 @@
         alertBox.className = 'alert-box alert-error';
         alertBox.textContent = 'Token missing or invalid.';
         alertBox.style.display = 'block';
-        btn.style.display = 'block';
+        btn.style.display = 'inline-flex';
         return;
       }
 
       try {
         const res = await API.request(`/auth/verify-email.php?token=${encodeURIComponent(token)}`);
         title.textContent = 'Email Verified!';
-        desc.textContent = 'Your account is active. Redirecting to login...';
+        desc.textContent = 'Your account is active. Redirecting to sign in...';
         icon.innerHTML = '<i class="fa-solid fa-circle-check" style="color: #16A34A;"></i>';
         alertBox.className = 'alert-box alert-success';
         alertBox.textContent = res.message || 'Email verified successfully!';
         alertBox.style.display = 'block';
-        btn.style.display = 'block';
+        btn.style.display = 'inline-flex';
 
-        // Auto-redirect to login page after 1.5 seconds as requested
         setTimeout(() => {
           window.location.href = '/login?verified=1';
         }, 1500);
@@ -78,7 +107,7 @@
         alertBox.className = 'alert-box alert-error';
         alertBox.textContent = err.message;
         alertBox.style.display = 'block';
-        btn.style.display = 'block';
+        btn.style.display = 'inline-flex';
       }
     });
   </script>

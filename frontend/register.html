@@ -3,65 +3,121 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register — PowerNet</title>
-  <meta name="description" content="Create a new PowerNet account to monitor electrical energy and AI predictions">
+  <title>Sign Up — PowerNet</title>
+  <meta name="description" content="Create your PowerNet account to monitor electrical energy and AI predictions">
   <!-- FontAwesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="/assets/css/style.css">
   <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body>
-  <div class="auth-wrapper">
-    <div class="auth-card">
-      <div class="auth-header">
-        <div class="auth-logo">
-          <div class="auth-logo-icon">
-            <i class="fa-brands fa-superpowers" style="font-size: 20px;"></i>
-          </div>
-          <span class="auth-logo-text">PowerNet</span>
-        </div>
-        <h1 class="auth-title">Create an account</h1>
-        <p class="auth-subtitle">Join the smart electrical energy monitoring platform</p>
+  <div class="auth-page-container">
+    <!-- Left Form Side -->
+    <div class="auth-form-side">
+      <div class="auth-top-bar">
+        <a href="/" class="auth-back-link">
+          <i class="fa-solid fa-chevron-left"></i>
+          <span>Back to home</span>
+        </a>
       </div>
 
-      <div id="alert-box" class="alert-box"></div>
-
-      <form id="form-register">
-        <div class="form-group">
-          <label class="form-label" for="name">
-            <i class="fa-regular fa-user" style="margin-right: 6px; color: var(--text-secondary);"></i> Full Name
-          </label>
-          <input type="text" id="name" class="input-control" placeholder="e.g. Ashik Islam" required autocomplete="name">
+      <div class="auth-form-wrapper">
+        <div class="auth-header">
+          <h1 class="auth-title">Sign Up</h1>
+          <p class="auth-subtitle">Enter your details to create your account!</p>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="email">
-            <i class="fa-regular fa-envelope" style="margin-right: 6px; color: var(--text-secondary);"></i> Email
-          </label>
-          <input type="email" id="email" class="input-control" placeholder="name@domain.com" required autocomplete="email">
+        <div id="alert-box" class="alert-box"></div>
+
+        <form id="form-register">
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label class="form-label" for="fname">
+                First Name<span class="text-required">*</span>
+              </label>
+              <input type="text" id="fname" class="input-control" placeholder="First name" required autocomplete="given-name">
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="lname">
+                Last Name<span class="text-required">*</span>
+              </label>
+              <input type="text" id="lname" class="input-control" placeholder="Last name" required autocomplete="family-name">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="email">
+              Email<span class="text-required">*</span>
+            </label>
+            <input type="email" id="email" class="input-control" placeholder="Enter your email" required autocomplete="email">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="password">
+              Password<span class="text-required">*</span>
+            </label>
+            <div class="input-container">
+              <input type="password" id="password" class="input-control" placeholder="Enter your password" minlength="8" required autocomplete="new-password">
+              <button type="button" class="input-icon-btn toggle-password" data-target="password" aria-label="Toggle password visibility">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="confirm_password">
+              Confirm Password<span class="text-required">*</span>
+            </label>
+            <div class="input-container">
+              <input type="password" id="confirm_password" class="input-control" placeholder="Confirm your password" minlength="8" required autocomplete="new-password">
+              <button type="button" class="input-icon-btn toggle-password" data-target="confirm_password" aria-label="Toggle password visibility">
+                <i class="fa-regular fa-eye"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 10px; margin-bottom: 20px;">
+            <label class="form-checkbox-label" style="align-items: flex-start;">
+              <input type="checkbox" id="terms" required checked style="margin-top: 2px;">
+              <span style="font-size: 13px; line-height: 1.45; color: #475467;">
+                By creating an account means you agree to the <strong style="color: #111827;">Terms and Conditions</strong>, and our <strong style="color: #111827;">Privacy Policy</strong>
+              </span>
+            </label>
+          </div>
+
+          <button type="submit" class="btn-auth-primary">
+            Sign Up
+          </button>
+        </form>
+
+        <div class="auth-bottom-row">
+          Already have an account? <a href="/login" class="auth-link">Sign In</a>
         </div>
+      </div>
 
-        <div class="form-group">
-          <label class="form-label" for="password">
-            <i class="fa-solid fa-lock" style="margin-right: 6px; color: var(--text-secondary);"></i> Password (min 8 chars)
-          </label>
-          <input type="password" id="password" class="input-control" placeholder="••••••••" minlength="8" required autocomplete="new-password">
-        </div>
+      <!-- Empty footer spacer -->
+      <div style="height: 16px;"></div>
+    </div>
 
-        <div class="form-group">
-          <label class="form-label" for="confirm_password">
-            <i class="fa-solid fa-shield-halved" style="margin-right: 6px; color: var(--text-secondary);"></i> Confirm Password
-          </label>
-          <input type="password" id="confirm_password" class="input-control" placeholder="••••••••" minlength="8" required autocomplete="new-password">
-        </div>
+    <!-- Right Brand Side (TailAdmin Split-Screen with PowerNet Branding) -->
+    <div class="auth-brand-side">
+      <div class="auth-grid-shape auth-grid-top">
+        <img src="/assets/images/shape/grid-01.svg" alt="grid pattern">
+      </div>
+      <div class="auth-grid-shape auth-grid-bottom">
+        <img src="/assets/images/shape/grid-01.svg" alt="grid pattern">
+      </div>
 
-        <button type="submit" class="btn-primary-block" style="margin-top: 10px;">
-          <i class="fa-solid fa-user-plus" style="margin-right: 8px;"></i> Create Account
-        </button>
-      </form>
-
-      <div class="auth-footer">
-        Already have an account? <a href="/login">Sign in</a>
+      <div class="auth-brand-card">
+        <a href="/" class="auth-brand-logo-group">
+          <div class="auth-brand-icon">
+            <i class="fa-brands fa-superpowers"></i>
+          </div>
+          <span class="auth-brand-title">PowerNet</span>
+        </a>
+        <p class="auth-brand-tagline">
+          Smart Electrical Energy Monitoring &amp; Predictive Intelligence
+        </p>
       </div>
     </div>
   </div>
