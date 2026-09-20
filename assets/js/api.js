@@ -490,6 +490,7 @@ const API = {
 
     setTimeout(() => {
       toast.style.opacity = '0';
+      toast.style.transform = 'translateY(12px) scale(0.96)';
       setTimeout(() => toast.remove(), 300);
     }, 3500);
   },

@@ -173,6 +173,10 @@ class AuthService
             throw new Exception('Invalid email or password.');
         }
 
+        if (isset($user['email_verified']) && !(bool)$user['email_verified']) {
+            throw new Exception('Please verify your email address before signing in. Check your inbox.');
+        }
+
         // Establish session
         Auth::startSession();
         $_SESSION['user_id'] = $user['id'];

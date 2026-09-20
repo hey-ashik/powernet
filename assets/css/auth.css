@@ -308,27 +308,9 @@ body {
   }
 }
 
-/* Alert Box */
+/* Alert Box (Disabled in favor of unified sleek top toast notifications) */
 .alert-box {
-  padding: 12px 14px;
-  border-radius: 8px;
-  font-size: 13.5px;
-  font-weight: 500;
-  margin-bottom: 20px;
-  display: none;
-  line-height: 1.45;
-}
-
-.alert-error {
-  background-color: #FEF2F2;
-  color: #991B1B;
-  border: 1px solid #FECACA;
-}
-
-.alert-success {
-  background-color: #F0FDF4;
-  color: #166534;
-  border: 1px solid #BBF7D0;
+  display: none !important;
 }
 
 /* ----------------------------------------------------------

@@ -11,6 +11,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const formForgot = document.getElementById('form-forgot');
   const formReset = document.getElementById('form-reset');
 
+  // Helper for notification toasts
+  const notify = (msg, type = 'info') => {
+    if (typeof API !== 'undefined' && API.showToast) {
+      API.showToast(msg, type);
+    }
+  };
+
+  // Check URL query parameters on page load for automated toast feedback
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get('verified') === '1') {
+    notify('Email verified successfully! You can now sign in.', 'success');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (urlParams.get('registered') === '1') {
+    notify('Account created! Please check your email inbox to verify.', 'info');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  } else if (urlParams.get('reset') === '1') {
+    notify('Password reset successfully! Please log in with your new password.', 'success');
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
   // Password visibility eye toggles
   document.querySelectorAll('.toggle-password').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -33,7 +53,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-
   // 1. Sign In
   if (formLogin) {
     formLogin.addEventListener('submit', async (e) => {
@@ -44,7 +63,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const password = passwordInput ? passwordInput.value : '';
       const btn = formLogin.querySelector('button[type="submit"]');
 
-      setAlert('', 'none');
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Authenticating...';
@@ -61,16 +79,13 @@ document.addEventListener('DOMContentLoaded', () => {
           API.setUser(res.data.user);
         }
 
-        setAlert('Login successful! Redirecting to dashboard...', 'success');
-        if (typeof API !== 'undefined' && API.showToast) {
-          API.showToast('Login successful!', 'success');
-        }
+        notify('Login successful! Redirecting to dashboard...', 'success');
 
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 500);
       } catch (err) {
-        setAlert(err.message, 'error');
+        notify(err.message || 'Login failed. Please check credentials.', 'error');
         if (btn) {
           btn.disabled = false;
           btn.textContent = 'Sign In';
@@ -105,15 +120,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
       const btn = formRegister.querySelector('button[type="submit"]');
 
-      setAlert('', 'none');
-
       if (password !== confirmPassword) {
-        setAlert('Passwords do not match.', 'error');
+        notify('Passwords do not match.', 'error');
         return;
       }
 
       if (password.length < 8) {
-        setAlert('Password must be at least 8 characters long.', 'error');
+        notify('Password must be at least 8 characters long.', 'error');
         return;
       }
 
@@ -133,19 +146,16 @@ document.addEventListener('DOMContentLoaded', () => {
           })
         });
 
-        let msg = `<strong>Account created successfully!</strong><br>We sent a verification email to <strong>${email}</strong>.<br>Please check your inbox or spam folder.`;
-        if (res.data && res.data.verification_url) {
-          msg += `<div style="margin-top: 14px; padding: 12px; background: rgba(34, 197, 94, 0.12); border-radius: 8px; border: 1px solid rgba(34, 197, 94, 0.25);">
-            <div style="font-size: 13px; font-weight: 600; margin-bottom: 8px; color: #15803D;">Testing or email delayed?</div>
-            <a href="${res.data.verification_url}" class="btn-auth-primary" style="display:inline-flex; width: auto; height: 38px; padding: 0 16px; font-size: 13px; text-decoration: none; border-radius: 6px; background: #16A34A;">
-              <i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> Click to Verify &amp; Activate Now
-            </a>
-          </div>`;
+        notify('Account created! Verification email sent to your inbox.', 'success');
+        if (btn) {
+          btn.textContent = 'Account Created!';
         }
-        setAlert(msg, 'success', true);
-        if (btn) btn.textContent = 'Account Created!';
+
+        setTimeout(() => {
+          window.location.href = '/login?registered=1';
+        }, 1500);
       } catch (err) {
-        setAlert(err.message, 'error');
+        notify(err.message || 'Registration failed. Please try again.', 'error');
         if (btn) {
           btn.disabled = false;
           btn.textContent = 'Sign Up';
@@ -162,7 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const email = emailInput ? emailInput.value.trim() : '';
       const btn = formForgot.querySelector('button[type="submit"]');
 
-      setAlert('', 'none');
+      if (!email) {
+        notify('Please enter your registered email address.', 'error');
+        return;
+      }
+
       if (btn) {
         btn.disabled = true;
         btn.textContent = 'Sending reset link...';
@@ -173,9 +187,9 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           body: JSON.stringify({ email })
         });
-        setAlert(res.message || 'Password reset link sent to your email.', 'success');
+        notify(res.message || 'Password reset link sent to your email. Please check your inbox.', 'success');
       } catch (err) {
-        setAlert(err.message, 'error');
+        notify(err.message || 'Unable to process request. Please try again.', 'error');
       } finally {
         if (btn) {
           btn.disabled = false;
@@ -197,20 +211,18 @@ document.addEventListener('DOMContentLoaded', () => {
       const confirmPassword = confirmPasswordInput ? confirmPasswordInput.value : '';
       const btn = formReset.querySelector('button[type="submit"]');
 
-      setAlert('', 'none');
-
       if (!token) {
-        setAlert('Invalid or missing password reset token.', 'error');
+        notify('Invalid or missing password reset token in link.', 'error');
         return;
       }
 
       if (password !== confirmPassword) {
-        setAlert('Passwords do not match.', 'error');
+        notify('Passwords do not match.', 'error');
         return;
       }
 
       if (password.length < 8) {
-        setAlert('Password must be at least 8 characters long.', 'error');
+        notify('Password must be at least 8 characters long.', 'error');
         return;
       }
 
@@ -228,12 +240,12 @@ document.addEventListener('DOMContentLoaded', () => {
             confirm_password: confirmPassword
           })
         });
-        setAlert(res.message || 'Password successfully reset! Redirecting to login...', 'success');
+        notify(res.message || 'Password reset successfully! Redirecting to login...', 'success');
         setTimeout(() => {
-          window.location.href = '/login';
+          window.location.href = '/login?reset=1';
         }, 1200);
       } catch (err) {
-        setAlert(err.message, 'error');
+        notify(err.message || 'Password reset failed. Link may have expired.', 'error');
         if (btn) {
           btn.disabled = false;
           btn.textContent = 'Update Password';
@@ -244,19 +256,15 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setAlert(msg, type, isHtml = false) {
+  // Legacy fallback safely redirects to API.showToast without showing green box
+  if (type && type !== 'none' && msg) {
+    const textOnly = isHtml ? msg.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim() : msg;
+    if (typeof API !== 'undefined' && API.showToast) {
+      API.showToast(textOnly, type === 'error' ? 'error' : 'success');
+    }
+  }
   const alertBox = document.getElementById('alert-box');
-  if (!alertBox) return;
-
-  if (type === 'none' || !msg) {
+  if (alertBox) {
     alertBox.style.display = 'none';
-    return;
   }
-
-  alertBox.className = `alert-box alert-${type}`;
-  if (isHtml) {
-    alertBox.innerHTML = msg;
-  } else {
-    alertBox.textContent = msg;
-  }
-  alertBox.style.display = 'block';
 }

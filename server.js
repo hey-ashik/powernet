@@ -8,6 +8,8 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
+const tls = require('tls');
+const crypto = require('crypto');
 
 const PORT = process.env.PORT || 3000;
 const BASE_DIR = __dirname;
@@ -18,6 +20,184 @@ let localUser = {
   email: 'ashikulislam2070@gmail.com',
   email_verified: true
 };
+
+const pendingVerifications = {};
+const pendingResets = {};
+
+/**
+ * Native Hostinger Authenticated SMTP Dispatcher
+ * Pure Node.js standard library (TLS Socket over Port 465)
+ */
+function sendSmtpEmail({ to, subject, text, html }) {
+  return new Promise((resolve, reject) => {
+    const host = 'smtp.hostinger.com';
+    const port = 465;
+    const user = 'noreply@powernet.ashiik.com';
+    const pass = 'Ashik@21032001';
+    const from = 'PowerNet <noreply@powernet.ashiik.com>';
+
+    const socket = tls.connect(port, host, { rejectUnauthorized: false }, () => {});
+
+    socket.setTimeout(20000, () => {
+      socket.destroy();
+      reject(new Error('SMTP timeout'));
+    });
+
+    let buffer = '';
+    let state = 'INIT';
+
+    function sendCmd(cmd) {
+      socket.write(cmd + '\r\n');
+    }
+
+    socket.on('data', (chunk) => {
+      buffer += chunk.toString();
+      const lines = buffer.split('\r\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line) continue;
+        const code = line.substring(0, 3);
+        const isLast = line.charAt(3) !== '-';
+        if (!isLast) continue;
+
+        if (state === 'INIT' && code === '220') {
+          state = 'EHLO';
+          sendCmd('EHLO powernet.ashiik.com');
+        } else if (state === 'EHLO' && code === '250') {
+          state = 'AUTH_LOGIN';
+          sendCmd('AUTH LOGIN');
+        } else if (state === 'AUTH_LOGIN' && code === '334') {
+          state = 'AUTH_USER';
+          sendCmd(Buffer.from(user).toString('base64'));
+        } else if (state === 'AUTH_USER' && code === '334') {
+          state = 'AUTH_PASS';
+          sendCmd(Buffer.from(pass).toString('base64'));
+        } else if (state === 'AUTH_PASS' && code === '235') {
+          state = 'MAIL_FROM';
+          sendCmd(`MAIL FROM:<${user}>`);
+        } else if (state === 'MAIL_FROM' && code === '250') {
+          state = 'RCPT_TO';
+          sendCmd(`RCPT TO:<${to}>`);
+        } else if (state === 'RCPT_TO' && code === '250') {
+          state = 'DATA';
+          sendCmd('DATA');
+        } else if (state === 'DATA' && code === '354') {
+          state = 'BODY';
+          const boundary = '----=_PowerNet_' + Date.now();
+          const messageId = `<${Date.now()}.${Math.random().toString(36).substring(2)}@powernet.ashiik.com>`;
+          const headers = [
+            `Date: ${new Date().toUTCString()}`,
+            `From: ${from}`,
+            `To: ${to}`,
+            `Subject: ${subject}`,
+            `Message-ID: ${messageId}`,
+            `MIME-Version: 1.0`,
+            `Content-Type: multipart/alternative; boundary="${boundary}"`,
+            `X-Mailer: PowerNet Mailer`
+          ].join('\r\n');
+
+          const body = [
+            `--${boundary}`,
+            `Content-Type: text/plain; charset=UTF-8`,
+            `Content-Transfer-Encoding: 7bit`,
+            '',
+            text,
+            '',
+            `--${boundary}`,
+            `Content-Type: text/html; charset=UTF-8`,
+            `Content-Transfer-Encoding: 7bit`,
+            '',
+            html,
+            '',
+            `--${boundary}--`
+          ].join('\r\n');
+
+          socket.write(headers + '\r\n\r\n' + body + '\r\n.\r\n');
+        } else if (state === 'BODY') {
+          if (code === '250') {
+            state = 'QUIT';
+            sendCmd('QUIT');
+            resolve(true);
+          } else {
+            reject(new Error('SMTP DATA failed: ' + line));
+          }
+        }
+      }
+    });
+
+    socket.on('error', reject);
+  });
+}
+
+function getVerificationHtml(name, verificationUrl) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>Verify your PowerNet account</title>
+</head>
+<body style='margin: 0; padding: 32px 16px; background-color: #F4F5F9; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;'>
+  <div style='max-width: 500px; margin: 0 auto; background: #FFFFFF; border-radius: 16px; padding: 36px 28px; border: 1px solid #E2E8F0; box-shadow: 0 4px 20px rgba(0,0,0,0.04);'>
+    <div style='margin-bottom: 24px;'>
+      <span style='font-size: 22px; font-weight: 800; color: #0F172A; letter-spacing: -0.5px;'>Power<span style='color: #2563EB;'>Net</span></span>
+    </div>
+    
+    <h1 style='font-size: 20px; font-weight: 700; color: #0F172A; margin: 0 0 12px 0;'>Confirm your email address</h1>
+    
+    <p style='font-size: 15px; color: #475569; line-height: 1.6; margin: 0 0 24px 0;'>
+      Hi ${name},<br>
+      Tap the button below to verify your email and activate your PowerNet monitoring account.
+    </p>
+    
+    <div style='margin: 28px 0;'>
+      <a href='${verificationUrl}' style='display: inline-block; background-color: #2563EB; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);'>
+        Verify Email
+      </a>
+    </div>
+    
+    <hr style='border: none; border-top: 1px solid #F1F5F9; margin: 28px 0;'>
+    
+    <p style='font-size: 12px; color: #94A3B8; margin: 0;'>
+      This link expires in 24 hours. If you didn't create an account, you can disregard this email.
+    </p>
+  </div>
+</body>
+</html>`;
+}
+
+function getPasswordResetHtml(name, resetUrl) {
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset='UTF-8'>
+  <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+  <title>Reset your PowerNet password</title>
+</head>
+<body style='margin: 0; padding: 32px 16px; background-color: #F4F5F9; font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif;'>
+  <div style='max-width: 500px; margin: 0 auto; background: #FFFFFF; border-radius: 16px; padding: 36px 28px; border: 1px solid #E2E8F0; box-shadow: 0 4px 20px rgba(0,0,0,0.04);'>
+    <div style='margin-bottom: 24px;'>
+      <span style='font-size: 22px; font-weight: 800; color: #0F172A;'>Power<span style='color: #2563EB;'>Net</span></span>
+    </div>
+    <h1 style='font-size: 20px; font-weight: 700; color: #0F172A; margin: 0 0 12px 0;'>Reset your password</h1>
+    <p style='font-size: 15px; color: #475569; line-height: 1.6;'>
+      Hi ${name},<br>
+      Click below to set a new password for your account.
+    </p>
+    <div style='margin: 28px 0;'>
+      <a href='${resetUrl}' style='display: inline-block; background-color: #0F172A; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);'>
+        Reset Password
+      </a>
+    </div>
+    <hr style='border: none; border-top: 1px solid #F1F5F9; margin: 28px 0;'>
+    <p style='font-size: 12px; color: #94A3B8; margin: 0;'>
+      This link is valid for 1 hour. If you did not request a password reset, you can safely ignore this email.
+    </p>
+  </div>
+</body>
+</html>`;
+}
 
 // Master IoT Device Registry (Simulates provisioned devices in database)
 // user_id === null: Available to be claimed/connected
@@ -222,11 +402,22 @@ const server = http.createServer((req, res) => {
       let input = {};
       try { input = JSON.parse(body); } catch {}
 
-      res.writeHead(200, { 'Content-Type': 'application/json; charset=UTF-8' });
+      res.setHeader('Content-Type', 'application/json; charset=UTF-8');
 
       if (apiRoute === '/api/auth/login') {
-        const email = input.email || 'ashikulislam2070@gmail.com';
-        const name = (localUser && localUser.email === email) ? localUser.name : 'Ashik Islam';
+        const email = (input.email || 'ashikulislam2070@gmail.com').toLowerCase().trim();
+        
+        // Enforce email verification if user was registered but unverified
+        if (localUser && localUser.email.toLowerCase() === email && localUser.email_verified === false) {
+          res.statusCode = 400;
+          res.end(JSON.stringify({
+            success: false,
+            message: 'Please verify your email address before signing in. Check your inbox.'
+          }));
+          return;
+        }
+
+        const name = (localUser && localUser.email.toLowerCase() === email) ? localUser.name : 'Ashik Islam';
         localUser = { id: 1, name, email, email_verified: true };
 
         res.end(JSON.stringify({
@@ -241,9 +432,28 @@ const server = http.createServer((req, res) => {
       }
 
       if (apiRoute === '/api/auth/register') {
-        const name = input.name || 'Ashik Islam';
-        const email = input.email || 'ashikulislam2070@gmail.com';
+        const name = input.name || 'PowerNet User';
+        const email = (input.email || 'ashikulislam2070@gmail.com').toLowerCase().trim();
         localUser = { id: 1, name, email, email_verified: false };
+
+        const token = crypto.randomBytes(24).toString('hex');
+        pendingVerifications[token] = { email, name, expiresAt: Date.now() + 86400000 };
+
+        const hostHeader = req.headers['host'] || `localhost:${PORT}`;
+        const protocol = req.headers['x-forwarded-proto'] || (hostHeader.includes('localhost') ? 'http' : 'https');
+        const verificationUrl = `${protocol}://${hostHeader}/verify-email?token=${token}`;
+
+        // Send real email via Hostinger Authenticated SMTP (background async)
+        sendSmtpEmail({
+          to: email,
+          subject: 'Verify your PowerNet account',
+          text: `Hello ${name},\n\nPlease verify your PowerNet account by opening this link:\n${verificationUrl}\n\nThis link is valid for 24 hours.\n\nPowerNet Energy Team`,
+          html: getVerificationHtml(name, verificationUrl)
+        }).then(() => {
+          console.log(`[SMTP SUCCESS] Verification email delivered to ${email}`);
+        }).catch((err) => {
+          console.error(`[SMTP ERROR] Verification email to ${email} failed:`, err.message);
+        });
 
         res.end(JSON.stringify({
           success: true,
@@ -253,14 +463,20 @@ const server = http.createServer((req, res) => {
             name: name,
             email: email,
             email_verified: false,
-            verification_url: '/verify-email?token=pnet_test_token_2026'
+            verification_url: verificationUrl
           }
         }));
         return;
       }
 
       if (apiRoute === '/api/auth/verify-email') {
-        if (localUser) localUser.email_verified = true;
+        const token = parsedUrl.searchParams.get('token') || '';
+        if (localUser) {
+          localUser.email_verified = true;
+        }
+        if (token && pendingVerifications[token]) {
+          delete pendingVerifications[token];
+        }
         res.end(JSON.stringify({
           success: true,
           message: 'Email verified successfully. You may now log in.'
@@ -269,17 +485,48 @@ const server = http.createServer((req, res) => {
       }
 
       if (apiRoute === '/api/auth/forgot-password') {
+        const email = (input.email || '').toLowerCase().trim();
+        const name = (localUser && localUser.email.toLowerCase() === email) ? localUser.name : 'PowerNet User';
+
+        const token = crypto.randomBytes(24).toString('hex');
+        pendingResets[token] = { email, expiresAt: Date.now() + 3600000 };
+
+        const hostHeader = req.headers['host'] || `localhost:${PORT}`;
+        const protocol = req.headers['x-forwarded-proto'] || (hostHeader.includes('localhost') ? 'http' : 'https');
+        const resetUrl = `${protocol}://${hostHeader}/reset-password?token=${token}`;
+
+        // Send real email via Hostinger Authenticated SMTP (background async)
+        if (email) {
+          sendSmtpEmail({
+            to: email,
+            subject: 'Reset your PowerNet password',
+            text: `Hello ${name},\n\nWe received a request to reset your PowerNet password:\n${resetUrl}\n\nThis link is valid for 1 hour.\n\nPowerNet Energy Team`,
+            html: getPasswordResetHtml(name, resetUrl)
+          }).then(() => {
+            console.log(`[SMTP SUCCESS] Password reset email delivered to ${email}`);
+          }).catch((err) => {
+            console.error(`[SMTP ERROR] Reset email to ${email} failed:`, err.message);
+          });
+        }
+
         res.end(JSON.stringify({
           success: true,
-          message: 'Password reset link has been sent to your email.'
+          message: 'If your email is registered, a password reset link has been dispatched to your inbox.'
         }));
         return;
       }
 
       if (apiRoute === '/api/auth/reset-password') {
+        const token = input.token || '';
+        if (localUser) {
+          localUser.password_updated = true;
+        }
+        if (token && pendingResets[token]) {
+          delete pendingResets[token];
+        }
         res.end(JSON.stringify({
           success: true,
-          message: 'Password successfully reset! You can now log in.'
+          message: 'Password reset successfully! You can now log in with your new password.'
         }));
         return;
       }

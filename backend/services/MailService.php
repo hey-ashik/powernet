@@ -53,15 +53,10 @@ class MailService
             </p>
             
             <div style='margin: 28px 0;'>
-              <a href='{$verificationUrl}' style='display: inline-block; background-color: #2563EB; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 13px 28px; border-radius: 9999px;'>
+              <a href='{$verificationUrl}' style='display: inline-block; background-color: #2563EB; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(37, 99, 235, 0.25);'>
                 Verify Email
               </a>
             </div>
-            
-            <p style='font-size: 13px; color: #64748B; line-height: 1.5; margin: 24px 0 0 0; word-break: break-all;'>
-              Or open this link directly in your browser:<br>
-              <a href='{$verificationUrl}' style='color: #2563EB;'>{$verificationUrl}</a>
-            </p>
             
             <hr style='border: none; border-top: 1px solid #F1F5F9; margin: 28px 0;'>
             
@@ -104,13 +99,10 @@ class MailService
               Click below to set a new password for your account.
             </p>
             <div style='margin: 28px 0;'>
-              <a href='{$resetUrl}' style='display: inline-block; background-color: #0F172A; color: #FFFFFF; font-size: 15px; font-weight: 600; text-decoration: none; padding: 13px 28px; border-radius: 9999px;'>
+              <a href='{$resetUrl}' style='display: inline-block; background-color: #0F172A; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; padding: 14px 32px; border-radius: 9999px; box-shadow: 0 4px 12px rgba(15, 23, 42, 0.25);'>
                 Reset Password
               </a>
             </div>
-            <p style='font-size: 13px; color: #64748B; word-break: break-all;'>
-              Direct link: <a href='{$resetUrl}' style='color: #2563EB;'>{$resetUrl}</a>
-            </p>
             <hr style='border: none; border-top: 1px solid #F1F5F9; margin: 28px 0;'>
             <p style='font-size: 12px; color: #94A3B8; margin: 0;'>
               This link is valid for 1 hour.
@@ -166,68 +158,100 @@ class MailService
         $fromName = Env::get('MAIL_FROM_NAME', 'PowerNet');
 
         $isSsl = ($port === 465);
-        $socketHost = $isSsl ? "ssl://{$host}" : $host;
+        $protocol = $isSsl ? "ssl" : "tcp";
 
-        $socket = @fsockopen($socketHost, $port, $errno, $errstr, 15);
+        $context = stream_context_create([
+            'ssl' => [
+                'verify_peer'       => false,
+                'verify_peer_name'  => false,
+                'allow_self_signed' => true,
+                'SNI_enabled'       => true,
+                'peer_name'         => $host
+            ]
+        ]);
+
+        $socket = @stream_socket_client("{$protocol}://{$host}:{$port}", $errno, $errstr, 15, STREAM_CLIENT_CONNECT, $context);
         if (!$socket) {
             throw new Exception("Cannot connect to SMTP server {$host}:{$port} - {$errstr} ({$errno})");
         }
 
         stream_set_timeout($socket, 15);
-        $res = fgets($socket, 512);
+
+        // Helper to read multi-line SMTP responses
+        $readResponse = function() use ($socket): string {
+            $response = '';
+            while ($line = fgets($socket, 512)) {
+                $response .= $line;
+                if (strlen($line) >= 4 && substr($line, 3, 1) === ' ') {
+                    break;
+                }
+            }
+            return $response;
+        };
+
+        $res = $readResponse();
+        if (!str_starts_with($res, '220')) {
+            throw new Exception("SMTP Greeting failed: " . $res);
+        }
 
         // Send EHLO
-        fputs($socket, "EHLO " . gethostname() . "\r\n");
-        while ($line = fgets($socket, 512)) {
-            if (substr($line, 3, 1) === ' ') break;
-        }
+        fputs($socket, "EHLO powernet.ashiik.com\r\n");
+        $res = $readResponse();
 
         // STARTTLS if port 587
         if ($port === 587) {
             fputs($socket, "STARTTLS\r\n");
-            $res = fgets($socket, 512);
+            $res = $readResponse();
             if (!str_starts_with($res, '220')) {
                 throw new Exception("STARTTLS failed: " . $res);
             }
             stream_socket_enable_crypto($socket, true, STREAM_CRYPTO_METHOD_TLS_CLIENT);
-            fputs($socket, "EHLO " . gethostname() . "\r\n");
-            while ($line = fgets($socket, 512)) {
-                if (substr($line, 3, 1) === ' ') break;
-            }
+            fputs($socket, "EHLO powernet.ashiik.com\r\n");
+            $res = $readResponse();
         }
 
         // AUTH LOGIN
         fputs($socket, "AUTH LOGIN\r\n");
-        $res = fgets($socket, 512);
+        $res = $readResponse();
         if (!str_starts_with($res, '334')) {
             throw new Exception("AUTH LOGIN rejected: " . $res);
         }
 
         fputs($socket, base64_encode($username) . "\r\n");
-        $res = fgets($socket, 512);
+        $res = $readResponse();
         if (!str_starts_with($res, '334')) {
             throw new Exception("Username rejected: " . $res);
         }
 
         fputs($socket, base64_encode($password) . "\r\n");
-        $res = fgets($socket, 512);
+        $res = $readResponse();
         if (!str_starts_with($res, '235')) {
             throw new Exception("SMTP Password rejected: " . $res);
         }
 
         // MAIL FROM & RCPT TO
         fputs($socket, "MAIL FROM: <{$fromEmail}>\r\n");
-        fgets($socket, 512);
+        $res = $readResponse();
+        if (!str_starts_with($res, '250')) {
+            throw new Exception("MAIL FROM rejected: " . $res);
+        }
 
         fputs($socket, "RCPT TO: <{$to}>\r\n");
-        fgets($socket, 512);
+        $res = $readResponse();
+        if (!str_starts_with($res, '250')) {
+            throw new Exception("RCPT TO rejected: " . $res);
+        }
 
         // DATA
         fputs($socket, "DATA\r\n");
-        fgets($socket, 512);
+        $res = $readResponse();
+        if (!str_starts_with($res, '354')) {
+            throw new Exception("DATA initiation rejected: " . $res);
+        }
 
         $boundary = "----=_PowerNet_" . md5((string)microtime());
-        $messageId = "<" . md5(uniqid((string)time())) . "@" . parse_url(Env::get('APP_URL', 'powernet.ashiik.com'), PHP_URL_HOST) . ">";
+        $domain = parse_url(Env::get('APP_URL', 'https://powernet.ashiik.com'), PHP_URL_HOST) ?: 'powernet.ashiik.com';
+        $messageId = "<" . md5(uniqid((string)time())) . "@" . $domain . ">";
         $date = date('r');
 
         $headers  = "Date: {$date}\r\n";
@@ -250,12 +274,14 @@ class MailService
         $body .= "--{$boundary}--\r\n";
 
         fputs($socket, $headers . "\r\n" . $body . "\r\n.\r\n");
-        $finalRes = fgets($socket, 512);
+        $finalRes = $readResponse();
 
         fputs($socket, "QUIT\r\n");
         fclose($socket);
 
-        return str_starts_with($finalRes, '250');
+        $success = str_starts_with($finalRes, '250');
+        self::logStatus($to, $success ? 'SMTP SUCCESS' : 'SMTP FAILED: ' . trim($finalRes));
+        return $success;
     }
 
     /**

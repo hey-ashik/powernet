@@ -96,19 +96,5 @@
 
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/auth.js"></script>
-  <script>
-    // Detect if redirected after successful email verification
-    document.addEventListener('DOMContentLoaded', () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.get('verified') === '1') {
-        const alertBox = document.getElementById('alert-box');
-        if (alertBox) {
-          alertBox.className = 'alert-box alert-success';
-          alertBox.innerHTML = '<i class="fa-solid fa-circle-check" style="margin-right: 6px;"></i> Email verified successfully! Please log in to continue.';
-          alertBox.style.display = 'block';
-        }
-      }
-    });
-  </script>
 </body>
 </html>
