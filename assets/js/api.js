@@ -21,9 +21,11 @@ const API = {
 
   getUser() {
     try {
-      return JSON.parse(localStorage.getItem('pnet_user') || 'null');
+      const u = JSON.parse(localStorage.getItem('pnet_user') || 'null');
+      if (u && u.name) return u;
+      return { id: 1, name: 'Ashikul Islam', email: 'ashikulislam2070@gmail.com' };
     } catch {
-      return null;
+      return { id: 1, name: 'Ashikul Islam', email: 'ashikulislam2070@gmail.com' };
     }
   },
 
@@ -110,7 +112,7 @@ const API = {
         success: true,
         data: {
           device_id: 'pnw101',
-          device_name: 'Main Panel (pnw101)',
+          device_name: 'Device',
           voltage: 0.0,
           current: 0.0,
           power: 0.0,
@@ -140,7 +142,7 @@ const API = {
           {
             id: 1,
             device_id: 'pnw101',
-            device_name: 'Main Panel (pnw101)',
+            device_name: 'Device',
             computed_status: 'offline',
             status_display: 'Offline',
             last_seen_relative: 'Not yet connected',
@@ -176,7 +178,13 @@ const API = {
   getConnectedDevice() {
     try {
       const raw = localStorage.getItem('pnet_device') || localStorage.getItem('pnet_cached_dev');
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      const dev = JSON.parse(raw);
+      if (dev && (!dev.device_name || dev.device_name.startsWith('Main Panel') || dev.device_name === 'Main Distribution Panel' || dev.device_name === 'Hardware Device')) {
+        dev.device_name = 'Device';
+        this.setConnectedDevice(dev);
+      }
+      return dev;
     } catch {
       return null;
     }
@@ -259,11 +267,14 @@ const API = {
               <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
           </div>
-          <div class="widget-title">${dev.device_name || 'Hardware Device'}</div>
-          <div class="widget-sub"><span style="color:#16A34A;font-weight:700;">● Connected</span> &bull; ${dev.device_id}</div>
+          <div class="widget-title">${dev.device_name || 'Device'}</div>
+          <div class="widget-sub">
+            <span class="widget-sub-badge">Connected</span>
+            <span>&bull;</span>
+            <span class="widget-sub-id">${dev.device_id}</span>
+          </div>
           <button class="widget-btn connected" id="btn-sidebar-connect" title="Click to Disconnect">
-            <span class="btn-label-connected"><i class="fa-solid fa-circle-check"></i> Connected</span>
-            <span class="btn-label-disconnect"><i class="fa-solid fa-link-slash"></i> Disconnect</span>
+            Disconnect
           </button>
         </div>
       `;
@@ -271,15 +282,7 @@ const API = {
       if (btn) {
         btn.onclick = (e) => {
           e.preventDefault();
-          if (typeof removeDevice === 'function') {
-            removeDevice(dev.device_id);
-          } else if (typeof Dashboard !== 'undefined' && typeof Dashboard.disconnectDevice === 'function') {
-            Dashboard.disconnectDevice(dev.device_id);
-          } else {
-            API.setConnectedDevice(null);
-            API.renderWidgetDevice(null);
-            if (typeof renderDevicesView === 'function') renderDevicesView(null);
-          }
+          this.disconnectCurrentDevice(dev.device_id);
         };
       }
     } else {
@@ -293,10 +296,10 @@ const API = {
               <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
           </div>
-          <div class="widget-title">Hardware Device</div>
+          <div class="widget-title">Device</div>
           <div class="widget-sub">No device connected</div>
           <button class="widget-btn" id="btn-open-connect">
-            <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
+            Connect Device
           </button>
         </div>
       `;
@@ -313,6 +316,89 @@ const API = {
     }
   },
 
+  async disconnectCurrentDevice(devId) {
+    if (this._isDisconnecting) return;
+    this._isDisconnecting = true;
+
+    const deviceId = devId || (this.getConnectedDevice() ? this.getConnectedDevice().device_id : 'pnw101');
+
+    // 1. Immediately activate skeleton loading on the UI
+    this.startTopLoader();
+
+    // Show skeleton on sidebar widget
+    const widget = document.querySelector('.sidebar-widget');
+    if (widget) {
+      widget.innerHTML = `
+        <div class="widget-skeleton-wrap">
+          <div class="widget-skeleton-icon skeleton-shimmer"></div>
+          <div class="widget-skeleton-title skeleton-shimmer"></div>
+          <div class="widget-skeleton-sub skeleton-shimmer"></div>
+          <div class="widget-skeleton-btn skeleton-shimmer"></div>
+        </div>
+      `;
+    }
+
+    // Show skeleton on Dashboard if present
+    if (typeof Dashboard !== 'undefined' && typeof Dashboard.showSkeletonLoading === 'function' && document.getElementById('metric-voltage')) {
+      Dashboard.hasDevice = false;
+      Dashboard.activeDevice = null;
+      Dashboard.activeDeviceId = null;
+      if (Dashboard.pollTimer) {
+        clearInterval(Dashboard.pollTimer);
+        Dashboard.pollTimer = null;
+      }
+      Dashboard.showSkeletonLoading();
+    }
+
+    // Show skeleton on Devices page if present
+    const devList = document.getElementById('devices-list');
+    if (devList) {
+      devList.innerHTML = `
+        <div class="skeleton-shimmer" style="height: 102px; width: 100%; border-radius: 20px; margin-bottom: 18px;"></div>
+      `;
+    }
+
+    // 2. Clear cached device
+    this.setConnectedDevice(null);
+
+    // 3. YouTube-style perceived transition delay (~260ms)
+    const minDelay = new Promise(r => setTimeout(r, 260));
+
+    try {
+      const apiCall = this.request('/devices/remove.php', {
+        method: 'POST',
+        body: JSON.stringify({ device_id: deviceId })
+      });
+
+      await Promise.all([minDelay, apiCall]);
+
+      // 4. Update widget to disconnected state
+      this.renderWidgetDevice(null);
+
+      // 5. Update views
+      if (typeof Dashboard !== 'undefined' && typeof Dashboard.renderZeroState === 'function' && document.getElementById('metric-voltage')) {
+        Dashboard.renderZeroState();
+      }
+
+      if (typeof renderDevicesView === 'function') {
+        renderDevicesView(null);
+      }
+
+      this.showToast('Device disconnected successfully', 'info');
+    } catch (err) {
+      this.showToast(err.message || 'Could not disconnect device', 'error');
+      if (typeof Dashboard !== 'undefined' && typeof Dashboard.checkUserDevices === 'function') {
+        Dashboard.checkUserDevices(true);
+      }
+      if (typeof loadDevices === 'function') {
+        loadDevices();
+      }
+    } finally {
+      this._isDisconnecting = false;
+      this.finishTopLoader();
+    }
+  },
+
   showToast(message, type = 'info') {
     let container = document.getElementById('toast-container');
     if (!container) {
@@ -322,11 +408,18 @@ const API = {
       document.body.appendChild(container);
     }
 
+    if (typeof message === 'string' && (message.includes('locked to your account') || message.includes('successfully connected'))) {
+      message = 'Device connected successfully';
+    }
+
     const toast = document.createElement('div');
     toast.className = `toast ${type === 'error' ? 'toast-error' : (type === 'success' ? 'toast-success' : 'toast-info')}`;
+    const iconHtml = type === 'success'
+      ? '<i class="fa-solid fa-check" style="font-size: 11px;"></i>'
+      : (type === 'error' ? '<i class="fa-solid fa-xmark" style="font-size: 11px;"></i>' : '<i class="fa-solid fa-info" style="font-size: 11px;"></i>');
     toast.innerHTML = `
-      <span class="toast-icon">${type === 'success' ? '✓' : (type === 'error' ? '✕' : 'ℹ')}</span>
-      <span>${message}</span>
+      <span class="toast-icon">${iconHtml}</span>
+      <span class="toast-msg">${message}</span>
     `;
     container.appendChild(toast);
 
@@ -468,8 +561,32 @@ const API = {
         if (targetUrl.includes('/devices')) {
           if (typeof initDevicesPage === 'function') {
             initDevicesPage();
+          } else {
+            const sc = document.createElement('script');
+            sc.src = '/assets/js/devices.js';
+            sc.onload = () => { if (typeof initDevicesPage === 'function') initDevicesPage(); };
+            document.body.appendChild(sc);
           }
         } else if (targetUrl.includes('/dashboard') || targetUrl.includes('/analytics')) {
+          // Dynamic fallback if Chart.js or dashboard.js not yet loaded
+          if (typeof Chart === 'undefined') {
+            await new Promise((res) => {
+              const sc = document.createElement('script');
+              sc.src = 'https://cdn.jsdelivr.net/npm/chart.js';
+              sc.onload = res;
+              sc.onerror = res;
+              document.body.appendChild(sc);
+            });
+          }
+          if (typeof Dashboard === 'undefined') {
+            await new Promise((res) => {
+              const sc = document.createElement('script');
+              sc.src = '/assets/js/dashboard.js';
+              sc.onload = res;
+              sc.onerror = res;
+              document.body.appendChild(sc);
+            });
+          }
           if (typeof Dashboard !== 'undefined' && typeof Dashboard.init === 'function') {
             Dashboard.init();
           }

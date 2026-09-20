@@ -131,8 +131,8 @@
           </div>
 
           <div class="user-profile" id="user-profile-trigger" title="View Account & Settings">
-            <div class="avatar" id="user-avatar-display">--</div>
-            <span class="user-name" id="user-name-display">Loading...</span>
+            <div class="avatar" id="user-avatar-display">AI</div>
+            <span class="user-name" id="user-name-display">Ashikul Islam</span>
           </div>
         </div>
       </header>
@@ -155,7 +155,7 @@
             <span class="metric-unit">V</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up">&uarr; 0.4%</span>
+            <span class="delta-up" id="delta-voltage">&uarr; 0.4%</span>
             <span class="delta-context">nominal AC mains</span>
           </div>
         </div>
@@ -176,7 +176,7 @@
             <span class="metric-unit">A</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up">&uarr; 1.2%</span>
+            <span class="delta-up" id="delta-current">&uarr; 1.2%</span>
             <span class="delta-context">circuit phase load</span>
           </div>
         </div>
@@ -236,7 +236,7 @@
             <span class="metric-unit">&deg;C</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-down">&darr; 1.2%</span>
+            <span class="delta-down" id="delta-temperature">&darr; 1.2%</span>
             <span class="delta-context">panel thermal status</span>
           </div>
         </div>
@@ -266,7 +266,7 @@
         <div class="charts-row">
           <div class="chart-card">
             <div class="chart-header">
-              <h2 class="chart-title"><i class="fa-solid fa-chart-column" style="margin-right: 8px; color: var(--primary);"></i> Power Dynamics</h2>
+              <h2 class="chart-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right: 8px; color: #0F172A;"></i> Power Dynamics</h2>
               <div class="chart-controls">
                 <div class="chart-switcher" id="power-unit-switcher">
                   <button class="sw-btn active" data-unit="kw">kW</button>
@@ -286,7 +286,7 @@
 
           <div class="chart-card">
             <div class="chart-header">
-              <h2 class="chart-title"><i class="fa-solid fa-chart-line" style="margin-right: 8px; color: #8B5CF6;"></i> Live Waveform</h2>
+              <h2 class="chart-title"><i class="fa-brands fa-slack" style="margin-right: 8px; color: #0F172A;"></i> Live Waveform</h2>
               <div class="chart-switcher" id="waveform-metric-switcher">
                 <button class="sw-btn active" data-metric="voltage">Voltage</button>
                 <button class="sw-btn" data-metric="current">Current</button>
@@ -305,21 +305,26 @@
         <div id="logs-section">
           <div class="logs-card">
             <div class="logs-header">
-              <h2 class="logs-title"><i class="fa-solid fa-list-check" style="margin-right: 8px; color: var(--primary);"></i> Telemetry Event Logs</h2>
-              <button class="refresh-btn" id="btn-refresh-logs" title="Refresh Live Stream">
-                <i class="fa-solid fa-rotate"></i>
-              </button>
+              <h2 class="logs-title"><i class="fa-solid fa-layer-group" style="margin-right: 8px; color: #0F172A;"></i> Telemetry Event Logs</h2>
+              <div class="logs-actions">
+                <button class="logs-btn-icon btn-clear" id="btn-clear-logs" title="Clear Event Logs" aria-label="Clear Event Logs">
+                  <i class="fa-regular fa-trash-can"></i>
+                </button>
+                <button class="logs-btn-icon btn-refresh" id="btn-refresh-logs" title="Refresh Live Stream" aria-label="Refresh Live Stream">
+                  <i class="fa-solid fa-rotate"></i>
+                </button>
+              </div>
             </div>
 
-            <div style="overflow-x: auto;">
+            <div class="logs-table-container">
               <table class="logs-table">
                 <thead>
                   <tr>
                     <th>Device</th>
-                    <th>V / A</th>
                     <th>Time</th>
+                    <th>V / A</th>
+                    <th>Power / Energy</th>
                     <th>Status</th>
-                    <th>Power</th>
                   </tr>
                 </thead>
                 <tbody id="logs-table-body"></tbody>
@@ -336,7 +341,7 @@
     <div class="modal-box">
       <div class="modal-header">
         <h3 class="modal-title">
-          <span style="width: 38px; height: 38px; border-radius: 12px; background: #EFF6FF; color: var(--primary); display: inline-flex; align-items: center; justify-content: center;">
+          <span style="width: 38px; height: 38px; border-radius: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; color: #0F172A; display: inline-flex; align-items: center; justify-content: center;">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
               <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
@@ -362,11 +367,11 @@
           <label class="form-label" for="input-device-name">Display Name (Optional)</label>
           <div class="input-with-icon">
             <i class="fa-solid fa-tag input-icon"></i>
-            <input type="text" id="input-device-name" class="input-control" placeholder="e.g. Main Panel">
+            <input type="text" id="input-device-name" class="input-control" placeholder="e.g. Device">
           </div>
         </div>
         <button type="submit" class="btn-primary-block">
-          <i class="fa-solid fa-link" style="margin-right: 6px;"></i> Connect Device
+          Connect Device
         </button>
       </form>
     </div>
@@ -440,6 +445,7 @@
     </div>
   </aside>
 
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="/assets/js/api.js"></script>
   <script src="/assets/js/devices.js"></script>
   <script src="/assets/js/dashboard.js"></script>

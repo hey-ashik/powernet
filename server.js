@@ -20,25 +20,25 @@ let localUser = {
 };
 
 let localDevices = [
-  { id: 1, device_id: 'pnw101', device_name: 'Main Distribution Panel', computed_status: 'online', status_display: 'Online', last_seen_relative: '2 seconds ago' },
-  { id: 2, device_id: 'pnw202', device_name: 'Server Room UPS', computed_status: 'online', status_display: 'Online', last_seen_relative: '5 seconds ago' }
+  { id: 1, device_id: 'pnw101', device_name: 'Device', computed_status: 'online', status_display: 'Online', last_seen_relative: '2 seconds ago' },
+  { id: 2, device_id: 'pnw202', device_name: 'Device', computed_status: 'online', status_display: 'Online', last_seen_relative: '5 seconds ago' }
 ];
 
-// Seed 24h of telemetry (one reading per 15 min = 96 points)
+// Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
 const localTelemetry = (() => {
   const points = [];
   const now = Date.now();
-  for (let i = 95; i >= 0; i--) {
+  for (let i = 0; i <= 95; i++) {
     const ts = now - i * 15 * 60 * 1000;
     const hour = new Date(ts).getHours();
     // Simulate realistic load curve: low at night, peak midday
-    const loadFactor = hour >= 8 && hour <= 20 ? 0.7 + Math.random() * 0.3 : 0.15 + Math.random() * 0.2;
-    const voltage = 218 + Math.random() * 6;
-    const current = loadFactor * 12 + Math.random() * 1.5;
-    const pf = 0.92 + Math.random() * 0.07;
+    const loadFactor = hour >= 8 && hour <= 20 ? 0.7 + Math.random() * 0.3 : 0.2 + Math.random() * 0.2;
+    const voltage = +(218 + Math.random() * 6).toFixed(1);
+    const current = +(loadFactor * 11 + Math.random() * 1.5).toFixed(2);
+    const pf = 0.92 + Math.random() * 0.06;
     const powerKw = +((voltage * current * pf) / 1000).toFixed(3);
-    const energyKwh = +(loadFactor * 3.2 + Math.random() * 0.5).toFixed(2);
-    const tempC = +(28 + loadFactor * 14 + Math.random() * 3).toFixed(1);
+    const energyKwh = +(loadFactor * 3.2 + (95 - i) * 0.02 + 1.8).toFixed(3);
+    const tempC = +(28 + loadFactor * 12 + Math.random() * 2).toFixed(1);
     const isoDate = new Date(ts).toISOString();
     
     // Bangladesh Time (Asia/Dhaka, UTC+6) formatted time
@@ -55,10 +55,24 @@ const localTelemetry = (() => {
       formattedBdTime = new Date(ts).toLocaleTimeString();
     }
 
+    let statusBadge = 'Normal';
+    let statusType = 'success';
+    if (powerKw > 3.0) {
+      statusBadge = 'High Load';
+      statusType = 'danger';
+    } else if (powerKw > 1.8) {
+      statusBadge = 'Moderate';
+      statusType = 'warning';
+    } else if (powerKw < 0.2) {
+      statusBadge = 'Standby';
+      statusType = 'info';
+    }
+
     points.push({
       device_id: 'pnw101',
-      voltage: +voltage.toFixed(1),
-      current: +current.toFixed(2),
+      device_name: 'Device',
+      voltage: voltage,
+      current: current,
       power: powerKw,
       avg_power: powerKw,
       energy: energyKwh,
@@ -66,6 +80,8 @@ const localTelemetry = (() => {
       temperature: tempC,
       avg_temperature: tempC,
       is_online: true,
+      status_badge: statusBadge,
+      status_type: statusType,
       last_seen_relative: i === 0 ? 'Just now' : `${i * 15}m ago`,
       created_at: isoDate,
       recorded_at: isoDate,
@@ -75,6 +91,91 @@ const localTelemetry = (() => {
   }
   return points;
 })();
+
+// Real-Time Live Telemetry Streamer (every 10 seconds: streams new live packet in Bangladesh Time)
+setInterval(() => {
+  if (!localDevices || localDevices.length === 0) return;
+  const dev = localDevices[0];
+  const now = Date.now();
+  const hour = new Date(now).getHours();
+  const loadFactor = hour >= 8 && hour <= 20 ? 0.7 + Math.random() * 0.3 : 0.2 + Math.random() * 0.2;
+
+  // Real-time subtle fluctuation from previous reading
+  const prevV = localTelemetry.length > 0 ? Number(localTelemetry[0].voltage || 219.6) : 219.6;
+  const vDelta = +(Math.random() * 1.6 - 0.8).toFixed(1);
+  let voltage = +(prevV + vDelta).toFixed(1);
+  if (voltage < 215.0) voltage = 216.5;
+  if (voltage > 228.0) voltage = 226.5;
+
+  const prevC = localTelemetry.length > 0 ? Number(localTelemetry[0].current || 9.06) : 9.06;
+  const cDelta = +(Math.random() * 0.4 - 0.2).toFixed(2);
+  let current = +(prevC + cDelta).toFixed(2);
+  if (current < 1.0) current = 2.5;
+  if (current > 25.0) current = 22.0;
+
+  const pf = 0.92 + Math.random() * 0.06;
+  const powerKw = +((voltage * current * pf) / 1000).toFixed(3);
+
+  const prevEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy || 2.5) : 2.5;
+  const energyKwh = +(prevEnergy + (powerKw * 10) / 3600).toFixed(3);
+
+  const prevT = localTelemetry.length > 0 ? Number(localTelemetry[0].temperature || 37.9) : 37.9;
+  const tDelta = +(Math.random() * 0.6 - 0.3).toFixed(1);
+  let tempC = +(prevT + tDelta).toFixed(1);
+  if (tempC < 25.0) tempC = 26.5;
+  if (tempC > 65.0) tempC = 60.0;
+  const isoDate = new Date(now).toISOString();
+
+  let formattedBdTime = '--:--:--';
+  try {
+    formattedBdTime = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Dhaka',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    }).format(new Date(now));
+  } catch {
+    formattedBdTime = new Date(now).toLocaleTimeString();
+  }
+
+  let statusBadge = 'Normal';
+  let statusType = 'success';
+  if (powerKw > 3.0) {
+    statusBadge = 'High Load';
+    statusType = 'danger';
+  } else if (powerKw > 1.8) {
+    statusBadge = 'Moderate';
+    statusType = 'warning';
+  } else if (powerKw < 0.2) {
+    statusBadge = 'Standby';
+    statusType = 'info';
+  }
+
+  const packet = {
+    device_id: dev.device_id,
+    device_name: dev.device_name || 'Device',
+    voltage: voltage,
+    current: current,
+    power: powerKw,
+    avg_power: powerKw,
+    energy: energyKwh,
+    max_energy: energyKwh,
+    temperature: tempC,
+    avg_temperature: tempC,
+    is_online: true,
+    status_badge: statusBadge,
+    status_type: statusType,
+    last_seen_relative: 'Just now',
+    created_at: isoDate,
+    recorded_at: isoDate,
+    bucket_time: isoDate,
+    formatted_time: formattedBdTime
+  };
+
+  localTelemetry.unshift(packet);
+  if (localTelemetry.length > 150) localTelemetry.pop();
+}, 10000);
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=UTF-8',
@@ -195,16 +296,26 @@ const server = http.createServer((req, res) => {
 
       if (apiRoute === '/api/telemetry/latest') {
         const queryDevId = parsedUrl.searchParams.get('device_id') || 'pnw101';
-        const latest = (localTelemetry && localTelemetry.length > 0) ? localTelemetry[localTelemetry.length - 1] : null;
+        const latest = (localTelemetry && localTelemetry.length > 0) ? { ...localTelemetry[0] } : null;
+        const prev = (localTelemetry && localTelemetry.length > 1) ? localTelemetry[1] : null;
+        if (latest && prev) {
+          latest.prev_voltage = prev.voltage;
+          latest.prev_current = prev.current;
+          latest.prev_temperature = prev.temperature;
+        }
         res.end(JSON.stringify({
           success: true,
           data: latest || {
             device_id: queryDevId,
+            device_name: (localDevices.find(d => d.device_id === queryDevId)?.device_name) || 'Device',
             voltage: 0.0,
+            prev_voltage: 0.0,
             current: 0.0,
+            prev_current: 0.0,
             power: 0.0,
             energy: 0.0,
             temperature: null,
+            prev_temperature: null,
             is_online: false,
             last_seen_relative: 'Waiting for device packets'
           }
@@ -213,31 +324,21 @@ const server = http.createServer((req, res) => {
       }
 
       if (apiRoute === '/api/telemetry/logs') {
-        // Ensure logs have Bangladesh Time (Asia/Dhaka) formatted timestamps
-        const logsWithBdTime = (localTelemetry || []).map(item => {
-          let bdTime = item.formatted_time;
-          if (!bdTime) {
-            try {
-              bdTime = new Intl.DateTimeFormat('en-US', {
-                timeZone: 'Asia/Dhaka',
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
-                hour12: true
-              }).format(new Date(item.created_at || item.recorded_at));
-            } catch {
-              bdTime = new Date(item.created_at || item.recorded_at).toLocaleTimeString();
-            }
-          }
-          return {
-            ...item,
-            formatted_time: bdTime
-          };
-        });
+        const limit = parseInt(parsedUrl.searchParams.get('limit') || '20', 10);
+        const topLogs = (localTelemetry || []).slice(0, limit);
 
         res.end(JSON.stringify({
           success: true,
-          data: logsWithBdTime
+          data: topLogs
+        }));
+        return;
+      }
+
+      if (apiRoute === '/api/telemetry/clear-logs' || apiRoute === '/api/telemetry/clear') {
+        localTelemetry.length = 0;
+        res.end(JSON.stringify({
+          success: true,
+          message: 'Telemetry logs cleared successfully.'
         }));
         return;
       }
@@ -254,11 +355,14 @@ const server = http.createServer((req, res) => {
             const targetDate = new Date(now.getTime() - i * 86400000);
             const bucket_time = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ }).format(targetDate);
             const loadFactor = 0.6 + Math.random() * 0.35;
+            const isToday = (i === 0);
+            const livePower = localTelemetry.length > 0 ? Number(localTelemetry[0].power) : 2.155;
+            const liveEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy) : 3.450;
             historyPoints.push({
               bucket_time,
-              avg_power: +(1.9 + loadFactor * 1.5).toFixed(3),
-              max_power: +(3.2 + loadFactor * 1.6).toFixed(3),
-              max_energy: +(14 + loadFactor * 10).toFixed(2),
+              avg_power: isToday ? livePower : +(1.9 + loadFactor * 1.5).toFixed(3),
+              max_power: isToday ? +(livePower * 1.25).toFixed(3) : +(3.2 + loadFactor * 1.6).toFixed(3),
+              max_energy: isToday ? liveEnergy : +(14 + loadFactor * 10).toFixed(2),
               avg_voltage: +(220 + Math.random() * 4).toFixed(1),
               avg_current: +(7 + loadFactor * 5).toFixed(2),
               avg_temperature: +(34 + Math.random() * 4).toFixed(1),
@@ -271,11 +375,14 @@ const server = http.createServer((req, res) => {
             const targetDate = new Date(now.getTime() - i * 86400000);
             const bucket_time = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ }).format(targetDate);
             const loadFactor = 0.5 + Math.random() * 0.45;
+            const isToday = (i === 0);
+            const livePower = localTelemetry.length > 0 ? Number(localTelemetry[0].power) : 2.155;
+            const liveEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy) : 3.450;
             historyPoints.push({
               bucket_time,
-              avg_power: +(1.7 + loadFactor * 1.6).toFixed(3),
-              max_power: +(3.0 + loadFactor * 1.8).toFixed(3),
-              max_energy: +(12 + loadFactor * 12).toFixed(2),
+              avg_power: isToday ? livePower : +(1.7 + loadFactor * 1.6).toFixed(3),
+              max_power: isToday ? +(livePower * 1.25).toFixed(3) : +(3.0 + loadFactor * 1.8).toFixed(3),
+              max_energy: isToday ? liveEnergy : +(12 + loadFactor * 12).toFixed(2),
               avg_voltage: +(220 + Math.random() * 4).toFixed(1),
               avg_current: +(6.5 + loadFactor * 5.5).toFixed(2),
               avg_temperature: +(33 + Math.random() * 5).toFixed(1),
@@ -329,7 +436,7 @@ const server = http.createServer((req, res) => {
 
       if (apiRoute === '/api/devices/connect') {
         const devId = input.device_id || 'pnw101';
-        const devName = input.device_name || 'Main Panel (' + devId + ')';
+        const devName = input.device_name && input.device_name.trim() ? input.device_name.trim() : 'Device';
         if (!localDevices.find(d => d.device_id === devId)) {
           localDevices.push({
             id: 1,
@@ -342,7 +449,7 @@ const server = http.createServer((req, res) => {
         }
         res.end(JSON.stringify({
           success: true,
-          message: `Device '${devId}' successfully connected and locked to your account!`
+          message: 'Device connected successfully'
         }));
         return;
       }

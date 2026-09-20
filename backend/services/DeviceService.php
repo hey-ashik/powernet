@@ -48,7 +48,7 @@ class DeviceService
                 'device_id'   => $device['device_id'],
                 'device_name' => $name,
                 'status'      => 'connected',
-                'message'     => "Device '{$deviceId}' successfully connected and locked to your account!"
+                'message'     => 'Device connected successfully'
             ];
         }
 
@@ -67,7 +67,7 @@ class DeviceService
         return [
             'device_id'   => $deviceId,
             'device_name' => $name,
-            'message'     => "Device '{$deviceId}' successfully connected!"
+            'message'     => 'Device connected successfully'
         ];
     }
 

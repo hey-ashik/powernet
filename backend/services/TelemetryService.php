@@ -138,10 +138,12 @@ class TelemetryService
             FROM telemetry
             WHERE device_id = :device_id
             ORDER BY recorded_at DESC, id DESC
-            LIMIT 1
+            LIMIT 2
         ");
         $telStmt->execute(['device_id' => $device['device_id']]);
-        $latest = $telStmt->fetch();
+        $rows = $telStmt->fetchAll();
+        $latest = $rows[0] ?? null;
+        $prev = $rows[1] ?? null;
 
         $secondsSinceSeen = $device['last_seen'] ? (time() - strtotime($device['last_seen'])) : null;
         $isOnline = $secondsSinceSeen !== null && $secondsSinceSeen <= $threshold;
@@ -151,10 +153,13 @@ class TelemetryService
                 'device_id'          => $device['device_id'],
                 'device_name'        => $device['device_name'],
                 'voltage'            => 0.0,
+                'prev_voltage'       => 0.0,
                 'current'            => 0.0,
+                'prev_current'       => 0.0,
                 'power'              => 0.0,
                 'energy'             => 0.0,
                 'temperature'        => 0.0,
+                'prev_temperature'   => 0.0,
                 'timestamp'          => null,
                 'status'             => 'offline',
                 'is_online'          => false,
@@ -167,10 +172,13 @@ class TelemetryService
             'device_id'          => $device['device_id'],
             'device_name'        => $device['device_name'],
             'voltage'            => (float)$latest['voltage'],
+            'prev_voltage'       => $prev ? (float)$prev['voltage'] : null,
             'current'            => (float)$latest['current'],
+            'prev_current'       => $prev ? (float)$prev['current'] : null,
             'power'              => (float)$latest['power'],
             'energy'             => (float)$latest['energy'],
             'temperature'        => (float)$latest['temperature'],
+            'prev_temperature'   => $prev ? (float)$prev['temperature'] : null,
             'timestamp'          => date('c', strtotime($latest['recorded_at'])),
             'status'             => $isOnline ? 'online' : 'offline',
             'is_online'          => $isOnline,
@@ -300,7 +308,7 @@ class TelemetryService
         ];
     }
 
-    public static function getLogs(int $userId, ?string $deviceId = null, int $limit = 15): array
+    public static function getLogs(int $userId, ?string $deviceId = null, int $limit = 20): array
     {
         $db = Connection::get();
 
@@ -318,10 +326,12 @@ class TelemetryService
         }
 
         $stmt = $db->prepare("
-            SELECT id, device_id, voltage, current, power, energy, temperature, recorded_at
-            FROM telemetry
-            WHERE device_id = :device_id
-            ORDER BY recorded_at DESC, id DESC
+            SELECT t.id, t.device_id, COALESCE(NULLIF(d.device_name, ''), 'Device') as device_name,
+                   t.voltage, t.current, t.power, t.energy, t.temperature, t.recorded_at
+            FROM telemetry t
+            LEFT JOIN devices d ON t.device_id = d.device_id
+            WHERE t.device_id = :device_id
+            ORDER BY t.recorded_at DESC, t.id DESC
             LIMIT :limit
         ");
         $stmt->bindValue(':device_id', $device['device_id'], PDO::PARAM_STR);
@@ -329,26 +339,45 @@ class TelemetryService
         $stmt->execute();
         $logs = $stmt->fetchAll();
 
+        $bdTz = new \DateTimeZone('Asia/Dhaka');
         foreach ($logs as &$log) {
             $power = (float)$log['power'];
             if ($power > 3.0) {
                 $log['status_badge'] = 'High Load';
                 $log['status_type']  = 'danger';
-            } elseif ($power > 1.5) {
+            } elseif ($power > 1.8) {
                 $log['status_badge'] = 'Moderate';
                 $log['status_type']  = 'warning';
-            } elseif ($power > 0.05) {
+            } elseif ($power > 0.1) {
                 $log['status_badge'] = 'Normal';
                 $log['status_type']  = 'success';
             } else {
                 $log['status_badge'] = 'Standby';
                 $log['status_type']  = 'info';
             }
-            $log['formatted_time'] = date('H:i:s', strtotime($log['recorded_at']));
-            $log['formatted_date'] = date('d.m.Y', strtotime($log['recorded_at']));
+            try {
+                $dt = new \DateTime($log['recorded_at'], new \DateTimeZone('UTC'));
+                $dt->setTimezone($bdTz);
+                $log['formatted_time'] = $dt->format('h:i:s A');
+                $log['formatted_date'] = $dt->format('d M, Y');
+            } catch (\Throwable $e) {
+                $log['formatted_time'] = date('h:i:s A', strtotime($log['recorded_at']));
+                $log['formatted_date'] = date('d M, Y', strtotime($log['recorded_at']));
+            }
         }
 
         return $logs;
+    }
+
+    public static function clearLogs(int $userId, ?string $deviceId = null): bool
+    {
+        $db = Connection::get();
+        if ($deviceId !== null) {
+            $stmt = $db->prepare("DELETE FROM telemetry WHERE device_id = :device_id");
+            return $stmt->execute(['device_id' => $deviceId]);
+        }
+        $stmt = $db->prepare("DELETE t FROM telemetry t JOIN devices d ON t.device_id = d.device_id WHERE d.user_id = :user_id");
+        return $stmt->execute(['user_id' => $userId]);
     }
 
     private static function formatRelativeTime(?int $seconds): string

@@ -5,7 +5,10 @@
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  Dashboard.init();
+  const path = window.location.pathname.replace(/\.html$/, '');
+  if (path === '/dashboard' || path === '/analytics' || path === '/' || !path) {
+    Dashboard.init();
+  }
 });
 
 // ─── Bangladesh Timezone (Asia/Dhaka, UTC+6) Helpers ─────────────────────────
@@ -13,8 +16,15 @@ const BD_TZ = 'Asia/Dhaka';
 
 function formatBdTime(dateInput, mode = 'short') {
   if (!dateInput) return '--:--';
-  const d = (dateInput instanceof Date) ? dateInput : new Date(dateInput);
-  if (isNaN(d.getTime())) return '--:--';
+  let input = dateInput;
+  if (typeof input === 'string') {
+    if (/[ap]m$/i.test(input.trim())) return input.trim();
+    if (input.includes(' ') && !input.includes('T') && !input.includes('+')) {
+      input = input.replace(' ', 'T') + '+06:00';
+    }
+  }
+  const d = (input instanceof Date) ? input : new Date(input);
+  if (isNaN(d.getTime())) return typeof dateInput === 'string' ? dateInput : '--:--';
 
   try {
     if (mode === 'full') {
@@ -97,6 +107,7 @@ const Dashboard = {
   waveMetric: 'voltage', // 'voltage', 'current', 'power', 'energy', 'temperature'
   historyData: [],       // cached history points from API
   waveHistory: { voltage: [], current: [], power: [], energy: [], temperature: [] },
+  prevTelemetry: null,   // tracks previous reading { voltage, current, temperature } for delta % calculation
 
   async init() {
     if (this.pollTimer) {
@@ -116,6 +127,7 @@ const Dashboard = {
       if (statusDot) statusDot.className = 'pulse-dot';
       if (statusText) statusText.textContent = 'Connected';
       API.renderWidgetDevice(cachedDev);
+      this.showSkeletonLoading();
     } else {
       this.hasDevice = false;
       this.activeDevice = null;
@@ -130,6 +142,16 @@ const Dashboard = {
     this.initEventListeners();
     this.initChartSwitchers();
     await this.checkUserDevices();
+
+    if (this.hasDevice && this.activeDeviceId) {
+      await Promise.all([
+        this.fetchLatestTelemetry(),
+        this.fetchLogs(),
+        this.fetchBarChartHistory()
+      ]);
+    } else {
+      this.renderZeroState();
+    }
 
     // Attach visibility/focus listeners only once
     if (!this._visibilityBound) {
@@ -410,7 +432,7 @@ const Dashboard = {
     if (points.length < 2) {
       container.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94A3B8;font-size:13px;flex-direction:column;gap:8px;">
-          <i class="fa-solid fa-wave-square" style="font-size:28px;color:${cfg.color};opacity:0.4;"></i>
+          <i class="fa-brands fa-slack" style="font-size:28px;color:#0F172A;opacity:0.35;"></i>
           <span>Waiting for live ${cfg.name} telemetry (${cfg.unit})</span>
         </div>
       `;
@@ -594,7 +616,8 @@ const Dashboard = {
 
   populateWaveformFromTelemetry(telemetryPoints) {
     if (!telemetryPoints || telemetryPoints.length === 0) return;
-    const slice = telemetryPoints.slice(-20);
+    // Reverse newest-first array so that earliest timestamp is on the left and newest is on the right
+    const slice = [...telemetryPoints].reverse().slice(-20);
     const fields = ['voltage', 'current', 'power', 'energy', 'temperature'];
     fields.forEach(f => {
       this.waveHistory[f] = slice.map(p => {
@@ -661,26 +684,62 @@ const Dashboard = {
     API.renderWidgetDevice(device);
   },
 
-  async disconnectDevice(devId) {
-    try {
-      // 1. Immediately update UI state in REAL TIME
-      this.hasDevice = false;
-      this.activeDevice = null;
-      this.activeDeviceId = null;
-      API.setConnectedDevice(null);
-      this.updateSidebarWidget(null);
-      this.renderZeroState();
+  showSkeletonLoading() {
+    // 1. Status
+    const statusDot = document.getElementById('status-pulse-dot');
+    const statusText = document.getElementById('status-text');
+    if (statusDot) statusDot.className = 'pulse-dot';
+    if (statusText) statusText.textContent = 'Syncing...';
 
-      // 2. Call backend
-      await API.request('/devices/remove.php', {
-        method: 'POST',
-        body: JSON.stringify({ device_id: devId })
-      });
-      API.showToast(`Device '${devId}' disconnected successfully.`, 'info');
-    } catch (err) {
-      API.showToast(err.message || 'Could not disconnect device', 'error');
-      await this.checkUserDevices(true);
+    // 2. Metrics shimmer helper
+    const shimmer = (w = 64, h = 26) => `<span class="skeleton-shimmer" style="display:inline-block; width:${w}px; height:${h}px; vertical-align:middle; border-radius:6px;"></span>`;
+
+    const vEl = document.getElementById('metric-voltage');
+    if (vEl) vEl.innerHTML = shimmer(56, 30);
+    const cEl = document.getElementById('metric-current');
+    if (cEl) cEl.innerHTML = shimmer(56, 30);
+    const pEl = document.getElementById('metric-power');
+    if (pEl) pEl.innerHTML = shimmer(65, 24);
+    const eEl = document.getElementById('metric-energy');
+    if (eEl) eEl.innerHTML = shimmer(65, 24);
+    const tEl = document.getElementById('metric-temperature');
+    if (tEl) tEl.innerHTML = shimmer(48, 26);
+    const costEl = document.getElementById('kpi-est-cost');
+    if (costEl) costEl.innerHTML = shimmer(72, 24);
+
+    // Shimmer delta footers
+    const deltaV = document.getElementById('delta-voltage');
+    if (deltaV) deltaV.innerHTML = shimmer(44, 16);
+    const deltaC = document.getElementById('delta-current');
+    if (deltaC) deltaC.innerHTML = shimmer(44, 16);
+    const deltaT = document.getElementById('delta-temperature');
+    if (deltaT) deltaT.innerHTML = shimmer(44, 16);
+
+    // 3. Donut placeholders
+    const donutP = document.getElementById('donut-power-container');
+    if (donutP) donutP.innerHTML = `<div class="skeleton-shimmer" style="width:72px; height:72px; border-radius:50%;"></div>`;
+    const donutE = document.getElementById('donut-energy-container');
+    if (donutE) donutE.innerHTML = `<div class="skeleton-shimmer" style="width:72px; height:72px; border-radius:50%;"></div>`;
+
+    // 4. Visual Charts
+    const barWrap = document.getElementById('bar-chart-container');
+    if (barWrap) barWrap.innerHTML = `<div class="skeleton-chart"></div>`;
+    const waveWrap = document.getElementById('waveform-container');
+    if (waveWrap) waveWrap.innerHTML = `<div class="skeleton-chart"></div>`;
+
+    // 5. Logs Table
+    const logsBody = document.getElementById('telemetry-log-rows');
+    if (logsBody) {
+      logsBody.innerHTML = `
+        <tr><td colspan="5" style="padding:14px;"><div class="skeleton-shimmer" style="height:22px; width:100%;"></div></td></tr>
+        <tr><td colspan="5" style="padding:14px;"><div class="skeleton-shimmer" style="height:22px; width:100%;"></div></td></tr>
+        <tr><td colspan="5" style="padding:14px;"><div class="skeleton-shimmer" style="height:22px; width:100%;"></div></td></tr>
+      `;
     }
+  },
+
+  disconnectDevice(devId) {
+    API.disconnectCurrentDevice(devId);
   },
 
   renderZeroState() {
@@ -704,6 +763,15 @@ const Dashboard = {
     const elCost = document.getElementById('kpi-est-cost');
     if (elCost) elCost.textContent = '0.00 ৳';
 
+    // Reset deltas and cached previous telemetry
+    this.prevTelemetry = null;
+    const dv = document.getElementById('delta-voltage');
+    if (dv) { dv.className = 'delta-neutral'; dv.innerHTML = '&rarr; 0.0%'; }
+    const dc = document.getElementById('delta-current');
+    if (dc) { dc.className = 'delta-neutral'; dc.innerHTML = '&rarr; 0.0%'; }
+    const dt = document.getElementById('delta-temperature');
+    if (dt) { dt.className = 'delta-neutral'; dt.innerHTML = '&rarr; 0.0%'; }
+
     // Empty Donuts (0%)
     this.renderDonuts(0, 0);
 
@@ -723,7 +791,7 @@ const Dashboard = {
           <td colspan="5" style="text-align:center; padding: 40px 16px; color: #94A3B8;">
             <i class="fa-solid fa-plug-circle-xmark" style="font-size: 30px; margin-bottom: 10px; display: block; color: #CBD5E1;"></i>
             No telemetry data yet.<br>
-            <span style="font-size: 12.5px; color: #64748B;">Click <strong>Connect Device</strong> on the bottom-left to link your device (pnw101).</span>
+            <span style="font-size: 13px; color: #64748B;">Connect your device</span>
           </td>
         </tr>
       `;
@@ -731,15 +799,51 @@ const Dashboard = {
   },
 
   initEventListeners() {
-    // Refresh button for logs
+    // Refresh button for logs: rotate ONLY the inside arrow icon
     const refreshLogsBtn = document.getElementById('btn-refresh-logs');
     if (refreshLogsBtn) {
       refreshLogsBtn.addEventListener('click', () => {
-        refreshLogsBtn.style.transform = 'rotate(180deg)';
+        const icon = refreshLogsBtn.querySelector('i');
+        if (icon) {
+          icon.classList.remove('spin-icon');
+          void icon.offsetWidth; // trigger reflow for smooth re-trigger
+          icon.classList.add('spin-icon');
+          setTimeout(() => icon.classList.remove('spin-icon'), 600);
+        }
         if (this.hasDevice && this.activeDeviceId) {
           this.fetchLogs();
         }
-        setTimeout(() => refreshLogsBtn.style.transform = '', 300);
+      });
+    }
+
+    // Clear logs button
+    const clearLogsBtn = document.getElementById('btn-clear-logs');
+    if (clearLogsBtn) {
+      clearLogsBtn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to clear telemetry event logs?')) return;
+        try {
+          clearLogsBtn.disabled = true;
+          await API.request('/telemetry/clear-logs.php', {
+            method: 'POST',
+            body: JSON.stringify({ device_id: this.activeDeviceId })
+          });
+          const tbody = document.getElementById('logs-table-body');
+          if (tbody) {
+            tbody.innerHTML = `
+              <tr>
+                <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
+                  <i class="fa-regular fa-trash-can" style="margin-right:8px; color:#EF4444;"></i>
+                  Telemetry event logs cleared. Waiting for new live packets...
+                </td>
+              </tr>
+            `;
+          }
+          API.showToast('Telemetry event logs cleared successfully.', 'info');
+        } catch (err) {
+          API.showToast(err.message || 'Could not clear logs', 'error');
+        } finally {
+          clearLogsBtn.disabled = false;
+        }
       });
     }
 
@@ -803,7 +907,7 @@ const Dashboard = {
           this.activeDevice = {
             id: 1,
             device_id: devId,
-            device_name: devName || `Main Panel (${devId})`,
+            device_name: devName || 'Device',
             computed_status: 'online',
             status_display: 'Online',
             last_seen_relative: 'Just connected'
@@ -816,7 +920,7 @@ const Dashboard = {
           if (statusDot) statusDot.className = 'pulse-dot';
           if (statusText) statusText.textContent = 'Connected';
 
-          API.showToast(res.message || `Device '${devId}' connected successfully!`, 'success');
+          API.showToast('Device connected successfully', 'success');
 
           // 2. Refresh telemetry & logs immediately
           await this.fetchLatestTelemetry();
@@ -850,7 +954,7 @@ const Dashboard = {
   async fetchLogs() {
     if (!this.activeDeviceId) return;
     try {
-      const res = await API.request(`/telemetry/logs.php?device_id=${this.activeDeviceId}&limit=6`);
+      const res = await API.request(`/telemetry/logs.php?device_id=${this.activeDeviceId}&limit=20`);
       if (res && res.data) {
         this.renderLogsTable(res.data);
         // Pre-populate waveform on load if not yet populated
@@ -895,6 +999,28 @@ const Dashboard = {
       elCost.textContent = '0.00 ৳';
     }
 
+    // 7. Dynamic Real-Time Delta % Calculations based on previous values
+    const currV = (data.voltage !== undefined && data.voltage !== null) ? Number(data.voltage) : null;
+    const currC = (data.current !== undefined && data.current !== null) ? Number(data.current) : null;
+    const currT = (data.temperature !== undefined && data.temperature !== null) ? Number(data.temperature) : null;
+
+    let prevV = (this.prevTelemetry && this.prevTelemetry.voltage != null) ? this.prevTelemetry.voltage : (data.prev_voltage != null ? Number(data.prev_voltage) : null);
+    let prevC = (this.prevTelemetry && this.prevTelemetry.current != null) ? this.prevTelemetry.current : (data.prev_current != null ? Number(data.prev_current) : null);
+    let prevT = (this.prevTelemetry && this.prevTelemetry.temperature != null) ? this.prevTelemetry.temperature : (data.prev_temperature != null ? Number(data.prev_temperature) : null);
+
+    this.updateDeltaBadge('delta-voltage', currV, prevV);
+    this.updateDeltaBadge('delta-current', currC, prevC);
+    this.updateDeltaBadge('delta-temperature', currT, prevT);
+
+    // Save current readings as previous for the next real-time cycle
+    if (currV !== null || currC !== null || currT !== null) {
+      this.prevTelemetry = {
+        voltage: currV,
+        current: currC,
+        temperature: currT
+      };
+    }
+
     // 9. Status & Pulse: only Connected or Disconnected
     const statusDot = document.getElementById('status-pulse-dot');
     const statusText = document.getElementById('status-text');
@@ -914,6 +1040,41 @@ const Dashboard = {
 
     // Push live data to waveform
     this.pushWaveformPoint(data);
+  },
+
+  updateDeltaBadge(elementId, curr, prev) {
+    const el = document.getElementById(elementId);
+    if (!el) return;
+
+    if (curr == null || isNaN(curr)) {
+      el.className = 'delta-neutral';
+      el.innerHTML = '&rarr; 0.0%';
+      return;
+    }
+
+    // If no previous reading is available yet, display neutral/nominal
+    if (prev == null || isNaN(prev) || Number(prev) === 0) {
+      el.className = 'delta-up';
+      el.innerHTML = '&uarr; 0.0%';
+      return;
+    }
+
+    const c = Number(curr);
+    const p = Number(prev);
+    const diff = c - p;
+    const pct = (diff / p) * 100;
+    const absPct = Math.abs(pct).toFixed(1);
+
+    if (pct > 0.04) {
+      el.className = 'delta-up';
+      el.innerHTML = `&uarr; ${absPct}%`;
+    } else if (pct < -0.04) {
+      el.className = 'delta-down';
+      el.innerHTML = `&darr; ${absPct}%`;
+    } else {
+      el.className = 'delta-up';
+      el.innerHTML = `&uarr; 0.0%`;
+    }
   },
 
   renderDonuts(powerPct = 0, energyPct = 0) {
@@ -1001,17 +1162,41 @@ const Dashboard = {
         <tr>
           <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
             <i class="fa-solid fa-satellite-dish" style="margin-right:8px; color:var(--primary);"></i>
-            Connected to <strong>${this.activeDeviceId}</strong>. Waiting for telemetry packets...
+            Connected to <strong>${this.activeDeviceId || 'Device'}</strong>. Waiting for telemetry packets...
           </td>
         </tr>
       `;
       return;
     }
 
-    tbody.innerHTML = logs.map(log => {
+    const top20 = logs.slice(0, 20);
+
+    tbody.innerHTML = top20.map(log => {
       let logPower = Number(log.power || 0);
       if (logPower > 100) logPower = logPower / 1000;
-      const timeDisplay = log.formatted_time || (log.recorded_at ? formatBdTime(log.recorded_at, 'full') : '--:--:--');
+      let logEnergy = Number(log.energy || 0);
+
+      // Device Name: if set show this, otherwise DEFAULT "Device"
+      let devName = 'Device';
+      if (log.device_name && log.device_name.trim()) {
+        devName = log.device_name.trim();
+      } else if (this.activeDevice && this.activeDevice.device_name && this.activeDevice.device_name.trim()) {
+        devName = this.activeDevice.device_name.trim();
+      }
+
+      const devId = log.device_id || this.activeDeviceId || 'pnw101';
+
+      // Bangladesh Standard Time (Asia/Dhaka) formatting
+      let timeDisplay = '--:--:--';
+      const rawTime = log.recorded_at || log.created_at || log.bucket_time;
+      if (rawTime) {
+        timeDisplay = formatBdTime(rawTime, 'full');
+      } else if (log.formatted_time) {
+        timeDisplay = log.formatted_time;
+      }
+
+      const statusType = log.status_type || (logPower > 3.0 ? 'danger' : (logPower > 1.8 ? 'warning' : 'success'));
+      const statusBadge = log.status_badge || (logPower > 3.0 ? 'High Load' : (logPower > 1.8 ? 'Moderate' : 'Normal'));
 
       return `
         <tr>
@@ -1019,19 +1204,26 @@ const Dashboard = {
             <div class="node-cell">
               <div class="node-avatar"><i class="fa-solid fa-bolt" style="font-size:14px;"></i></div>
               <div>
-                <div class="node-name">${log.device_id || this.activeDeviceId}</div>
-                <div class="node-loc">Phase L1 • Main Panel</div>
+                <div class="node-name">${devName}</div>
+                <div class="node-loc" style="font-family: var(--font-mono, monospace); font-size: 11px; opacity: 0.85;">${devId}</div>
               </div>
             </div>
           </td>
-          <td>${Number(log.voltage).toFixed(1)} V / ${Number(log.current).toFixed(2)} A</td>
-          <td>${timeDisplay}</td>
           <td>
-            <span class="status-pill ${log.status_type || 'success'}">
-              ${log.status_badge || 'Normal'}
+            <span style="font-weight: 600; color: #0F172A;">${timeDisplay}</span>
+          </td>
+          <td>${Number(log.voltage || 0).toFixed(1)} V / ${Number(log.current || 0).toFixed(2)} A</td>
+          <td>
+            <div class="price-power-cell" style="display:flex; align-items:baseline; gap:6px;">
+              <span>${logPower.toFixed(3)} kW</span>
+              <span style="font-size:11.5px; font-weight:500; color:var(--text-muted);">(${logEnergy.toFixed(2)} kWh)</span>
+            </div>
+          </td>
+          <td>
+            <span class="status-pill ${statusType}">
+              ${statusBadge}
             </span>
           </td>
-          <td class="price-power-cell">${logPower.toFixed(3)} kW</td>
         </tr>
       `;
     }).join('');
