@@ -106,18 +106,21 @@
     <!-- Main Content Area -->
     <main class="main-content">
       <!-- Top Bar -->
-      <header class="top-bar">
-        <div class="page-title-group">
-          <h1 class="page-title">Analytics</h1>
-          <div class="date-pill" id="dashboard-date-range">
-            <span>--.--.----</span>
-            <i class="fa-regular fa-calendar" style="margin-left: 6px; font-size: 13px;"></i>
+      <header class="top-bar dashboard-top-bar">
+        <!-- Row 1: Left has hamburger + Analytics title, Right has User Profile (Icon only on mobile) -->
+        <div class="top-bar-header-row">
+          <div class="page-title-group">
+            <button class="mobile-sidebar-toggle" id="btn-mobile-sidebar-toggle" title="Open Navigation Menu" aria-label="Open Navigation Menu">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect width="18" height="18" x="3" y="3" rx="3" ry="3"/>
+                <line x1="9" x2="9" y1="3" y2="21"/>
+              </svg>
+            </button>
+            <h1 class="page-title">Analytics</h1>
           </div>
-        </div>
 
-        <div class="top-actions" style="display: flex; align-items: center; gap: 16px;">
-          <!-- Day/Night theme toggle matching interface.png -->
-          <div class="theme-toggle-switch" style="display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid var(--border-subtle); padding: 5px 12px; border-radius: 9999px; box-shadow: var(--shadow-sm);">
+          <!-- Day/Night theme toggle matching interface.png (Desktop only, mobile placed in sidebar drawer) -->
+          <div class="theme-toggle-switch desktop-theme-toggle" style="display: flex; align-items: center; gap: 8px; background: #FFFFFF; border: 1px solid var(--border-subtle); padding: 5px 12px; border-radius: 9999px; box-shadow: var(--shadow-sm);">
             <i class="fa-regular fa-sun" style="font-size: 12.5px; color: #F59E0B;"></i>
             <span style="display: inline-block; width: 30px; height: 16px; background: #E2E8F0; border-radius: 9999px; position: relative; cursor: pointer;">
               <span style="display: block; width: 12px; height: 12px; background: #FFFFFF; border-radius: 50%; position: absolute; top: 2px; left: 2px; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></span>
@@ -125,14 +128,22 @@
             <i class="fa-regular fa-moon" style="font-size: 12.5px; color: #94A3B8;"></i>
           </div>
 
-          <div class="live-pulse-badge">
-            <span class="pulse-dot offline" id="status-pulse-dot"></span>
-            <span id="status-text">Disconnected</span>
-          </div>
-
           <div class="user-profile" id="user-profile-trigger" title="View Account & Settings">
             <div class="avatar" id="user-avatar-display">AI</div>
             <span class="user-name" id="user-name-display">Ashikul Islam</span>
+          </div>
+        </div>
+
+        <!-- Row 2: Bottom of the Analytics text shows Date and beside it Connected/Disconnected badge -->
+        <div class="top-bar-meta-row">
+          <div class="date-pill" id="dashboard-date-range">
+            <span>--.--.----</span>
+            <i class="fa-regular fa-calendar" style="margin-left: 6px; font-size: 13px;"></i>
+          </div>
+
+          <div class="live-pulse-badge">
+            <span class="pulse-dot offline" id="status-pulse-dot"></span>
+            <span id="status-text">Disconnected</span>
           </div>
         </div>
       </header>

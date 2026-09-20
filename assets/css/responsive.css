@@ -1,8 +1,44 @@
 /* ==========================================================
  * PowerNet Responsive Breakpoints
- * Seamless adaptation for Desktop, Tablet, and Mobile devices
+ * Seamless adaptation for Desktop, iPad / Tablet, and Mobile devices
  * ========================================================== */
 
+/* Mobile Sidebar Toggle Button (Hidden on Desktop) */
+.mobile-sidebar-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  min-width: 38px;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 10px;
+  color: #0F172A;
+  cursor: pointer;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.mobile-sidebar-toggle * {
+  pointer-events: none;
+}
+
+.mobile-sidebar-toggle:hover {
+  background: #F8FAFC;
+  border-color: #CBD5E1;
+  color: #0F172A;
+  transform: translateY(-1px);
+}
+
+.mobile-sidebar-toggle:active {
+  transform: scale(0.96);
+}
+
+
+/* ─── Large Desktops (<= 1280px) ─── */
 @media (max-width: 1280px) {
   .metrics-section {
     grid-template-columns: repeat(6, 1fr);
@@ -24,28 +60,105 @@
   }
 }
 
-@media (max-width: 1024px) {
-  .main-content {
-    padding: 20px 24px;
+/* ─── Desktop Header Default Alignment (> 1024px) ─── */
+@media (min-width: 1025px) {
+  .top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 28px;
+  }
+
+  .dashboard-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-direction: row;
+    background: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 0;
+  }
+
+  .dashboard-top-bar .top-bar-header-row {
+    display: contents;
+  }
+
+  .dashboard-top-bar .top-bar-meta-row {
+    display: contents;
+  }
+
+  .dashboard-top-bar .page-title-group {
+    order: 1;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dashboard-top-bar .date-pill {
+    order: 2;
+    margin-right: auto;
+    margin-left: 8px;
+  }
+
+  .dashboard-top-bar .desktop-theme-toggle {
+    order: 3;
+    display: flex !important;
+    margin-left: auto;
+    margin-right: 10px;
+  }
+
+  .dashboard-top-bar .live-pulse-badge {
+    order: 4;
+    margin-right: 10px;
+  }
+
+  .dashboard-top-bar .user-profile {
+    order: 5;
   }
 }
 
-@media (max-width: 768px) {
+/* ─── Tablets & iPads (<= 1024px) ─── */
+@media (max-width: 1024px) {
+  .mobile-sidebar-toggle {
+    display: inline-flex;
+  }
+
+  .app-container.sidebar-collapsed .sidebar {
+    width: 280px !important;
+    min-width: 280px !important;
+    padding: 24px 16px !important;
+  }
+
+  .app-container.sidebar-collapsed .brand-text,
+  .app-container.sidebar-collapsed .nav-text,
+  .app-container.sidebar-collapsed .sidebar-divider,
+  .app-container.sidebar-collapsed .sidebar-widget,
+  .app-container.sidebar-collapsed .sidebar-widget .widget-title,
+  .app-container.sidebar-collapsed .sidebar-widget .widget-sub,
+  .app-container.sidebar-collapsed .sidebar-widget .widget-btn {
+    display: block !important;
+  }
+
+
   .app-container {
     flex-direction: column;
     position: relative;
+    min-height: 100vh;
   }
+
+  /* Off-canvas drawer sliding in from left to right */
   .sidebar {
     position: fixed;
     top: 0;
     bottom: 0;
     left: 0;
     height: 100vh;
-    width: 260px;
-    min-width: 260px;
-    z-index: 100;
+    width: 280px;
+    min-width: 280px;
+    z-index: 1000;
     transform: translateX(-100%);
-    box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2), 0 10px 10px -5px rgba(0,0,0,0.04);
+    box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.28);
     background-color: var(--bg-sidebar);
     display: flex;
     flex-direction: column;
@@ -53,52 +166,307 @@
     padding: 24px 16px;
     border-right: 1px solid var(--border-subtle);
     border-bottom: none;
-    transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
+
   .sidebar.mobile-open {
     transform: translateX(0);
   }
+
   .brand-text {
     display: inline-block !important;
   }
+
   .nav-menu {
     flex-direction: column;
     flex: 1;
     gap: 6px;
   }
+
   .nav-text {
     display: inline-block !important;
   }
+
   .sidebar-divider {
     display: block !important;
   }
+
   .sidebar-widget {
     display: block !important;
   }
+
   .sidebar-widget .widget-title,
   .sidebar-widget .widget-sub,
   .sidebar-widget .widget-btn {
     display: block !important;
   }
+
   .main-content {
-    padding: 16px;
     width: 100%;
+    margin-left: 0 !important;
+    padding: 20px 24px;
   }
+
+  /* iPad / Tablet Top Bar in a sleek row */
   .top-bar {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-  .top-actions {
-    width: 100%;
+    display: flex;
+    align-items: center;
     justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 24px;
+    flex-wrap: nowrap;
   }
+
+  .page-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .page-title {
+    font-size: 22px;
+    margin: 0;
+  }
+
+  .top-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .user-profile .user-name {
+    white-space: nowrap;
+  }
+}
+
+/* ─── Tablet Portrait & Intermediate (<= 768px) ─── */
+@media (max-width: 768px) {
+  .main-content {
+    padding: 16px 18px;
+  }
+
   .metrics-section, .kpi-row {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
   }
+
   .metric-card, .donut-card, .kpi-card {
     grid-column: span 1;
   }
+
+  #form-connect-device-page {
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+}
+
+/* ─── Mobile Phones (<= 680px) ─── */
+/* Implements precise layout requested for Image 1 (Dashboard) and Image 2 (Devices) */
+@media (max-width: 680px) {
+  .main-content {
+    padding: 12px;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     1. Dashboard Top Bar (Image 1 Specifications)
+     - Row 1: Left has hamburger [◫] + Analytics title.
+              Right has User avatar icon ONLY (no name).
+     - Row 2 (bottom of Analytics): Date + Connected/Disconnected status beside it.
+     - Theme toggle: Hidden from top menu (located in side drawer).
+     ══════════════════════════════════════════════════════════════ */
+  .dashboard-top-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    background: #FFFFFF;
+    border-radius: 18px;
+    border: 1px solid #E2E8F0;
+    padding: 14px 16px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    margin-bottom: 16px;
+  }
+
+  .dashboard-top-bar .top-bar-header-row {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .dashboard-top-bar .page-title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .dashboard-top-bar .page-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  /* Hide Day/Night toggle from top bar on mobile (moved to side drawer) */
+  .dashboard-top-bar .desktop-theme-toggle {
+    display: none !important;
+  }
+
+  /* Dashboard mobile: User avatar icon ONLY, no name */
+  .dashboard-top-bar .user-profile {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    padding: 3px !important;
+    gap: 0 !important;
+    border-radius: 50% !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    flex-shrink: 0;
+  }
+
+  .dashboard-top-bar .user-profile .avatar {
+    width: 34px !important;
+    height: 34px !important;
+    font-size: 13px !important;
+  }
+
+  .dashboard-top-bar .user-profile .user-name {
+    display: none !important;
+  }
+
+  /* Row 2: Aligned bottom of Analytics text with date and status beside it */
+  .dashboard-top-bar .top-bar-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-left: 50px; /* Aligned bottom of Analytics text (38px button + 12px gap) */
+    flex-wrap: nowrap;
+  }
+
+  .dashboard-top-bar .date-pill {
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .dashboard-top-bar .live-pulse-badge {
+    padding: 4px 10px;
+    font-size: 11.5px;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  /* ══════════════════════════════════════════════════════════════
+     2. Devices Top Bar (Image 2 Specifications)
+     - Left: Hamburger [◫] + Connected Devices title.
+     - Right: User icon AND name in the SAME row.
+     ══════════════════════════════════════════════════════════════ */
+  .devices-top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #FFFFFF;
+    border-radius: 18px;
+    border: 1px solid #E2E8F0;
+    padding: 12px 14px;
+    box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
+    margin-bottom: 16px;
+    flex-wrap: nowrap;
+    gap: 8px;
+  }
+
+  .devices-top-bar .page-title-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+
+  .devices-top-bar .page-title {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0F172A;
+    margin: 0;
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .devices-top-bar .top-actions {
+    display: flex;
+    align-items: center;
+    flex-shrink: 1;
+    min-width: 0;
+  }
+
+  /* Devices mobile: User icon AND name in the SAME row */
+  .devices-top-bar .user-profile {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 10px 3px 3px !important;
+    background: #FFFFFF !important;
+    border: 1px solid #E2E8F0 !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
+    border-radius: 9999px !important;
+    flex-shrink: 0;
+  }
+
+  .devices-top-bar .user-profile .avatar {
+    width: 30px !important;
+    height: 30px !important;
+    font-size: 12px !important;
+    flex-shrink: 0;
+  }
+
+  .devices-top-bar .user-profile .user-name {
+    display: inline-block !important;
+    font-size: 12px !important;
+    font-weight: 700;
+    color: #0F172A;
+    white-space: nowrap !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 105px;
+  }
+
+  /* Grid adaptations */
+  .metrics-section, .kpi-row {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .metric-card, .donut-card, .kpi-card {
+    grid-column: span 1;
+  }
+
   #form-connect-device-page {
     grid-template-columns: 1fr !important;
+    gap: 12px;
+  }
+
+  .logs-table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ─── Very Compact Screens (<= 380px) ─── */
+@media (max-width: 380px) {
+  .dashboard-top-bar .top-bar-meta-row {
+    padding-left: 0;
+  }
+  .devices-top-bar .page-title {
+    font-size: 16px;
+  }
+  .devices-top-bar .user-profile .user-name {
+    max-width: 80px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

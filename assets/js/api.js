@@ -495,8 +495,17 @@ const API = {
       }
     });
 
-    // 2. Start YouTube progress bar
+    // 2. Start YouTube progress bar & dismiss mobile drawer and profile drawer
     this.startTopLoader();
+    const curSb = document.querySelector('.sidebar');
+    const curBd = document.querySelector('.sidebar-backdrop');
+    if (curSb) curSb.classList.remove('mobile-open');
+    if (curBd) curBd.classList.remove('active');
+    const profDrawer = document.getElementById('profile-drawer');
+    const profBackdrop = document.getElementById('profile-drawer-backdrop');
+    if (profDrawer) profDrawer.classList.remove('active');
+    if (profBackdrop) profBackdrop.classList.remove('active');
+    document.body.style.overflow = '';
 
     // 3. Stop background dashboard polling if navigating away
     if (!targetUrl.includes('/dashboard') && !targetUrl.includes('/analytics')) {
@@ -606,73 +615,132 @@ const API = {
 // Global App Sidebar Handler & Profile Drawer
 document.addEventListener('DOMContentLoaded', () => {
   // ─── 1. Left Sidebar Toggle Handler ─────────────────────────────
-  const sidebar = document.querySelector('.sidebar');
-  if (sidebar) {
-    const appContainer = document.querySelector('.app-container') || document.body;
-    const toggleBtn = document.getElementById('btn-sidebar-toggle');
-    const brandLogo = document.querySelector('.brand-logo-group');
-
-    let backdrop = document.querySelector('.sidebar-backdrop');
-    if (!backdrop) {
-      backdrop = document.createElement('div');
-      backdrop.className = 'sidebar-backdrop';
-      document.body.appendChild(backdrop);
+  const getSidebar = () => document.querySelector('.sidebar');
+  const getBackdrop = () => {
+    let bd = document.querySelector('.sidebar-backdrop');
+    if (!bd) {
+      bd = document.createElement('div');
+      bd.className = 'sidebar-backdrop';
+      document.body.appendChild(bd);
     }
+    return bd;
+  };
 
-    const updateToggleTooltip = (collapsed) => {
-      if (toggleBtn) {
-        const tip = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
-        toggleBtn.setAttribute('title', tip);
-        toggleBtn.setAttribute('data-tooltip', tip);
-        toggleBtn.setAttribute('aria-label', tip);
-      }
-    };
+  const appContainer = document.querySelector('.app-container') || document.body;
+  const toggleBtn = document.getElementById('btn-sidebar-toggle');
+  const brandLogo = document.querySelector('.brand-logo-group');
 
-    const isCollapsed = localStorage.getItem('powernet_sidebar_collapsed') === 'true';
-    if (isCollapsed && window.innerWidth > 768) {
-      appContainer.classList.add('sidebar-collapsed');
-      updateToggleTooltip(true);
+  getBackdrop(); // Ensure backdrop is ready
+
+  const updateToggleTooltip = (collapsed) => {
+    if (toggleBtn) {
+      const tip = collapsed ? 'Expand sidebar' : 'Collapse sidebar';
+      toggleBtn.setAttribute('title', tip);
+      toggleBtn.setAttribute('data-tooltip', tip);
+      toggleBtn.setAttribute('aria-label', tip);
+    }
+  };
+
+  const isCollapsed = localStorage.getItem('powernet_sidebar_collapsed') === 'true';
+  if (isCollapsed && window.innerWidth > 1024) {
+    appContainer.classList.add('sidebar-collapsed');
+    updateToggleTooltip(true);
+  } else {
+    updateToggleTooltip(false);
+  }
+
+  const openMobileSidebar = () => {
+    const sb = getSidebar();
+    const bd = getBackdrop();
+    if (sb) sb.classList.add('mobile-open');
+    if (bd) bd.classList.add('active');
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeMobileSidebar = () => {
+    const sb = getSidebar();
+    const bd = getBackdrop();
+    if (sb) sb.classList.remove('mobile-open');
+    if (bd) bd.classList.remove('active');
+    document.body.style.overflow = '';
+  };
+
+  const toggleMobileSidebar = () => {
+    const sb = getSidebar();
+    if (!sb) return;
+    if (sb.classList.contains('mobile-open')) {
+      closeMobileSidebar();
     } else {
-      updateToggleTooltip(false);
+      openMobileSidebar();
+    }
+  };
+
+  // Expose on API object for reliable global usage
+  API.openMobileSidebar = openMobileSidebar;
+  API.closeMobileSidebar = closeMobileSidebar;
+  API.toggleMobileSidebar = toggleMobileSidebar;
+
+  // Global delegated click listener ensures hamburger toggle works everywhere across all SPA navigations
+  document.addEventListener('click', (e) => {
+    // 1. Mobile Hamburger Toggle Button in Header (always toggles mobile drawer)
+    const mobileBtn = e.target.closest('#btn-mobile-sidebar-toggle, .mobile-sidebar-toggle');
+    if (mobileBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleMobileSidebar();
+      return;
     }
 
-    const toggleSidebar = (e) => {
-      if (e) e.preventDefault();
-      if (window.innerWidth <= 768) {
-        const isOpen = sidebar.classList.toggle('mobile-open');
-        backdrop.classList.toggle('active', isOpen);
+    // 2. Desktop Sidebar Toggle Button inside Sidebar
+    const desktopBtn = e.target.closest('#btn-sidebar-toggle');
+    if (desktopBtn) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (window.innerWidth <= 1024) {
+        closeMobileSidebar();
       } else {
         const collapsed = appContainer.classList.toggle('sidebar-collapsed');
         localStorage.setItem('powernet_sidebar_collapsed', String(collapsed));
         updateToggleTooltip(collapsed);
       }
-    };
-
-    if (toggleBtn) toggleBtn.addEventListener('click', toggleSidebar);
-
-    if (brandLogo) {
-      brandLogo.addEventListener('click', (e) => {
-        if (appContainer.classList.contains('sidebar-collapsed') && window.innerWidth > 768) {
-          e.preventDefault();
-          toggleSidebar();
-        }
-      });
+      return;
     }
 
-    backdrop.addEventListener('click', () => {
-      sidebar.classList.remove('mobile-open');
-      backdrop.classList.remove('active');
-    });
+    // 3. Mobile Backdrop click closes sidebar
+    if (e.target.closest('.sidebar-backdrop')) {
+      e.preventDefault();
+      closeMobileSidebar();
+      return;
+    }
 
-    document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-      link.addEventListener('click', () => {
-        if (window.innerWidth <= 768) {
-          sidebar.classList.remove('mobile-open');
-          backdrop.classList.remove('active');
-        }
-      });
+    // 4. Nav link inside sidebar closes mobile drawer
+    if (e.target.closest('.sidebar .nav-link, .sidebar a')) {
+      closeMobileSidebar();
+    }
+  });
+
+  if (brandLogo) {
+    brandLogo.addEventListener('click', (e) => {
+      if (appContainer.classList.contains('sidebar-collapsed') && window.innerWidth > 1024) {
+        e.preventDefault();
+        appContainer.classList.remove('sidebar-collapsed');
+        localStorage.setItem('powernet_sidebar_collapsed', 'false');
+        updateToggleTooltip(false);
+      }
     });
   }
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 1024) {
+      closeMobileSidebar();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMobileSidebar();
+    }
+  });
 
   // ─── 2. Right-to-Left Profile & Settings Slide-out Drawer ───────
   const ensureProfileDrawer = () => {

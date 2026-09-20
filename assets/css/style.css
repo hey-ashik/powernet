@@ -311,7 +311,7 @@ button, input, select, textarea {
   inset: 0;
   background: rgba(15, 23, 42, 0.45);
   backdrop-filter: blur(3px);
-  z-index: 90;
+  z-index: 999;
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.25s ease;
