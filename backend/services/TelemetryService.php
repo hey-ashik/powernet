@@ -151,7 +151,8 @@ class TelemetryService
         $prev = $rows[1] ?? null;
 
         $secondsSinceSeen = $device['last_seen'] ? (time() - strtotime($device['last_seen'])) : null;
-        $isOnline = $secondsSinceSeen !== null && $secondsSinceSeen <= $threshold;
+        $telemetryAge = ($latest && !empty($latest['recorded_at'])) ? (time() - strtotime($latest['recorded_at'])) : null;
+        $isOnline = $secondsSinceSeen !== null && $secondsSinceSeen <= $threshold && ($telemetryAge === null || $telemetryAge <= $threshold);
 
         if (!$latest) {
             return [
@@ -166,6 +167,7 @@ class TelemetryService
                 'temperature'        => 0.0,
                 'prev_temperature'   => 0.0,
                 'timestamp'          => null,
+                'recorded_at'        => null,
                 'status'             => 'offline',
                 'is_online'          => false,
                 'last_seen'          => $device['last_seen'],
@@ -176,15 +178,16 @@ class TelemetryService
         return [
             'device_id'          => $device['device_id'],
             'device_name'        => $device['device_name'],
-            'voltage'            => (float)$latest['voltage'],
-            'prev_voltage'       => $prev ? (float)$prev['voltage'] : null,
-            'current'            => (float)$latest['current'],
-            'prev_current'       => $prev ? (float)$prev['current'] : null,
-            'power'              => (float)$latest['power'],
+            'voltage'            => $isOnline ? (float)$latest['voltage'] : 0.0,
+            'prev_voltage'       => ($isOnline && $prev) ? (float)$prev['voltage'] : 0.0,
+            'current'            => $isOnline ? (float)$latest['current'] : 0.0,
+            'prev_current'       => ($isOnline && $prev) ? (float)$prev['current'] : 0.0,
+            'power'              => $isOnline ? (float)$latest['power'] : 0.0,
             'energy'             => (float)$latest['energy'],
-            'temperature'        => (float)$latest['temperature'],
-            'prev_temperature'   => $prev ? (float)$prev['temperature'] : null,
+            'temperature'        => $isOnline ? (float)$latest['temperature'] : 0.0,
+            'prev_temperature'   => ($isOnline && $prev) ? (float)$prev['temperature'] : 0.0,
             'timestamp'          => date('c', strtotime($latest['recorded_at'])),
+            'recorded_at'        => $latest['recorded_at'],
             'status'             => $isOnline ? 'online' : 'offline',
             'is_online'          => $isOnline,
             'last_seen'          => $device['last_seen'],

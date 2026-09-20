@@ -326,12 +326,18 @@
 
 .charts-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 24px;
+  width: 100%;
+  max-width: 100%;
 }
 
 .charts-row .chart-card {
   margin-bottom: 0;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-card {
@@ -340,6 +346,10 @@
   padding: 24px;
   box-shadow: var(--shadow-card);
   margin-bottom: 24px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .chart-header {
@@ -439,18 +449,20 @@
 .bar-chart-visual {
   height: 240px;
   width: 100%;
+  max-width: 100%;
+  min-width: 0;
   display: flex;
   align-items: stretch;
   position: relative;
-  overflow: hidden;
   box-sizing: border-box;
+  overflow: visible;
 }
 
 .chart-y-axis {
   flex-shrink: 0;
   width: 34px;
   height: 100%;
-  padding: 10px 6px 28px 0;
+  padding: 46px 6px 28px 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -466,38 +478,15 @@
 .bar-chart-scroll-wrap {
   flex: 1;
   min-width: 0;
+  width: 100%;
+  max-width: 100%;
   height: 100%;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: flex-end;
-  padding: 8px 4px 4px 4px;
+  padding: 46px 6px 4px 6px;
   box-sizing: border-box;
-}
-
-.bar-chart-scroll-wrap.has-scroll {
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 6px;
-  scrollbar-width: thin;
-  scrollbar-color: #CBD5E1 transparent;
-}
-
-.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar {
-  height: 4px;
-}
-
-.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar-thumb {
-  background: #CBD5E1;
-  border-radius: 9999px;
-}
-
-.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar-thumb:hover {
-  background: #94A3B8;
-}
-
-.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar-track {
-  background: transparent;
+  position: relative;
 }
 
 .bar-chart-bars-track {
@@ -506,14 +495,16 @@
   justify-content: space-between;
   height: 100%;
   width: 100%;
-  min-width: 100%;
+  min-width: 0;
+  max-width: 100%;
   gap: 4px;
 }
 
 .bar-chart-bars-track.is-30d {
-  width: max-content;
-  min-width: 100%;
-  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  gap: 2px;
 }
 
 .bar-column-group {
@@ -523,23 +514,38 @@
   flex: 1;
   height: 100%;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .bar-chart-bars-track.is-30d .bar-column-group {
-  flex: 0 0 auto;
-  min-width: 18px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.bar-chart-bars-track.is-30d .bar-track {
+  width: 100%;
+  max-width: 9px;
+  height: 145px;
+}
+
+.bar-chart-bars-track.is-30d .bar-label {
+  font-size: 8.5px;
+  font-weight: 600;
+  margin-top: 8px;
+  letter-spacing: -0.3px;
 }
 
 /* The faint background track column behind the bar, as in interface.png */
 .bar-track {
   width: 14px;
-  height: 190px;
+  height: 145px;
   background-color: #F1F4F9;
   border-radius: var(--radius-pill);
   position: relative;
   display: flex;
   align-items: flex-end;
   cursor: pointer;
+  z-index: 1;
 }
 
 .bar-fill {
@@ -549,6 +555,10 @@
   transform-origin: bottom;
   animation: barGrowUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
   transition: height 0.4s ease, background 0.2s ease;
+}
+
+.bar-track:hover {
+  z-index: 60;
 }
 
 .bar-track:hover .bar-fill {
@@ -565,21 +575,47 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   color: #FFFFFF;
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
   white-space: nowrap;
   pointer-events: none;
   opacity: 0;
   transition: opacity 0.15s ease, transform 0.15s ease;
-  z-index: 30;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+  z-index: 50;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
 }
 
-.bar-track:hover .bar-tooltip {
+.bar-track:hover .bar-tooltip,
+.bar-track:focus .bar-tooltip,
+.bar-track:focus-visible .bar-tooltip {
   opacity: 1;
   transform: translateX(-50%) translateY(-2px);
+}
+
+.bar-tooltip.align-right {
+  left: auto;
+  right: -8px;
+  transform: none;
+}
+
+.bar-track:hover .bar-tooltip.align-right,
+.bar-track:focus .bar-tooltip.align-right,
+.bar-track:focus-visible .bar-tooltip.align-right {
+  transform: translateY(-2px);
+}
+
+.bar-tooltip.align-left {
+  left: -8px;
+  right: auto;
+  transform: none;
+}
+
+.bar-track:hover .bar-tooltip.align-left,
+.bar-track:focus .bar-tooltip.align-left,
+.bar-track:focus-visible .bar-tooltip.align-left {
+  transform: translateY(-2px);
 }
 
 .bar-tooltip::after {
@@ -588,29 +624,50 @@
   top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  border-width: 4px 4px 0;
+  border-width: 5px 5px 0;
   border-style: solid;
   border-color: rgba(15, 23, 42, 0.94) transparent;
 }
 
+.bar-tooltip.align-right::after {
+  left: auto;
+  right: 14px;
+  transform: none;
+}
+
+.bar-tooltip.align-left::after {
+  left: 14px;
+  transform: none;
+}
+
 .bar-tooltip-date {
-  font-size: 10px;
+  font-size: 10.5px;
   color: #94A3B8;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
   font-weight: 500;
 }
 
 .bar-tooltip-val {
-  font-weight: 700;
-  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
   color: #FFFFFF;
+}
+
+.bar-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 .bar-label {
   font-size: 11px;
   font-weight: 700;
   color: var(--text-muted);
-  margin-top: 10px;
+  margin-top: 8px;
   text-transform: uppercase;
 }
 

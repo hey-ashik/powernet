@@ -553,10 +553,21 @@ const server = http.createServer((req, res) => {
         const queryDevId = parsedUrl.searchParams.get('device_id') || 'pnw101';
         const latest = (localTelemetry && localTelemetry.length > 0) ? { ...localTelemetry[0] } : null;
         const prev = (localTelemetry && localTelemetry.length > 1) ? localTelemetry[1] : null;
-        if (latest && prev) {
-          latest.prev_voltage = prev.voltage;
-          latest.prev_current = prev.current;
-          latest.prev_temperature = prev.temperature;
+        if (latest) {
+          if (prev) {
+            latest.prev_voltage = prev.voltage;
+            latest.prev_current = prev.current;
+            latest.prev_temperature = prev.temperature;
+          }
+          if (latest.is_online === false) {
+            latest.voltage = 0.0;
+            latest.current = 0.0;
+            latest.power = 0.0;
+            latest.temperature = 0.0;
+            latest.prev_voltage = 0.0;
+            latest.prev_current = 0.0;
+            latest.prev_temperature = 0.0;
+          }
         }
         res.end(JSON.stringify({
           success: true,
@@ -625,23 +636,37 @@ const server = http.createServer((req, res) => {
             });
           }
         } else if (range === '30d') {
-          // 30 days in Bangladesh Time (Asia/Dhaka)
-          for (let i = 29; i >= 0; i--) {
-            const targetDate = new Date(now.getTime() - i * 86400000);
-            const bucket_time = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ }).format(targetDate);
+          // Days of current month in Bangladesh Time (Asia/Dhaka) starting from 1
+          const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: BD_TZ,
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric'
+          }).formatToParts(now);
+          const bdYear = parseInt(parts.find(p => p.type === 'year')?.value || now.getFullYear(), 10);
+          const bdMonth = parseInt(parts.find(p => p.type === 'month')?.value || (now.getMonth() + 1), 10);
+          const bdToday = parseInt(parts.find(p => p.type === 'day')?.value || now.getDate(), 10);
+          const daysInMonth = new Date(bdYear, bdMonth, 0).getDate();
+          const totalDays = Math.max(30, daysInMonth);
+
+          for (let d = 1; d <= totalDays; d++) {
+            const mStr = String(bdMonth).padStart(2, '0');
+            const dStr = String(d).padStart(2, '0');
+            const bucket_time = `${bdYear}-${mStr}-${dStr}`;
+            const isToday = (d === bdToday);
+            const isFuture = (d > bdToday);
             const loadFactor = 0.5 + Math.random() * 0.45;
-            const isToday = (i === 0);
             const livePower = localTelemetry.length > 0 ? Number(localTelemetry[0].power) : 2.155;
             const liveEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy) : 3.450;
             historyPoints.push({
               bucket_time,
-              avg_power: isToday ? livePower : +(1.7 + loadFactor * 1.6).toFixed(3),
-              max_power: isToday ? +(livePower * 1.25).toFixed(3) : +(3.0 + loadFactor * 1.8).toFixed(3),
-              max_energy: isToday ? liveEnergy : +(12 + loadFactor * 12).toFixed(2),
-              avg_voltage: +(220 + Math.random() * 4).toFixed(1),
-              avg_current: +(6.5 + loadFactor * 5.5).toFixed(2),
-              avg_temperature: +(33 + Math.random() * 5).toFixed(1),
-              sample_count: 96
+              avg_power: isFuture ? 0 : (isToday ? livePower : +(1.7 + loadFactor * 1.6).toFixed(3)),
+              max_power: isFuture ? 0 : (isToday ? +(livePower * 1.25).toFixed(3) : +(3.0 + loadFactor * 1.8).toFixed(3)),
+              max_energy: isFuture ? 0 : (isToday ? liveEnergy : +(12 + loadFactor * 12).toFixed(2)),
+              avg_voltage: isFuture ? 0 : +(220 + Math.random() * 4).toFixed(1),
+              avg_current: isFuture ? 0 : +(6.5 + loadFactor * 5.5).toFixed(2),
+              avg_temperature: isFuture ? 0 : +(33 + Math.random() * 5).toFixed(1),
+              sample_count: isFuture ? 0 : 96
             });
           }
         } else if (range === '12m') {
