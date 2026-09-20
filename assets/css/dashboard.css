@@ -162,10 +162,58 @@
 }
 
 .donut-chart-container {
-  width: 90px;
-  height: 90px;
+  width: 92px;
+  height: 92px;
   position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
+}
+
+.donut-svg {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  transform: rotate(-90deg);
+  display: block;
+}
+
+.donut-bg-circle {
+  stroke: #F1F5F9;
+  stroke-width: 6.5;
+}
+
+.donut-progress-circle {
+  stroke-width: 6.5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.donut-center-badge {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+}
+
+.donut-percent-num {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
+.donut-percent-sign {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-left: 1px;
 }
 
 /* Secondary KPI Cards (Cumulative Energy, Temperature, Paid Invoices, Funds Received) */
@@ -373,6 +421,17 @@
 }
 
 /* Sales Dynamics Track-Column Bar Chart (Directly replicated from interface.png) */
+@keyframes barGrowUp {
+  0% {
+    transform: scaleY(0);
+    opacity: 0.25;
+  }
+  100% {
+    transform: scaleY(1);
+    opacity: 1;
+  }
+}
+
 .bar-chart-visual {
   height: 240px;
   width: 100%;
@@ -414,13 +473,71 @@
   position: relative;
   display: flex;
   align-items: flex-end;
+  cursor: pointer;
 }
 
 .bar-fill {
   width: 100%;
   background: var(--primary);
   border-radius: var(--radius-pill);
-  transition: height 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  transform-origin: bottom;
+  animation: barGrowUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+  transition: height 0.4s ease, background 0.2s ease;
+}
+
+.bar-track:hover .bar-fill {
+  background: #1D4ED8;
+  filter: brightness(1.12);
+}
+
+.bar-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  z-index: 30;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.25);
+}
+
+.bar-track:hover .bar-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-2px);
+}
+
+.bar-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 4px 4px 0;
+  border-style: solid;
+  border-color: rgba(15, 23, 42, 0.94) transparent;
+}
+
+.bar-tooltip-date {
+  font-size: 10px;
+  color: #94A3B8;
+  margin-bottom: 2px;
+  font-weight: 500;
+}
+
+.bar-tooltip-val {
+  font-weight: 700;
+  font-size: 12px;
+  color: #FFFFFF;
 }
 
 .bar-label {
@@ -431,11 +548,147 @@
   text-transform: uppercase;
 }
 
-/* Overall User Activity Style Waveform Line Chart */
+/* Live Waveform Container & Visual Layout */
 .waveform-canvas-container {
-  height: 200px;
+  height: 240px;
   width: 100%;
   position: relative;
+}
+
+.waveform-visual {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  position: relative;
+  padding: 10px 10px 0 0;
+}
+
+.waveform-y-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 54px;
+  height: calc(100% - 30px);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-align: right;
+  padding-right: 10px;
+  user-select: none;
+}
+
+.waveform-plot-area {
+  flex: 1;
+  height: 100%;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  cursor: crosshair;
+}
+
+#waveform-svg {
+  width: 100%;
+  height: calc(100% - 30px);
+  overflow: visible;
+  display: block;
+}
+
+.waveform-x-axis {
+  height: 30px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding: 6px 4px 0 4px;
+  user-select: none;
+}
+
+.waveform-tz-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: #EFF6FF;
+  color: var(--primary);
+  padding: 2px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.5px;
+  cursor: help;
+}
+
+.waveform-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(15, 23, 42, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  color: #FFFFFF;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.35), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  z-index: 25;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+.waveform-tooltip.align-left {
+  transform: translate(0%, -100%);
+}
+
+.waveform-tooltip.align-right {
+  transform: translate(-100%, -100%);
+}
+
+.waveform-tooltip.visible {
+  opacity: 1;
+}
+
+.waveform-tooltip::after {
+  content: '';
+  position: absolute;
+  bottom: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 5px 5px 0;
+  border-style: solid;
+  border-color: rgba(15, 23, 42, 0.94) transparent;
+}
+
+.waveform-tooltip.align-left::after {
+  left: 20px;
+}
+
+.waveform-tooltip.align-right::after {
+  left: auto;
+  right: 20px;
+}
+
+.waveform-tooltip-time {
+  font-size: 10.5px;
+  color: #94A3B8;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.waveform-tooltip-val {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.waveform-tooltip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
 }
 
 /* Customer Orders Style Live Telemetry Stream Logs Table */
