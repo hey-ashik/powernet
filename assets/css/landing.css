@@ -335,7 +335,83 @@ body {
   align-items: center;
 }
 
-/* Top Pill Badge */
+/* Top Social Proof Avatar Badge (Pulse AI Style) */
+.hero-reviews-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: var(--radius-full);
+  padding: 6px 18px 6px 8px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+  cursor: default;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.hero-reviews-badge:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.hero-avatars-group {
+  display: flex;
+  align-items: center;
+}
+
+.hero-avatar-item {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #FFFFFF;
+  overflow: hidden;
+  margin-left: -10px;
+  background: #E2E8F0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  flex-shrink: 0;
+}
+
+.hero-avatar-item:first-child {
+  margin-left: 0;
+}
+
+.hero-avatar-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.hero-reviews-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+}
+
+.hero-stars-row {
+  display: flex;
+  gap: 3px;
+  color: #FBBF24;
+  font-size: 11px;
+}
+
+.hero-reviews-text {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.95);
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+}
+
+/* Top Pill Badge (Fallback) */
 .hero-pill-badge {
   display: inline-flex;
   align-items: center;
@@ -980,4 +1056,115 @@ body {
   text-align: center;
   font-size: 14px;
   color: var(--color-foreground-subtle);
+}
+
+/* ==========================================================
+ * CTA BANNER SECTION (After FAQs — Matches User Images)
+ * ========================================================== */
+.cta-banner-section {
+  padding: 30px 24px 70px 24px;
+  background: #FFFFFF;
+}
+
+.cta-banner-container {
+  max-width: 1152px;
+  margin: 0 auto;
+}
+
+.cta-banner-card {
+  position: relative;
+  overflow: hidden;
+  background: var(--gradient-hero);
+  border-radius: 28px;
+  padding: 68px 32px;
+  text-align: center;
+  color: #FFFFFF;
+  box-shadow: 0 16px 40px rgba(26, 90, 240, 0.22), 0 2px 10px rgba(0, 0, 0, 0.05);
+}
+
+.cta-banner-h2 {
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -1px;
+  max-width: 780px;
+  margin: 0 auto 16px auto;
+  color: #FFFFFF;
+}
+
+@media (min-width: 768px) {
+  .cta-banner-h2 {
+    font-size: 46px;
+    letter-spacing: -1.4px;
+  }
+}
+
+.cta-banner-sub {
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 640px;
+  margin: 0 auto 36px auto;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+@media (min-width: 768px) {
+  .cta-banner-sub {
+    font-size: 16.5px;
+  }
+}
+
+.cta-banner-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.btn-cta-white {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 28px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #1A5AF0;
+  background: #FFFFFF;
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  transition: all 0.25s ease;
+}
+
+.btn-cta-white:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.16);
+  background: #F8FAFC;
+}
+
+.btn-cta-glass {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 48px;
+  padding: 0 28px;
+  font-size: 15px;
+  font-weight: 600;
+  color: #FFFFFF;
+  background: rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: var(--radius-full);
+  text-decoration: none;
+  transition: all 0.25s ease;
+}
+
+.btn-cta-glass:hover {
+  background: rgba(255, 255, 255, 0.26);
+  border-color: rgba(255, 255, 255, 0.55);
+  transform: translateY(-2px);
 }
