@@ -4,6 +4,15 @@
  */
 
 function initDevicesPage() {
+  // Enforce login: without login they cannot connect or manage devices
+  if (!API.isLoggedIn()) {
+    API.showToast('Please log in first. You must be logged in to connect a device.', 'info');
+    setTimeout(() => {
+      window.location.href = '/login';
+    }, 800);
+    return;
+  }
+
   loadUserProfile();
 
   // 1. Synchronous state hydration: NO FLICKER
@@ -19,30 +28,88 @@ function initDevicesPage() {
     connectForm.dataset.bound = 'true';
     connectForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const devId = document.getElementById('device_id').value.trim();
-      const devName = document.getElementById('device_name').value.trim();
+
+      // Check if user is logged in
+      if (!API.isLoggedIn()) {
+        API.showToast('Please log in first. You must be logged in to connect a device.', 'error');
+        setTimeout(() => {
+          window.location.href = '/login';
+        }, 1000);
+        return;
+      }
+
+      const devIdInput = document.getElementById('device_id');
+      const devNameInput = document.getElementById('device_name');
+      const devId = devIdInput ? devIdInput.value.trim() : '';
+      const devName = devNameInput ? devNameInput.value.trim() : '';
+
+      if (!devId) {
+        API.showToast('Enter Correct Device ID', 'error');
+        if (devIdInput) devIdInput.focus();
+        return;
+      }
+
+      const submitBtn = connectForm.querySelector('button[type="submit"]');
+      const originalBtnHtml = submitBtn ? submitBtn.innerHTML : 'Connect Device';
+
+      // 1. Show loading animation inside the connect button
+      if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 8px;"></i>Connecting...';
+      }
 
       try {
-        const res = await API.request('/devices/connect.php', {
-          method: 'POST',
-          body: JSON.stringify({ device_id: devId, device_name: devName })
-        });
+        // Natural visual feedback for smooth animation
+        const [res] = await Promise.all([
+          API.request('/devices/connect.php', {
+            method: 'POST',
+            body: JSON.stringify({ device_id: devId, device_name: devName })
+          }),
+          new Promise(resolve => setTimeout(resolve, 550))
+        ]);
+
+        // 2. Maintain device token properly
+        const deviceToken = (res.data && res.data.device_token) || res.device_token || `pnet_dtk_${devId}_` + Math.random().toString(36).substring(2, 10);
+        API.setDeviceToken(deviceToken);
+
         const newDev = {
-          id: 1,
+          id: (res.data && res.data.id) || 1,
           device_id: devId,
           device_name: devName || 'Device',
+          device_token: deviceToken,
           computed_status: 'online',
           status_display: 'Online',
           last_seen_relative: 'Just connected'
         };
+
         API.setConnectedDevice(newDev);
         renderDevicesView(newDev);
         API.showToast('Device connected successfully', 'success');
         connectForm.reset();
-        const idField = document.getElementById('device_id');
-        if (idField) idField.value = 'pnw101';
+        if (devIdInput) devIdInput.value = 'pnw101';
       } catch (err) {
-        API.showToast(err.message, 'error');
+        // 3. If already in use or invalid ID -> show popup: Enter Correct Device ID
+        const rawMsg = err.message || '';
+        const popupMsg = rawMsg.toLowerCase().includes('log in')
+          ? rawMsg
+          : 'Enter Correct Device ID';
+
+        API.showToast(popupMsg, 'error');
+
+        if (devIdInput) {
+          devIdInput.focus();
+          devIdInput.style.borderColor = '#EF4444';
+          devIdInput.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.15)';
+          setTimeout(() => {
+            devIdInput.style.borderColor = '';
+            devIdInput.style.boxShadow = '';
+          }, 3000);
+        }
+      } finally {
+        if (submitBtn) {
+          submitBtn.disabled = false;
+          submitBtn.innerHTML = originalBtnHtml;
+        }
       }
     });
   }
@@ -99,14 +166,10 @@ function renderDevicesView(dev) {
     if (container) {
         const cleanName = (dev.device_name && dev.device_name.trim() && !dev.device_name.startsWith('Main Panel') && dev.device_name !== 'Hardware Device') ? dev.device_name.trim() : 'Device';
         container.innerHTML = `
-        <div class="card" style="margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; border-radius: 20px; padding: 22px 26px; background: #FFFFFF; border: 1px solid #E2E8F0; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05); flex-wrap: wrap; gap: 16px;">
+        <div class="card active-device-card" style="margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; border-radius: 20px; padding: 22px 26px; background: #FFFFFF; border: 1px solid #E2E8F0; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05); flex-wrap: wrap; gap: 16px;">
           <div style="display: flex; align-items: center; gap: 18px;">
-            <div style="width: 52px; height: 52px; border-radius: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: center; color: #0F172A; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                <line x1="12" y1="22.08" x2="12" y2="12"></line>
-              </svg>
+            <div style="width: 52px; height: 52px; border-radius: 14px; background: #F8FAFC; border: 1px solid #E2E8F0; display: flex; align-items: center; justify-content: center; color: #0F172A; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04); flex-shrink: 0;">
+              <i class="fa-solid fa-wifi" style="font-size: 20px; color: #0F172A;"></i>
             </div>
             <div>
               <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
@@ -124,7 +187,7 @@ function renderDevicesView(dev) {
               </p>
             </div>
           </div>
-          <div style="display: flex; align-items: center; gap: 12px;">
+          <div class="active-device-actions" style="display: flex; align-items: center; gap: 12px;">
             <a href="/dashboard" class="btn-device-analytics" style="background: #0F172A; color: #FFFFFF; border: 1px solid #0F172A; border-radius: 9999px; padding: 8px 22px; font-size: 13.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);">Analytics</a>
             <button onclick="removeDevice('${dev.device_id}')" class="btn-device-disconnect" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #0F172A; border-radius: 9999px; padding: 8px 20px; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);">Disconnect</button>
           </div>
@@ -139,7 +202,7 @@ function renderDevicesView(dev) {
         <div class="card" style="text-align: center; padding: 48px 24px; border-radius: 20px;">
           <div style="font-size: 40px; margin-bottom: 16px; color: #0F172A;"><i class="fa-solid fa-plug-circle-exclamation"></i></div>
           <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 8px;">No devices connected</h3>
-          <p style="color: #64748B; font-size: 14px; margin-bottom: 0;">Connect your device above with Device ID <strong>pnw101</strong> to lock it to your account and begin streaming telemetry.</p>
+          <p style="color: #64748B; font-size: 14px; margin-bottom: 0;">Connect your device above with Device ID to lock it to your account.</p>
         </div>
       `;
     }

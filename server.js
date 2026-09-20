@@ -19,9 +19,18 @@ let localUser = {
   email_verified: true
 };
 
+// Master IoT Device Registry (Simulates provisioned devices in database)
+// user_id === null: Available to be claimed/connected
+// user_id !== null: In use by that user account
+let hardwareRegistry = [
+  { device_id: 'pnw101', device_name: 'Device', user_id: 1 },
+  { device_id: 'pnw107', device_name: 'Device', user_id: 2 }, // Already in DB / claimed
+  { device_id: 'pnw202', device_name: 'Main Distribution Sub-Meter', user_id: 3 }, // In use
+  { device_id: 'pnw303', device_name: 'Solar Phase Inverter', user_id: 4 } // In use
+];
+
 let localDevices = [
-  { id: 1, device_id: 'pnw101', device_name: 'Device', computed_status: 'online', status_display: 'Online', last_seen_relative: '2 seconds ago' },
-  { id: 2, device_id: 'pnw202', device_name: 'Device', computed_status: 'online', status_display: 'Online', last_seen_relative: '5 seconds ago' }
+  { id: 1, device_id: 'pnw101', device_name: 'Device', computed_status: 'online', status_display: 'Online', last_seen_relative: '2 seconds ago' }
 ];
 
 // Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
@@ -424,42 +433,81 @@ const server = http.createServer((req, res) => {
         return;
       }
 
-      if (apiRoute === '/api/devices/remove') {
-        const devId = input.device_id;
-        localDevices = localDevices.filter(d => d.device_id !== devId);
+      if (apiRoute === '/api/devices/connect') {
+        // 1. Enforce user login: without login they cannot connect device
+        const authHeader = req.headers['authorization'] || '';
+        const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+        if (!token && !localUser) {
+          res.end(JSON.stringify({
+            success: false,
+            message: 'Unauthorized. Please log in to connect a device.'
+          }));
+          return;
+        }
+
+        const devId = (input.device_id || '').trim();
+        const devName = input.device_name && input.device_name.trim() ? input.device_name.trim() : 'Device';
+
+        if (!devId) {
+          res.end(JSON.stringify({
+            success: false,
+            message: 'Enter Correct Device ID'
+          }));
+          return;
+        }
+
+        const devIdLower = devId.toLowerCase();
+
+        // 2. Check if device is already active in current user's session
+        const alreadyActive = localDevices.some(d => d.device_id.toLowerCase() === devIdLower);
+
+        // 3. Check hardware database registry
+        const registryEntry = hardwareRegistry.find(d => d.device_id.toLowerCase() === devIdLower);
+
+        // In-use or invalid condition:
+        // - Already active in current session
+        // - Does not exist in database registry
+        // - Already claimed / in use in database (user_id !== null)
+        if (alreadyActive || !registryEntry || registryEntry.user_id !== null) {
+          res.end(JSON.stringify({
+            success: false,
+            message: 'Enter Correct Device ID'
+          }));
+          return;
+        }
+
+        const currentUserId = localUser ? localUser.id : 1;
+        registryEntry.user_id = currentUserId;
+
+        const connectedDev = {
+          id: 1,
+          device_id: registryEntry.device_id,
+          device_name: devName,
+          computed_status: 'online',
+          status_display: 'Online',
+          last_seen_relative: 'Just connected'
+        };
+
+        localDevices = [connectedDev];
+
         res.end(JSON.stringify({
           success: true,
-          message: `Device '${devId}' disconnected successfully.`
+          message: 'Device connected successfully',
+          data: connectedDev
         }));
         return;
       }
 
-      if (apiRoute === '/api/devices/connect') {
-        const devId = input.device_id || 'pnw101';
-        const devName = input.device_name && input.device_name.trim() ? input.device_name.trim() : 'Device';
-        if (!localDevices.find(d => d.device_id === devId)) {
-          localDevices.push({
-            id: 1,
-            device_id: devId,
-            device_name: devName,
-            computed_status: 'online',
-            status_display: 'Online',
-            last_seen_relative: 'Just connected'
-          });
+      if (apiRoute === '/api/devices/remove') {
+        const devId = (input.device_id || '').trim();
+        localDevices = localDevices.filter(d => d.device_id.toLowerCase() !== devId.toLowerCase());
+        const reg = hardwareRegistry.find(d => d.device_id.toLowerCase() === devId.toLowerCase());
+        if (reg) {
+          reg.user_id = null; // Release claim so it can be reconnected
         }
         res.end(JSON.stringify({
           success: true,
-          message: 'Device connected successfully'
-        }));
-        return;
-      }
-
-      if (apiRoute === '/api/devices/remove') {
-        const devId = input.device_id;
-        localDevices = localDevices.filter(d => d.device_id !== devId);
-        res.end(JSON.stringify({
-          success: true,
-          message: 'Device disconnected successfully!'
+          message: `Device '${devId}' disconnected successfully.`
         }));
         return;
       }

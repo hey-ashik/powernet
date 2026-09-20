@@ -14,15 +14,49 @@ const API = {
   setToken(token) {
     if (token) {
       localStorage.setItem('pnet_token', token);
+      localStorage.removeItem('pnet_signed_out');
     } else {
       localStorage.removeItem('pnet_token');
     }
+  },
+
+  getDeviceToken() {
+    return localStorage.getItem('pnet_device_token') || '';
+  },
+
+  setDeviceToken(token) {
+    if (token) {
+      localStorage.setItem('pnet_device_token', token);
+    } else {
+      localStorage.removeItem('pnet_device_token');
+    }
+  },
+
+  isLoggedIn() {
+    if (localStorage.getItem('pnet_signed_out') === '1') {
+      return false;
+    }
+    const token = this.getToken();
+    const rawUser = localStorage.getItem('pnet_user');
+    // If explicitly authenticated with token, or active local session
+    return Boolean(token || rawUser);
+  },
+
+  logout() {
+    this.setToken('');
+    this.setUser(null);
+    this.setDeviceToken('');
+    localStorage.setItem('pnet_signed_out', '1');
+    localStorage.removeItem('pnet_device');
+    localStorage.removeItem('pnet_cached_dev');
+    window.location.href = '/login';
   },
 
   getUser() {
     try {
       const u = JSON.parse(localStorage.getItem('pnet_user') || 'null');
       if (u && u.name) return u;
+      if (localStorage.getItem('pnet_signed_out') === '1') return null;
       return { id: 1, name: 'Ashikul Islam', email: 'ashikulislam2070@gmail.com' };
     } catch {
       return { id: 1, name: 'Ashikul Islam', email: 'ashikulislam2070@gmail.com' };
@@ -32,6 +66,7 @@ const API = {
   setUser(user) {
     if (user) {
       localStorage.setItem('pnet_user', JSON.stringify(user));
+      localStorage.removeItem('pnet_signed_out');
     } else {
       localStorage.removeItem('pnet_user');
     }
@@ -86,6 +121,9 @@ const API = {
       }
       return data;
     } catch (err) {
+      if (err && err.message && !err.message.includes('fetch') && !err.message.includes('NetworkError')) {
+        throw err;
+      }
       return this.mockFallback(endpoint, options, err);
     }
   },
@@ -153,9 +191,33 @@ const API = {
     }
 
     if (endpoint.startsWith('/devices/connect')) {
+      if (!this.isLoggedIn()) {
+        throw new Error('Please log in first. You must be logged in to connect a device.');
+      }
+      let body = {};
+      try { body = options.body ? JSON.parse(options.body) : {}; } catch {}
+      const devId = (body.device_id || '').trim().toLowerCase();
+      const devName = (body.device_name && body.device_name.trim()) ? body.device_name.trim() : 'Device';
+
+      // Devices in DB already in use or invalid
+      const occupiedOrInUse = ['pnw107', 'pnw202', 'pnw303', 'pnw404'];
+      const activeDev = this.getConnectedDevice();
+
+      if (!devId || occupiedOrInUse.includes(devId) || devId !== 'pnw101' || (activeDev && activeDev.device_id.toLowerCase() === devId)) {
+        throw new Error('Enter Correct Device ID');
+      }
+
       return {
         success: true,
-        message: 'Device registered successfully!'
+        message: 'Device connected successfully',
+        data: {
+          id: 1,
+          device_id: 'pnw101',
+          device_name: devName,
+          computed_status: 'online',
+          status_display: 'Online',
+          last_seen_relative: 'Just connected'
+        }
       };
     }
 
@@ -173,7 +235,6 @@ const API = {
 
     return { success: true, data: {} };
   },
-
 
   getConnectedDevice() {
     try {
@@ -193,11 +254,15 @@ const API = {
   setConnectedDevice(dev) {
     if (dev) {
       try {
+        if (dev.device_token) {
+          this.setDeviceToken(dev.device_token);
+        }
         localStorage.setItem('pnet_device', JSON.stringify(dev));
         localStorage.setItem('pnet_cached_dev', JSON.stringify(dev));
       } catch {}
     } else {
       try {
+        this.setDeviceToken('');
         localStorage.removeItem('pnet_device');
         localStorage.removeItem('pnet_cached_dev');
       } catch {}

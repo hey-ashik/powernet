@@ -23,51 +23,35 @@ class DeviceService
         $deviceId = trim($deviceId);
 
         if (empty($deviceId) || strlen($deviceId) < 3) {
-            throw new Exception('Invalid Device ID. Please enter a valid identifier (e.g. pnw101).');
+            throw new Exception('Enter Correct Device ID');
         }
 
         $db = Connection::get();
 
-        // Check if device already exists
+        // Check if device exists in database
         $stmt = $db->prepare("SELECT id, user_id, device_id, device_name, status, last_seen FROM devices WHERE device_id = :device_id LIMIT 1");
         $stmt->execute(['device_id' => $deviceId]);
         $device = $stmt->fetch();
 
-        if ($device) {
-            // Check if device is already locked to another user
-            if ($device['user_id'] !== null && (int)$device['user_id'] !== 0 && (int)$device['user_id'] !== $userId) {
-                throw new Exception("Device '{$deviceId}' is already locked to another user account. Another user cannot use this device.");
-            }
-
-            // Assign and lock device to current user
-            $name = !empty($deviceName) ? trim($deviceName) : $device['device_name'];
-            $update = $db->prepare("UPDATE devices SET user_id = :user_id, device_name = :device_name, updated_at = NOW() WHERE id = :id");
-            $update->execute(['user_id' => $userId, 'device_name' => $name, 'id' => $device['id']]);
-
-            return [
-                'device_id'   => $device['device_id'],
-                'device_name' => $name,
-                'status'      => 'connected',
-                'message'     => 'Device connected successfully'
-            ];
+        // If device does not exist in DB or is already in use, reject with error
+        if (!$device || ($device['user_id'] !== null && (int)$device['user_id'] !== 0)) {
+            throw new Exception('Enter Correct Device ID');
         }
 
-        // Provision/Register new device directly with user_id
-        $name = !empty($deviceName) ? trim($deviceName) : "ESP32 Monitor ({$deviceId})";
-        $insert = $db->prepare("
-            INSERT INTO devices (user_id, device_id, device_name, status, created_at, updated_at)
-            VALUES (:user_id, :device_id, :device_name, 'offline', NOW(), NOW())
-        ");
-        $insert->execute([
+        // Assign and lock device to current user
+        $name = !empty($deviceName) ? trim($deviceName) : $device['device_name'];
+        $update = $db->prepare("UPDATE devices SET user_id = :user_id, device_name = :device_name, updated_at = NOW() WHERE id = :id");
+        $update->execute([
             'user_id'     => $userId,
-            'device_id'   => $deviceId,
-            'device_name' => $name
+            'device_name' => $name,
+            'id'          => $device['id']
         ]);
 
         return [
-            'device_id'   => $deviceId,
-            'device_name' => $name,
-            'message'     => 'Device connected successfully'
+            'device_id'    => $device['device_id'],
+            'device_name'  => $name,
+            'status'       => 'connected',
+            'message'      => 'Device connected successfully'
         ];
     }
 

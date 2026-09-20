@@ -832,8 +832,7 @@ const Dashboard = {
             tbody.innerHTML = `
               <tr>
                 <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
-                  <i class="fa-regular fa-trash-can" style="margin-right:8px; color:#EF4444;"></i>
-                  Telemetry event logs cleared. Waiting for new live packets...
+                  Event logs cleared. Waiting for new ...
                 </td>
               </tr>
             `;
@@ -877,28 +876,40 @@ const Dashboard = {
     if (formConnect) {
       formConnect.addEventListener('submit', async (e) => {
         e.preventDefault();
+        if (!API.isLoggedIn()) {
+          API.showToast('Please log in first. You must be logged in to connect a device.', 'error');
+          setTimeout(() => { window.location.href = '/login'; }, 1000);
+          return;
+        }
+
         const devId = document.getElementById('input-device-id').value.trim();
         const devName = document.getElementById('input-device-name').value.trim();
 
         if (!devId) {
-          API.showToast('Please enter a Device ID.', 'error');
+          API.showToast('Enter Correct Device ID', 'error');
           return;
         }
 
         const submitBtn = formConnect.querySelector('button[type="submit"]');
         if (submitBtn) {
           submitBtn.disabled = true;
-          submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Connecting...';
+          submitBtn.innerHTML = '<i class="fa-solid fa-circle-notch fa-spin" style="margin-right: 8px;"></i> Connecting...';
         }
 
         try {
-          const res = await API.request('/devices/connect.php', {
-            method: 'POST',
-            body: JSON.stringify({
-              device_id: devId,
-              device_name: devName
-            })
-          });
+          const [res] = await Promise.all([
+            API.request('/devices/connect.php', {
+              method: 'POST',
+              body: JSON.stringify({
+                device_id: devId,
+                device_name: devName
+              })
+            }),
+            new Promise(r => setTimeout(r, 550))
+          ]);
+
+          const deviceToken = (res.data && res.data.device_token) || res.device_token || `pnet_dtk_${devId}`;
+          API.setDeviceToken(deviceToken);
 
           // 1. Immediately update UI state in REAL TIME
           modal.classList.remove('active');
@@ -908,6 +919,7 @@ const Dashboard = {
             id: 1,
             device_id: devId,
             device_name: devName || 'Device',
+            device_token: deviceToken,
             computed_status: 'online',
             status_display: 'Online',
             last_seen_relative: 'Just connected'
@@ -928,7 +940,11 @@ const Dashboard = {
           await this.fetchBarChartHistory();
           await this.checkUserDevices(true);
         } catch (err) {
-          API.showToast(err.message, 'error');
+          const rawMsg = err.message || '';
+          const popupMsg = rawMsg.toLowerCase().includes('log in')
+            ? rawMsg
+            : 'Enter Correct Device ID';
+          API.showToast(popupMsg, 'error');
         } finally {
           if (submitBtn) {
             submitBtn.disabled = false;
@@ -1162,7 +1178,7 @@ const Dashboard = {
         <tr>
           <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
             <i class="fa-solid fa-satellite-dish" style="margin-right:8px; color:var(--primary);"></i>
-            Connected to <strong>${this.activeDeviceId || 'Device'}</strong>. Waiting for telemetry packets...
+            Connected to <strong>${this.activeDeviceId || 'Device'}</strong>. Waiting for data...
           </td>
         </tr>
       `;

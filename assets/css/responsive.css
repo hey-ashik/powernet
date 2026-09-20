@@ -270,16 +270,19 @@
   }
 
   /* ══════════════════════════════════════════════════════════════
-     1. Dashboard Top Bar (Image 1 Specifications)
-     - Row 1: Left has hamburger [◫] + Analytics title.
-              Right has User avatar icon ONLY (no name).
-     - Row 2 (bottom of Analytics): Date + Connected/Disconnected status beside it.
+     1. Dashboard Top Bar (Small Screen / Mobile Specifications)
+     - Row 1: Left has hamburger [◫] (Col 1) + Analytics title (Col 2).
+              Right has User avatar icon ONLY (Col 3, no name).
+     - Row 2: In Col 2 (directly aligned with bottom of Analytics text):
+              Date pill + Connected/Disconnected status badge beside it.
      - Theme toggle: Hidden from top menu (located in side drawer).
      ══════════════════════════════════════════════════════════════ */
   .dashboard-top-bar {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    row-gap: 8px;
+    column-gap: 12px;
+    align-items: center;
     background: #FFFFFF;
     border-radius: 18px;
     border: 1px solid #E2E8F0;
@@ -289,25 +292,29 @@
   }
 
   .dashboard-top-bar .top-bar-header-row {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 10px;
+    display: contents;
   }
 
   .dashboard-top-bar .page-title-group {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+    display: contents;
+  }
+
+  .dashboard-top-bar .mobile-sidebar-toggle {
+    grid-column: 1;
+    grid-row: 1;
+    display: inline-flex;
+    align-self: center;
   }
 
   .dashboard-top-bar .page-title {
+    grid-column: 2;
+    grid-row: 1;
     font-size: 20px;
     font-weight: 800;
     color: #0F172A;
     margin: 0;
     line-height: 1.2;
+    align-self: center;
   }
 
   /* Hide Day/Night toggle from top bar on mobile (moved to side drawer) */
@@ -317,6 +324,9 @@
 
   /* Dashboard mobile: User avatar icon ONLY, no name */
   .dashboard-top-bar .user-profile {
+    grid-column: 3;
+    grid-row: 1;
+    justify-self: end;
     display: inline-flex !important;
     align-items: center;
     justify-content: center;
@@ -339,13 +349,16 @@
     display: none !important;
   }
 
-  /* Row 2: Aligned bottom of Analytics text with date and status beside it */
+  /* Row 2: In Column 2 directly beneath Analytics text - exact alignment guaranteed */
   .dashboard-top-bar .top-bar-meta-row {
+    grid-column: 2 / -1;
+    grid-row: 2;
     display: flex;
     align-items: center;
     gap: 8px;
-    padding-left: 50px; /* Aligned bottom of Analytics text (38px button + 12px gap) */
-    flex-wrap: nowrap;
+    padding: 0;
+    margin: 0;
+    flex-wrap: wrap;
   }
 
   .dashboard-top-bar .date-pill {
@@ -353,6 +366,7 @@
     font-size: 11.5px;
     font-weight: 600;
     white-space: nowrap;
+    margin: 0 !important;
   }
 
   .dashboard-top-bar .live-pulse-badge {
@@ -360,6 +374,7 @@
     font-size: 11.5px;
     font-weight: 700;
     white-space: nowrap;
+    margin: 0 !important;
   }
 
   /* ══════════════════════════════════════════════════════════════
@@ -450,6 +465,31 @@
     gap: 12px;
   }
 
+  /* Active Device Card - Small Screen / Mobile Layout (Image 3) */
+  .active-device-card {
+    padding: 20px 18px !important;
+    gap: 16px !important;
+  }
+
+  .active-device-card .active-device-actions {
+    width: 100% !important;
+    display: flex !important;
+    gap: 10px !important;
+    margin-top: 4px !important;
+  }
+
+  .active-device-card .btn-device-analytics,
+  .active-device-card .btn-device-disconnect {
+    flex: 1 1 0 !important;
+    width: 50% !important;
+    text-align: center !important;
+    justify-content: center !important;
+    padding: 10px 12px !important;
+    box-sizing: border-box !important;
+    font-size: 13.5px !important;
+    white-space: nowrap !important;
+  }
+
   .logs-table-container {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
@@ -458,9 +498,6 @@
 
 /* ─── Very Compact Screens (<= 380px) ─── */
 @media (max-width: 380px) {
-  .dashboard-top-bar .top-bar-meta-row {
-    padding-left: 0;
-  }
   .devices-top-bar .page-title {
     font-size: 16px;
   }

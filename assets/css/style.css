@@ -549,13 +549,15 @@ button, input, select, textarea {
 
 /* Pill Date Selector / Status Pill */
 .date-pill {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background-color: #FFFFFF;
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-pill);
   padding: 8px 16px;
+  height: 38px;
+  box-sizing: border-box;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
@@ -574,19 +576,41 @@ button, input, select, textarea {
   gap: 16px;
 }
 
-/* Live Telemetry Pulse Badge */
+/* Live Telemetry Pulse Badge - Same rounded border size as date-pill */
 .live-pulse-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   background: #FFFFFF;
   border: 1px solid var(--border-subtle);
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-pill);
-  font-size: 12.5px;
+  height: 38px;
+  box-sizing: border-box;
+  font-size: 13px;
   font-weight: 600;
   color: var(--text-secondary);
   box-shadow: var(--shadow-sm);
+}
+
+/* Desktop Theme Toggle - Same rounded border size as date-pill */
+.desktop-theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #FFFFFF;
+  border: 1px solid var(--border-subtle);
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  height: 38px;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  transition: border-color var(--transition-fast);
+}
+
+.desktop-theme-toggle:hover {
+  border-color: #CBD5E1;
 }
 
 .pulse-dot {
