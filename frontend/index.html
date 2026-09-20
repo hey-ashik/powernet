@@ -579,6 +579,15 @@
 
     // 3. Scroll-triggered entrance animations (IntersectionObserver)
     const animEls = document.querySelectorAll('.anim-fade-up');
+    
+    // Immediately reveal elements already in the viewport
+    animEls.forEach(el => {
+      const rect = el.getBoundingClientRect();
+      if (rect.top < window.innerHeight) {
+        el.classList.add('visible');
+      }
+    });
+
     if ('IntersectionObserver' in window) {
       const obs = new IntersectionObserver((entries) => {
         entries.forEach(e => {
@@ -587,8 +596,12 @@
             obs.unobserve(e.target);
           }
         });
-      }, { threshold: 0.08, rootMargin: '0px 0px -30px 0px' });
-      animEls.forEach(el => obs.observe(el));
+      }, { threshold: 0.05 });
+      animEls.forEach(el => {
+        if (!el.classList.contains('visible')) {
+          obs.observe(el);
+        }
+      });
     } else {
       animEls.forEach(el => el.classList.add('visible'));
     }

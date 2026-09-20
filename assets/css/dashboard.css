@@ -440,23 +440,80 @@
   height: 240px;
   width: 100%;
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding: 10px 10px 0 30px;
+  align-items: stretch;
   position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
 }
 
 .chart-y-axis {
-  position: absolute;
-  left: 0;
-  top: 10px;
-  bottom: 30px;
+  flex-shrink: 0;
+  width: 34px;
+  height: 100%;
+  padding: 10px 6px 28px 0;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   font-size: 11px;
   font-weight: 600;
   color: var(--text-muted);
+  box-sizing: border-box;
+  user-select: none;
+  background: var(--bg-card);
+  z-index: 5;
+}
+
+.bar-chart-scroll-wrap {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px 4px 4px 4px;
+  box-sizing: border-box;
+}
+
+.bar-chart-scroll-wrap.has-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+  scrollbar-width: thin;
+  scrollbar-color: #CBD5E1 transparent;
+}
+
+.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar {
+  height: 4px;
+}
+
+.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+.bar-chart-scroll-wrap.has-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.bar-chart-bars-track {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  height: 100%;
+  width: 100%;
+  min-width: 100%;
+  gap: 4px;
+}
+
+.bar-chart-bars-track.is-30d {
+  width: max-content;
+  min-width: 100%;
+  gap: 6px;
 }
 
 .bar-column-group {
@@ -466,6 +523,11 @@
   flex: 1;
   height: 100%;
   justify-content: flex-end;
+}
+
+.bar-chart-bars-track.is-30d .bar-column-group {
+  flex: 0 0 auto;
+  min-width: 18px;
 }
 
 /* The faint background track column behind the bar, as in interface.png */

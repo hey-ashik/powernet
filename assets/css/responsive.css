@@ -419,35 +419,37 @@
     min-width: 0;
   }
 
-  /* Devices mobile: User icon AND name in the SAME row */
+  /* Devices mobile: Show ONLY avatar icon on the right side, hide name */
   .devices-top-bar .user-profile {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 3px 10px 3px 3px !important;
-    background: #FFFFFF !important;
-    border: 1px solid #E2E8F0 !important;
-    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.05) !important;
-    border-radius: 9999px !important;
+    justify-content: center;
+    padding: 0 !important;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 50% !important;
     flex-shrink: 0;
   }
 
   .devices-top-bar .user-profile .avatar {
-    width: 30px !important;
-    height: 30px !important;
+    width: 32px !important;
+    height: 32px !important;
     font-size: 12px !important;
+    font-weight: 700;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #EFF6FF;
+    color: #1D4ED8;
+    border: 1px solid #DBEAFE;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     flex-shrink: 0;
   }
 
   .devices-top-bar .user-profile .user-name {
-    display: inline-block !important;
-    font-size: 12px !important;
-    font-weight: 700;
-    color: #0F172A;
-    white-space: nowrap !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    max-width: 105px;
+    display: none !important;
   }
 
   /* Grid adaptations */
@@ -494,6 +496,53 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
+
+  /* Charts Row & Chart Cards - Prevent horizontal blowout and ensure clean padding on mobile */
+  .charts-row {
+    grid-template-columns: 1fr;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    gap: 16px;
+  }
+
+  .chart-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: hidden;
+    padding: 18px 14px;
+    border-radius: var(--radius-xl);
+  }
+
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 16px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .chart-title {
+    font-size: 16px;
+  }
+
+  .chart-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .chart-switcher {
+    padding: 2px;
+  }
+
+  .chart-switcher .sw-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+  }
 }
 
 /* ─── Very Compact Screens (<= 380px) ─── */
@@ -501,9 +550,17 @@
   .devices-top-bar .page-title {
     font-size: 16px;
   }
-  .devices-top-bar .user-profile .user-name {
-    max-width: 80px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+
+  .chart-card {
+    padding: 14px 10px;
+  }
+
+  .chart-title {
+    font-size: 15px;
+  }
+
+  .chart-switcher .sw-btn {
+    padding: 3px 8px;
+    font-size: 11px;
   }
 }

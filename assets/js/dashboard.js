@@ -19,27 +19,20 @@ function formatBdTime(dateInput, mode = 'short') {
   let input = dateInput;
   if (typeof input === 'string') {
     if (/[ap]m$/i.test(input.trim())) return input.trim();
-    if (input.includes(' ') && !input.includes('T') && !input.includes('+')) {
-      input = input.replace(' ', 'T') + '+06:00';
+    if (input.includes(' ') && !input.includes('T') && !input.includes('+') && !input.endsWith('Z')) {
+      // MySQL UTC DATETIME string (e.g. "2026-09-20 17:01:24") -> parse as UTC so Asia/Dhaka converts to Bangladesh Time (+6h)
+      input = input.replace(' ', 'T') + 'Z';
     }
   }
   const d = (input instanceof Date) ? input : new Date(input);
   if (isNaN(d.getTime())) return typeof dateInput === 'string' ? dateInput : '--:--';
 
   try {
-    if (mode === 'full') {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: BD_TZ,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      }).format(d);
-    }
     return new Intl.DateTimeFormat('en-US', {
       timeZone: BD_TZ,
       hour: '2-digit',
       minute: '2-digit',
+      second: mode === 'full' ? '2-digit' : undefined,
       hour12: true
     }).format(d);
   } catch {
@@ -391,7 +384,10 @@ const Dashboard = {
       yLabels.push(v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(v < 1 ? 2 : 1));
     }
 
+    const isScrollable = range === '30d';
     let html = `<div class="chart-y-axis">${yLabels.map(l => `<span>${l}</span>`).join('')}</div>`;
+    html += `<div class="bar-chart-scroll-wrap ${isScrollable ? 'has-scroll' : ''}" id="bar-chart-scroll-wrap">`;
+    html += `<div class="bar-chart-bars-track ${isScrollable ? 'is-30d' : ''}">`;
 
     // Limit visible labels on dense datasets
     const showEvery = buckets.length > 20 ? 3 : 1;
@@ -417,7 +413,18 @@ const Dashboard = {
       `;
     });
 
+    html += `</div></div>`;
     chartContainer.innerHTML = html;
+
+    // Scroll to the latest days (right side) when 30d is loaded
+    if (range === '30d') {
+      const scrollWrap = chartContainer.querySelector('.bar-chart-scroll-wrap');
+      if (scrollWrap) {
+        requestAnimationFrame(() => {
+          scrollWrap.scrollLeft = scrollWrap.scrollWidth;
+        });
+      }
+    }
   },
 
   // ─── Waveform Chart ───────────────────────────────────────
@@ -1204,11 +1211,13 @@ const Dashboard = {
 
       // Bangladesh Standard Time (Asia/Dhaka) formatting
       let timeDisplay = '--:--:--';
-      const rawTime = log.recorded_at || log.created_at || log.bucket_time;
-      if (rawTime) {
-        timeDisplay = formatBdTime(rawTime, 'full');
-      } else if (log.formatted_time) {
-        timeDisplay = log.formatted_time;
+      if (log.formatted_time && /[ap]m$/i.test(String(log.formatted_time).trim())) {
+        timeDisplay = String(log.formatted_time).trim();
+      } else {
+        const rawTime = log.recorded_at || log.created_at || log.bucket_time || log.timestamp;
+        if (rawTime) {
+          timeDisplay = formatBdTime(rawTime, 'full');
+        }
       }
 
       const statusType = log.status_type || (logPower > 3.0 ? 'danger' : (logPower > 1.8 ? 'warning' : 'success'));

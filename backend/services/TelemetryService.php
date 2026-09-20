@@ -77,12 +77,17 @@ class TelemetryService
                 $upStmt->execute(['id' => $device['id']]);
             }
 
-            // Authoritative timestamp
-            $recordedAt = date('Y-m-d H:i:s');
+            // Authoritative timestamp in UTC for database storage
+            $recordedAt = gmdate('Y-m-d H:i:s');
             if (!empty($payload['timestamp'])) {
                 $ts = strtotime((string)$payload['timestamp']);
-                if ($ts !== false && abs(time() - $ts) <= 3600) {
-                    $recordedAt = date('Y-m-d H:i:s', $ts);
+                if ($ts !== false && abs(time() - $ts) <= 86400) {
+                    $recordedAt = gmdate('Y-m-d H:i:s', $ts);
+                }
+            } elseif (!empty($payload['epoch'])) {
+                $ts = (int)$payload['epoch'];
+                if ($ts > 1000000000 && abs(time() - $ts) <= 86400) {
+                    $recordedAt = gmdate('Y-m-d H:i:s', $ts);
                 }
             }
 
