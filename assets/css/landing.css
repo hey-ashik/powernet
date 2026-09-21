@@ -33,6 +33,8 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: hidden;
+  width: 100%;
 }
 
 body {
@@ -44,6 +46,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-x: hidden;
+  width: 100%;
 }
 
 /* ---------- Common Utility & Animations ---------- */
@@ -59,11 +62,26 @@ body {
   transform: translateY(0);
 }
 
-.anim-delay-1 { transition-delay: 0.08s; }
-.anim-delay-2 { transition-delay: 0.16s; }
-.anim-delay-3 { transition-delay: 0.24s; }
-.anim-delay-4 { transition-delay: 0.32s; }
-.anim-delay-5 { transition-delay: 0.40s; }
+.hero-section .anim-fade-up {
+  animation: heroEntranceFade 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes heroEntranceFade {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.anim-delay-1 { transition-delay: 0.08s; animation-delay: 0.08s; }
+.anim-delay-2 { transition-delay: 0.16s; animation-delay: 0.16s; }
+.anim-delay-3 { transition-delay: 0.24s; animation-delay: 0.24s; }
+.anim-delay-4 { transition-delay: 0.32s; animation-delay: 0.32s; }
+.anim-delay-5 { transition-delay: 0.40s; animation-delay: 0.40s; }
 
 /* ==========================================================
  * FLOATING PILL HEADER (Pulse AI identical)
@@ -78,6 +96,7 @@ body {
 }
 
 .landing-header-pill {
+  width: 100%;
   max-width: 1152px;
   margin: 0 auto;
   height: 64px;
@@ -327,6 +346,7 @@ body {
 .hero-container {
   position: relative;
   z-index: 10;
+  width: 100%;
   max-width: 1200px;
   margin: 0 auto;
   padding: 0 24px;
@@ -615,6 +635,7 @@ body {
 }
 
 .section-container {
+  width: 100%;
   max-width: 1152px;
   margin: 0 auto;
   text-align: center;
@@ -685,6 +706,7 @@ body {
   position: relative;
   overflow: hidden;
   width: 100%;
+  min-width: 0;
 }
 
 .carousel-fade-left,
@@ -957,6 +979,7 @@ body {
 }
 
 .footer-container {
+  width: 100%;
   max-width: 1152px;
   margin: 0 auto;
 }
@@ -1067,6 +1090,7 @@ body {
 }
 
 .cta-banner-container {
+  width: 100%;
   max-width: 1152px;
   margin: 0 auto;
 }
@@ -1168,3 +1192,440 @@ body {
   border-color: rgba(255, 255, 255, 0.55);
   transform: translateY(-2px);
 }
+
+/* ==========================================================
+ * RESPONSIVE ADAPTATIONS (Mobile & Tablet)
+ * Desktop styles above remain untouched (> 768px)
+ * ========================================================== */
+
+/* Tablet & Mobile Screens (<= 768px) */
+@media (max-width: 768px) {
+  /* Floating Header */
+  .landing-header-wrapper {
+    top: 12px;
+    padding: 0 12px;
+  }
+
+  .landing-header-pill {
+    height: 56px;
+    padding: 0 16px;
+  }
+
+  .header-brand-icon {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+  }
+
+  .header-brand-name {
+    font-size: 17px;
+  }
+
+  .btn-mobile-toggle {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+  }
+
+  .mobile-nav-drawer {
+    top: 68px;
+    left: 12px;
+    right: 12px;
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  /* Hero Section */
+  .hero-section {
+    min-height: auto;
+    padding-top: 96px;
+    padding-bottom: 48px;
+    overflow: hidden;
+    width: 100%;
+    max-width: 100vw;
+  }
+
+  .hero-blur-orb {
+    width: 280px;
+    height: 280px;
+    filter: blur(80px);
+  }
+
+  .hero-container {
+    width: 100%;
+    max-width: 100%;
+    padding: 0 16px;
+    box-sizing: border-box;
+  }
+
+  .hero-reviews-badge {
+    padding: 4px 14px 4px 6px;
+    gap: 8px;
+    margin-bottom: 20px;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .hero-avatar-item {
+    width: 28px;
+    height: 28px;
+    margin-left: -8px;
+  }
+
+  .hero-stars-row {
+    font-size: 10px;
+    gap: 2px;
+  }
+
+  .hero-reviews-text {
+    font-size: 12px;
+  }
+
+  .hero-h1 {
+    font-size: clamp(26px, 6.5vw, 34px);
+    line-height: 1.18;
+    letter-spacing: -0.6px;
+    margin-bottom: 16px;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
+    padding: 0 4px;
+  }
+
+  .hero-sub {
+    font-size: 14.5px;
+    line-height: 1.55;
+    margin-bottom: 28px;
+    padding: 0 6px;
+    max-width: 100%;
+  }
+
+  .hero-cta-group {
+    gap: 12px;
+    margin-bottom: 36px;
+    width: 100%;
+  }
+
+  .hero-image-wrapper {
+    width: 100%;
+    max-width: 100%;
+    margin: 0 auto 32px auto;
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.2);
+  }
+
+  .hero-image-preview {
+    width: 100%;
+    max-width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  .hero-marquee-section {
+    width: 100%;
+    max-width: 100%;
+    padding: 12px 0 4px 0;
+  }
+
+  .hero-marquee-title {
+    font-size: 13.5px;
+    margin-bottom: 16px;
+  }
+
+  .hero-brand-logo {
+    height: 28px;
+  }
+
+  .hero-marquee-track {
+    gap: 28px;
+  }
+
+  /* Problems Section */
+  .section-wrapper {
+    padding: 54px 16px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
+    overflow: hidden;
+  }
+
+  .section-tag-pill {
+    padding: 5px 14px;
+    font-size: 12px;
+    margin-bottom: 14px;
+  }
+
+  .section-heading {
+    font-size: clamp(22px, 5.5vw, 30px);
+    letter-spacing: -0.5px;
+    margin-bottom: 10px;
+    padding: 0 4px;
+  }
+
+  .section-subheading {
+    font-size: 14px;
+    line-height: 1.55;
+    padding: 0 6px;
+    max-width: 100%;
+  }
+
+  .problems-carousel-container {
+    margin-top: 32px;
+    gap: 14px;
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .carousel-row {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    min-width: 0;
+  }
+
+  .carousel-fade-left,
+  .carousel-fade-right {
+    width: 32px;
+  }
+
+  .problem-card {
+    min-width: 240px;
+    max-width: 260px;
+    padding: 22px 18px;
+    border-radius: 16px;
+  }
+
+  .problem-card-icon {
+    width: 30px;
+    height: 30px;
+    margin-bottom: 12px;
+  }
+
+  .problem-card-icon svg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .problem-card-title {
+    font-size: 14.5px;
+  }
+
+  /* Solutions Section */
+  .solutions-grid {
+    margin-top: 32px;
+    gap: 16px;
+    width: 100%;
+  }
+
+  .solution-card {
+    padding: 24px 20px;
+    border-radius: 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .solution-icon-circle {
+    width: 44px;
+    height: 44px;
+    margin-bottom: 16px;
+  }
+
+  .solution-icon-circle svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .solution-card-title {
+    font-size: 17.5px;
+    margin-bottom: 8px;
+  }
+
+  .solution-card-desc {
+    font-size: 14px;
+    line-height: 1.55;
+  }
+
+  /* FAQs Section */
+  .faq-accordion-list {
+    margin-top: 32px;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .faq-item {
+    border-radius: 14px;
+  }
+
+  .faq-header {
+    padding: 14px 16px;
+  }
+
+  .faq-question {
+    font-size: 14.5px;
+    padding-right: 12px;
+  }
+
+  .faq-toggle-btn {
+    width: 30px;
+    height: 30px;
+  }
+
+  .faq-toggle-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .faq-content {
+    padding: 0 16px 16px 16px;
+  }
+
+  .faq-answer {
+    font-size: 13.5px;
+    line-height: 1.6;
+    margin-top: 10px;
+  }
+
+  /* CTA Banner */
+  .cta-banner-section {
+    padding: 16px 16px 48px 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .cta-banner-card {
+    padding: 38px 20px;
+    border-radius: 20px;
+  }
+
+  .cta-banner-h2 {
+    font-size: clamp(22px, 5.5vw, 28px);
+    letter-spacing: -0.5px;
+    margin-bottom: 12px;
+  }
+
+  .cta-banner-sub {
+    font-size: 14px;
+    line-height: 1.55;
+    margin-bottom: 24px;
+    padding: 0 4px;
+  }
+
+  .cta-banner-buttons {
+    gap: 12px;
+  }
+
+  /* Footer */
+  .landing-footer {
+    padding: 48px 16px 28px 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .footer-top-grid {
+    gap: 36px;
+    margin-bottom: 36px;
+  }
+
+  .footer-links-grid {
+    gap: 24px 16px;
+  }
+
+  .footer-tagline {
+    font-size: 13.5px;
+  }
+
+  .footer-col-title {
+    font-size: 13.5px;
+    margin-bottom: 12px;
+  }
+
+  .footer-link {
+    font-size: 13.5px;
+  }
+
+  .footer-bottom-bar {
+    padding-top: 20px;
+    font-size: 13px;
+  }
+}
+
+/* Extra Small Mobile Devices (<= 480px) */
+@media (max-width: 480px) {
+  .hero-cta-group {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 8px;
+    box-sizing: border-box;
+  }
+
+  .btn-hero-primary,
+  .btn-hero-secondary {
+    width: 100%;
+    max-width: 290px;
+    height: 46px;
+    font-size: 14.5px;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .cta-banner-buttons {
+    flex-direction: column;
+    align-items: center;
+    padding: 0 6px;
+    box-sizing: border-box;
+  }
+
+  .btn-cta-white,
+  .btn-cta-glass {
+    width: 100%;
+    max-width: 290px;
+    height: 46px;
+    font-size: 14.5px;
+    justify-content: center;
+    box-sizing: border-box;
+  }
+
+  .problem-card {
+    min-width: 215px;
+    max-width: 235px;
+    padding: 18px 14px;
+  }
+
+  .footer-links-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px 12px;
+  }
+}
+
+/* Very Small Mobile Devices (<= 340px) */
+@media (max-width: 340px) {
+  .landing-header-pill {
+    padding: 0 12px;
+  }
+
+  .header-brand-name {
+    font-size: 15px;
+  }
+
+  .hero-reviews-badge {
+    padding: 4px 10px 4px 4px;
+    gap: 6px;
+  }
+
+  .hero-avatar-item {
+    width: 24px;
+    height: 24px;
+    margin-left: -6px;
+  }
+
+  .hero-reviews-text {
+    font-size: 11px;
+  }
+
+  .footer-links-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+

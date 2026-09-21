@@ -5,18 +5,23 @@
 .env.*.local
 
 # Agent configs & internal guidelines
+.agents
 .agents/
 AGENTS.md
 GEMINI.md
 
 # Design, reference folders & archives
+RedesignHomePage
 RedesignHomePage/
+Ref
 Ref/
+Reference
 Reference/
 powernet.zip
 
 # Logs & scratch files
 *.log
+scratch
 scratch/
 .DS_Store
 Thumbs.db

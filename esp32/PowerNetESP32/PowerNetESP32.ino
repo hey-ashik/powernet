@@ -24,6 +24,7 @@
 #include <PubSubClient.h>
 #include <HTTPClient.h>
 #include <ArduinoJson.h>
+#include <time.h>
 
 // ----------------------------------------------------------------------------
 // 1. WI-FI & NETWORK CONFIGURATION
@@ -47,6 +48,15 @@ const char* HTTP_API_URL  = "https://powernet.ashiik.com/api/telemetry/push.php"
 
 // Telemetry Interval (5000 ms = 5 seconds)
 const unsigned long TELEMETRY_INTERVAL_MS = 5000;
+
+// NTP & Bangladesh Standard Time (BST: UTC+6:00, No DST)
+const long  GMT_OFFSET_SEC      = 6 * 3600; // Bangladesh Standard Time (UTC + 6 hours) = 21600 seconds
+const int   DAYLIGHT_OFFSET_SEC = 0;        // No Daylight Saving Time in Bangladesh
+const char* NTP_SERVER_1        = "pool.ntp.org";
+const char* NTP_SERVER_2        = "time.google.com";
+const char* NTP_SERVER_3        = "asia.pool.ntp.org";
+
+bool isNtpSynced = false;
 
 // ----------------------------------------------------------------------------
 // 2. HARDWARE PIN ASSIGNMENTS (Teacher's Hardware Configuration)
@@ -117,7 +127,35 @@ float readActivePower(float voltage, float current) {
 }
 
 // ----------------------------------------------------------------------------
-// 5. WI-FI & MQTT RECONNECTION
+// 5. BANGLADESH NTP REAL-TIME SYNCHRONIZATION
+// ----------------------------------------------------------------------------
+void syncBangladeshTime() {
+  Serial.println("\n[NTP] Synchronizing with Bangladesh Standard Time (BST, UTC+6:00)...");
+  configTime(GMT_OFFSET_SEC, DAYLIGHT_OFFSET_SEC, NTP_SERVER_1, NTP_SERVER_2, NTP_SERVER_3);
+
+  struct tm timeinfo;
+  int attempts = 0;
+  while (!getLocalTime(&timeinfo, 500) && attempts < 10) {
+    delay(300);
+    Serial.print(".");
+    attempts++;
+  }
+  Serial.println();
+
+  if (getLocalTime(&timeinfo, 500)) {
+    isNtpSynced = true;
+    char timeStr[64];
+    strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %I:%M:%S %p", &timeinfo);
+    Serial.print("[NTP] Synced successfully! Current BST: ");
+    Serial.println(timeStr);
+  } else {
+    isNtpSynced = false;
+    Serial.println("[NTP] Sync acquiring lock in background...");
+  }
+}
+
+// ----------------------------------------------------------------------------
+// 6. WI-FI & MQTT RECONNECTION
 // ----------------------------------------------------------------------------
 void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
@@ -142,6 +180,7 @@ void connectWiFi() {
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(STATUS_LED_PIN, HIGH);
     Serial.println("\n[WiFi] Connected! IP: " + WiFi.localIP().toString());
+    syncBangladeshTime();
   } else {
     Serial.println("\n[WiFi] Connection failed. Will retry automatically.");
   }
@@ -186,11 +225,28 @@ void publishTelemetry() {
   }
   lastEnergyCalcTime = currentMillis;
 
+  // --- Real-Time Bangladesh Standard Time (BST) ---
+  char bstTimeStr[48]   = "";
+  char isoTimestamp[48] = "";
+  time_t epochTime      = 0;
+  struct tm timeinfo;
+  bool timeValid = getLocalTime(&timeinfo, 50);
+
+  if (timeValid) {
+    isNtpSynced = true;
+    time(&epochTime);
+    // Human-readable 12-hour BST: "YYYY-MM-DD hh:mm:ss AM/PM"
+    strftime(bstTimeStr, sizeof(bstTimeStr), "%Y-%m-%d %I:%M:%S %p", &timeinfo);
+    // Standard ISO-8601 with explicit Bangladesh +06:00 offset
+    strftime(isoTimestamp, sizeof(isoTimestamp), "%Y-%m-%dT%H:%M:%S+06:00", &timeinfo);
+  }
+
   // --- Print Clean Diagnostic to Serial Monitor ---
   Serial.println("==========================================");
   Serial.println("           LIVE TELEMETRY DATA            ");
   Serial.println("==========================================");
   Serial.print("Device ID   : "); Serial.println(DEVICE_ID);
+  Serial.print("Time (BST)  : "); Serial.println(timeValid ? bstTimeStr : "Syncing NTP...");
   Serial.print("Voltage (34): "); Serial.print(voltage, 2); Serial.println(" V");
   Serial.print("Current (35): "); Serial.print(current, 2); Serial.println(" A");
   Serial.print("Temp    (32): "); Serial.print(temp, 2); Serial.println(" °C");
@@ -199,7 +255,7 @@ void publishTelemetry() {
   Serial.println("------------------------------------------");
 
   // Build Standard JSON Payload
-  StaticJsonDocument<256> doc;
+  StaticJsonDocument<512> doc;
   doc["device_id"]   = DEVICE_ID;
   doc["voltage"]     = round(voltage * 100.0) / 100.0;
   doc["current"]     = round(current * 100.0) / 100.0;
@@ -209,7 +265,14 @@ void publishTelemetry() {
   doc["energy_kwh"]  = round(cumulativeEnergyKWh * 1000.0) / 1000.0;
   doc["temperature"] = round(temp * 10.0) / 10.0;
 
-  char jsonBuffer[256];
+  if (timeValid) {
+    doc["timestamp"]      = isoTimestamp;  // "2026-09-20T23:01:24+06:00"
+    doc["formatted_time"] = bstTimeStr;    // "2026-09-20 11:01:24 PM"
+    doc["time_bst"]       = bstTimeStr;
+    doc["epoch"]          = (unsigned long)epochTime;
+  }
+
+  char jsonBuffer[512];
   serializeJson(doc, jsonBuffer);
 
   bool published = false;
@@ -261,6 +324,7 @@ void setup() {
   Serial.println("\n==================================================");
   Serial.println(" PowerNet ESP32 DevKit V1 Initialized");
   Serial.print(" Device ID    : "); Serial.println(DEVICE_ID);
+  Serial.println(" Timezone     : BST (UTC+6:00, Bangladesh)");
   Serial.print(" Voltage Pin  : GPIO "); Serial.println(VOLTAGE_PIN);
   Serial.print(" Current Pin  : GPIO "); Serial.println(CURRENT_PIN);
   Serial.print(" Temp Pin     : GPIO "); Serial.println(TEMP_PIN);

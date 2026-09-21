@@ -19,27 +19,20 @@ function formatBdTime(dateInput, mode = 'short') {
   let input = dateInput;
   if (typeof input === 'string') {
     if (/[ap]m$/i.test(input.trim())) return input.trim();
-    if (input.includes(' ') && !input.includes('T') && !input.includes('+')) {
-      input = input.replace(' ', 'T') + '+06:00';
+    if (input.includes(' ') && !input.includes('T') && !input.includes('+') && !input.endsWith('Z')) {
+      // MySQL UTC DATETIME string (e.g. "2026-09-20 17:01:24") -> parse as UTC so Asia/Dhaka converts to Bangladesh Time (+6h)
+      input = input.replace(' ', 'T') + 'Z';
     }
   }
   const d = (input instanceof Date) ? input : new Date(input);
   if (isNaN(d.getTime())) return typeof dateInput === 'string' ? dateInput : '--:--';
 
   try {
-    if (mode === 'full') {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone: BD_TZ,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      }).format(d);
-    }
     return new Intl.DateTimeFormat('en-US', {
       timeZone: BD_TZ,
       hour: '2-digit',
       minute: '2-digit',
+      second: mode === 'full' ? '2-digit' : undefined,
       hour12: true
     }).format(d);
   } catch {
@@ -48,18 +41,64 @@ function formatBdTime(dateInput, mode = 'short') {
 }
 
 function getBdCalendarDays(count = 7) {
+  if (count !== 7) {
+    return getBdMonthDays();
+  }
   const list = [];
   const now = new Date();
-  for (let i = count - 1; i >= 0; i--) {
+  for (let i = 6; i >= 0; i--) {
     const target = new Date(now.getTime() - i * 86400000);
     const key = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ }).format(target);
     const dayName = new Intl.DateTimeFormat('en-US', { timeZone: BD_TZ, weekday: 'short' }).format(target).toUpperCase();
-    const dayNum = new Intl.DateTimeFormat('en-US', { timeZone: BD_TZ, day: '2-digit' }).format(target);
     const tooltipDate = new Intl.DateTimeFormat('en-US', { timeZone: BD_TZ, weekday: 'short', day: 'numeric', month: 'short' }).format(target);
     list.push({
       key,
-      label: count === 7 ? dayName : dayNum,
+      label: dayName,
       tooltipDate,
+      value: 0,
+      _count: 0
+    });
+  }
+  return list;
+}
+
+function getBdMonthDays() {
+  const list = [];
+  const now = new Date();
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BD_TZ,
+    year: 'numeric',
+    month: 'numeric',
+    day: 'numeric'
+  }).formatToParts(now);
+
+  const bdYear = parseInt(parts.find(p => p.type === 'year')?.value || now.getFullYear(), 10);
+  const bdMonth = parseInt(parts.find(p => p.type === 'month')?.value || (now.getMonth() + 1), 10);
+  const bdToday = parseInt(parts.find(p => p.type === 'day')?.value || now.getDate(), 10);
+
+  const daysInMonth = new Date(bdYear, bdMonth, 0).getDate();
+  const totalDays = Math.max(30, daysInMonth);
+
+  for (let d = 1; d <= totalDays; d++) {
+    const mStr = String(bdMonth).padStart(2, '0');
+    const dStr = String(d).padStart(2, '0');
+    const key = `${bdYear}-${mStr}-${dStr}`;
+
+    const target = new Date(Date.UTC(bdYear, bdMonth - 1, d, 12, 0, 0));
+    const tooltipDate = new Intl.DateTimeFormat('en-US', {
+      timeZone: BD_TZ,
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short'
+    }).format(target);
+
+    list.push({
+      key,
+      dayNum: d,
+      label: String(d),
+      tooltipDate,
+      isToday: d === bdToday,
+      isFuture: d > bdToday,
       value: 0,
       _count: 0
     });
@@ -324,7 +363,7 @@ const Dashboard = {
     if (range === '7d') {
       buckets = getBdCalendarDays(7);
     } else if (range === '30d') {
-      buckets = getBdCalendarDays(30);
+      buckets = getBdMonthDays();
     } else if (range === '12m') {
       buckets = getBdCalendarMonths(12);
     } else {
@@ -392,10 +431,14 @@ const Dashboard = {
     }
 
     let html = `<div class="chart-y-axis">${yLabels.map(l => `<span>${l}</span>`).join('')}</div>`;
+    html += `<div class="bar-chart-scroll-wrap" id="bar-chart-scroll-wrap">`;
+    html += `<div class="bar-chart-bars-track ${range === '30d' ? 'is-30d' : ''}">`;
 
-    // Limit visible labels on dense datasets
-    const showEvery = buckets.length > 20 ? 3 : 1;
+    // Visible labels configuration
+    const showEvery = 1;
     const delayStep = range === '7d' ? 45 : (range === '30d' ? 18 : 35);
+    const metricLabel = unit === 'kwh' ? 'Energy' : 'Power';
+    const dotColor = unit === 'kwh' ? '#10B981' : '#2563EB';
 
     buckets.forEach((b, idx) => {
       const pct = maxVal > 0 ? Math.min(100, Math.round((b.value / maxVal) * 100)) : 0;
@@ -403,12 +446,23 @@ const Dashboard = {
       const valDisplay = b.value.toFixed(unit === 'kwh' ? 2 : (b.value < 10 ? 2 : 1));
       const delayMs = idx * delayStep;
 
+      let alignClass = '';
+      if (idx === 0 || idx === 1) {
+        alignClass = ' align-left';
+      } else if (idx === buckets.length - 1 || idx === buckets.length - 2) {
+        alignClass = ' align-right';
+      }
+
       html += `
         <div class="bar-column-group">
-          <div class="bar-track" tabindex="0">
-            <div class="bar-tooltip">
+          <div class="bar-track" tabindex="0" role="button" aria-label="${b.tooltipDate}: ${valDisplay} ${unit.toUpperCase()}">
+            <div class="bar-tooltip${alignClass}">
               <div class="bar-tooltip-date">${b.tooltipDate} (BST)</div>
-              <div class="bar-tooltip-val">${valDisplay} ${unit.toUpperCase()}</div>
+              <div class="bar-tooltip-val">
+                <span class="bar-tooltip-dot" style="background:${dotColor};"></span>
+                <span>${metricLabel}:</span>
+                <strong style="color:#FFFFFF;">${valDisplay} ${unit.toUpperCase()}</strong>
+              </div>
             </div>
             <div class="bar-fill" style="height: ${Math.max(3, pct)}%; animation-delay: ${delayMs}ms;"></div>
           </div>
@@ -417,6 +471,7 @@ const Dashboard = {
       `;
     });
 
+    html += `</div></div>`;
     chartContainer.innerHTML = html;
   },
 
@@ -600,10 +655,37 @@ const Dashboard = {
     plotArea.addEventListener('touchend', handlePointerLeave);
   },
 
-  pushWaveformPoint(data) {
-    const maxPoints = 20;
-    const time = data.created_at || data.recorded_at || data.bucket_time || new Date().toISOString();
+  initZeroWaveform(count = 10) {
+    const now = Date.now();
     const fields = ['voltage', 'current', 'power', 'energy', 'temperature'];
+    fields.forEach(f => {
+      this.waveHistory[f] = [];
+      for (let i = count - 1; i >= 0; i--) {
+        const t = new Date(now - i * 10000).toISOString();
+        this.waveHistory[f].push({ val: 0, time: t });
+      }
+    });
+    this.renderWaveformChart();
+  },
+
+  pushWaveformPoint(data, isLive = true) {
+    const maxPoints = 20;
+    const nowIso = new Date().toISOString();
+    const fields = ['voltage', 'current', 'power', 'energy', 'temperature'];
+
+    if (!isLive) {
+      // Telemetry stopped: push 0 values at current Bangladesh time
+      fields.forEach(f => {
+        if (!this.waveHistory[f]) this.waveHistory[f] = [];
+        this.waveHistory[f].push({ val: 0, time: nowIso });
+        if (this.waveHistory[f].length > maxPoints) this.waveHistory[f].shift();
+      });
+      this.renderWaveformChart();
+      return;
+    }
+
+    // Active real-time data from database
+    let time = data.timestamp || data.recorded_at || data.created_at || nowIso;
     fields.forEach(f => {
       let rawVal = Number(data[f] || 0);
       if (f === 'power' && rawVal > 100) rawVal = rawVal / 1000;
@@ -615,7 +697,26 @@ const Dashboard = {
   },
 
   populateWaveformFromTelemetry(telemetryPoints) {
-    if (!telemetryPoints || telemetryPoints.length === 0) return;
+    if (!telemetryPoints || telemetryPoints.length === 0) {
+      this.initZeroWaveform();
+      return;
+    }
+
+    // Check if the latest telemetry record is from the past (> 60s ago)
+    const latest = telemetryPoints[0];
+    let latestTimeStr = latest.recorded_at || latest.created_at || latest.timestamp || '';
+    if (typeof latestTimeStr === 'string' && latestTimeStr.includes(' ') && !latestTimeStr.includes('T') && !latestTimeStr.includes('+') && !latestTimeStr.endsWith('Z')) {
+      latestTimeStr = latestTimeStr.replace(' ', 'T') + 'Z';
+    }
+    const latestMs = new Date(latestTimeStr).getTime();
+    const ageSec = !isNaN(latestMs) ? (Date.now() - latestMs) / 1000 : 999;
+
+    if (ageSec > 60) {
+      // Telemetry stopped in the past: initialize 0 baseline at current Bangladesh time
+      this.initZeroWaveform();
+      return;
+    }
+
     // Reverse newest-first array so that earliest timestamp is on the left and newest is on the right
     const slice = [...telemetryPoints].reverse().slice(-20);
     const fields = ['voltage', 'current', 'power', 'energy', 'temperature'];
@@ -625,7 +726,7 @@ const Dashboard = {
         if (f === 'power' && rawVal > 100) rawVal = rawVal / 1000;
         return {
           val: rawVal,
-          time: p.created_at || p.recorded_at || p.bucket_time || new Date().toISOString()
+          time: p.recorded_at || p.created_at || p.timestamp || new Date().toISOString()
         };
       });
     });
@@ -984,30 +1085,43 @@ const Dashboard = {
   },
 
   updateMetricCards(data) {
-    const isOnline = Boolean(data.is_online);
+    let isLive = Boolean(data.is_online);
 
-    // 1. Voltage
+    // Check freshness: if timestamp is older than 35s or offline, data has stopped
+    const timeStr = data.recorded_at || data.timestamp || null;
+    if (timeStr) {
+      let parseStr = timeStr;
+      if (typeof parseStr === 'string' && parseStr.includes(' ') && !parseStr.includes('T') && !parseStr.includes('+') && !parseStr.endsWith('Z')) {
+        parseStr = parseStr.replace(' ', 'T') + 'Z';
+      }
+      const recordMs = new Date(parseStr).getTime();
+      if (!isNaN(recordMs) && (Date.now() - recordMs) > 35000) {
+        isLive = false;
+      }
+    }
+
+    // 1. Voltage: when telemetry stops, display 0.0
     const elVoltage = document.getElementById('metric-voltage');
-    if (elVoltage) elVoltage.textContent = (data.voltage !== undefined && data.voltage !== null) ? Number(data.voltage).toFixed(1) : '0.0';
+    if (elVoltage) elVoltage.textContent = (isLive && data.voltage !== undefined && data.voltage !== null) ? Number(data.voltage).toFixed(1) : '0.0';
 
-    // 2. Current
+    // 2. Current: when telemetry stops, display 0.00
     const elCurrent = document.getElementById('metric-current');
-    if (elCurrent) elCurrent.textContent = (data.current !== undefined && data.current !== null) ? Number(data.current).toFixed(2) : '0.00';
+    if (elCurrent) elCurrent.textContent = (isLive && data.current !== undefined && data.current !== null) ? Number(data.current).toFixed(2) : '0.00';
 
-    // 3. Active Power
+    // 3. Active Power: when telemetry stops, display 0.000
     const elPower = document.getElementById('metric-power');
-    let powerNum = (data.power !== undefined && data.power !== null) ? Number(data.power) : 0.0;
+    let powerNum = (isLive && data.power !== undefined && data.power !== null) ? Number(data.power) : 0.0;
     if (powerNum > 100) powerNum = powerNum / 1000;
     if (elPower) elPower.textContent = powerNum.toFixed(3);
 
-    // 4. Daily Energy
+    // 4. Daily Energy (Cumulative meter reading)
     const elEnergy = document.getElementById('metric-energy');
     const energyNum = (data.energy !== undefined && data.energy !== null) ? Number(data.energy) : 0.0;
     if (elEnergy) elEnergy.textContent = energyNum.toFixed(3);
 
-    // 5. Temperature
+    // 5. Temperature: when telemetry stops, display --
     const elTemp = document.getElementById('metric-temperature');
-    if (elTemp) elTemp.textContent = (data.temperature !== undefined && data.temperature !== null) ? Number(data.temperature).toFixed(1) : '--';
+    if (elTemp) elTemp.textContent = (isLive && data.temperature !== undefined && data.temperature !== null) ? Number(data.temperature).toFixed(1) : '--';
 
     // 6. Cost (Fixed 0.00 taka sign)
     const elCost = document.getElementById('kpi-est-cost');
@@ -1016,9 +1130,9 @@ const Dashboard = {
     }
 
     // 7. Dynamic Real-Time Delta % Calculations based on previous values
-    const currV = (data.voltage !== undefined && data.voltage !== null) ? Number(data.voltage) : null;
-    const currC = (data.current !== undefined && data.current !== null) ? Number(data.current) : null;
-    const currT = (data.temperature !== undefined && data.temperature !== null) ? Number(data.temperature) : null;
+    const currV = isLive && data.voltage != null ? Number(data.voltage) : null;
+    const currC = isLive && data.current != null ? Number(data.current) : null;
+    const currT = isLive && data.temperature != null ? Number(data.temperature) : null;
 
     let prevV = (this.prevTelemetry && this.prevTelemetry.voltage != null) ? this.prevTelemetry.voltage : (data.prev_voltage != null ? Number(data.prev_voltage) : null);
     let prevC = (this.prevTelemetry && this.prevTelemetry.current != null) ? this.prevTelemetry.current : (data.prev_current != null ? Number(data.prev_current) : null);
@@ -1029,7 +1143,7 @@ const Dashboard = {
     this.updateDeltaBadge('delta-temperature', currT, prevT);
 
     // Save current readings as previous for the next real-time cycle
-    if (currV !== null || currC !== null || currT !== null) {
+    if (isLive && (currV !== null || currC !== null || currT !== null)) {
       this.prevTelemetry = {
         voltage: currV,
         current: currC,
@@ -1041,7 +1155,7 @@ const Dashboard = {
     const statusDot = document.getElementById('status-pulse-dot');
     const statusText = document.getElementById('status-text');
 
-    if (this.hasDevice) {
+    if (this.hasDevice && isLive) {
       if (statusDot) statusDot.className = 'pulse-dot';
       if (statusText) statusText.textContent = 'Connected';
     } else {
@@ -1050,12 +1164,12 @@ const Dashboard = {
     }
 
     // Update Donuts with real ratios
-    const powerPct = Math.min(100, Math.round((powerNum / 6.0) * 100)); // out of 6kW max breaker
-    const energyPct = Math.min(100, Math.round((energyNum / 25.0) * 100));
+    const powerPct = isLive ? Math.min(100, Math.round((powerNum / 6.0) * 100)) : 0;
+    const energyPct = isLive ? Math.min(100, Math.round((energyNum / 25.0) * 100)) : 0;
     this.renderDonuts(powerPct, energyPct);
 
-    // Push live data to waveform
-    this.pushWaveformPoint(data);
+    // Push live data to waveform (streams 0 when telemetry stopped)
+    this.pushWaveformPoint(data, isLive);
   },
 
   updateDeltaBadge(elementId, curr, prev) {
@@ -1204,11 +1318,13 @@ const Dashboard = {
 
       // Bangladesh Standard Time (Asia/Dhaka) formatting
       let timeDisplay = '--:--:--';
-      const rawTime = log.recorded_at || log.created_at || log.bucket_time;
-      if (rawTime) {
-        timeDisplay = formatBdTime(rawTime, 'full');
-      } else if (log.formatted_time) {
-        timeDisplay = log.formatted_time;
+      if (log.formatted_time && /[ap]m$/i.test(String(log.formatted_time).trim())) {
+        timeDisplay = String(log.formatted_time).trim();
+      } else {
+        const rawTime = log.recorded_at || log.created_at || log.bucket_time || log.timestamp;
+        if (rawTime) {
+          timeDisplay = formatBdTime(rawTime, 'full');
+        }
       }
 
       const statusType = log.status_type || (logPower > 3.0 ? 'danger' : (logPower > 1.8 ? 'warning' : 'success'));
