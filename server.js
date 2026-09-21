@@ -395,6 +395,7 @@ const MIME_TYPES = {
   '.json': 'application/json; charset=UTF-8',
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
   '.svg': 'image/svg+xml',
   '.ico': 'image/x-icon'
 };
@@ -841,7 +842,9 @@ const server = http.createServer((req, res) => {
     '/analytics': '/frontend/analytics.html',
     '/forgot-password': '/frontend/forgot-password.html',
     '/reset-password': '/frontend/reset-password.html',
-    '/verify-email': '/frontend/verify-email.html'
+    '/verify-email': '/frontend/verify-email.html',
+    '/favicon.ico': '/assets/images/favicon.ico',
+    '/favicon.svg': '/assets/images/favicon.svg'
   };
 
   let filePath;
@@ -853,14 +856,16 @@ const server = http.createServer((req, res) => {
     filePath = path.join(BASE_DIR, safePath);
   }
 
-  // Security check: Only allow static serving from frontend/ and assets/
+  // Security check: Only allow static serving from frontend/ and assets/, plus root favicon
   const resolvedPath = path.resolve(filePath);
   const allowedRoots = [
     path.resolve(BASE_DIR, 'frontend'),
     path.resolve(BASE_DIR, 'assets')
   ];
 
-  const isAllowed = allowedRoots.some(root => resolvedPath.startsWith(root));
+  const isAllowed = allowedRoots.some(root => resolvedPath.startsWith(root)) ||
+    resolvedPath === path.resolve(BASE_DIR, 'favicon.ico') ||
+    resolvedPath === path.resolve(BASE_DIR, 'favicon.svg');
 
   // Explicitly deny sensitive files and internal directories
   const deniedPatterns = [

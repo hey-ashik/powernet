@@ -1081,6 +1081,25 @@ body {
   color: var(--color-foreground-subtle);
 }
 
+.footer-copyright-link,
+.footer-copyright-link:link,
+.footer-copyright-link:visited,
+.footer-copyright-link:hover,
+.footer-copyright-link:focus,
+.footer-copyright-link:active,
+.footer-bottom-bar a {
+  color: var(--color-foreground-subtle, #64748B) !important;
+  text-decoration: none !important;
+  cursor: pointer;
+  display: inline-block;
+}
+
+.footer-copyright-link:hover {
+  color: var(--color-foreground-subtle, #64748B) !important;
+  text-decoration: none !important;
+  opacity: 0.85;
+}
+
 /* ==========================================================
  * CTA BANNER SECTION (After FAQs — Matches User Images)
  * ========================================================== */
