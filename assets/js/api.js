@@ -361,8 +361,9 @@ const API = {
             <span>&bull;</span>
             <span class="widget-sub-id">${this.escapeHtml(dev.device_id)}</span>
           </div>
-          <button class="widget-btn connected" id="btn-sidebar-connect" title="Click to Disconnect">
-            Disconnect
+          <button class="widget-btn connected" id="btn-sidebar-connect" title="Click to Disconnect" data-tooltip="Disconnect Device">
+            <i class="fa-regular fa-circle-check"></i>
+            <span class="widget-btn-text">Disconnect</span>
           </button>
         </div>
       `;
@@ -386,8 +387,9 @@ const API = {
           </div>
           <div class="widget-title">Device</div>
           <div class="widget-sub">No device connected</div>
-          <button class="widget-btn" id="btn-open-connect">
-            Connect Device
+          <button class="widget-btn" id="btn-open-connect" title="Connect Device" data-tooltip="Connect Device">
+            <i class="fa-regular fa-circle-check"></i>
+            <span class="widget-btn-text">Connect Device</span>
           </button>
         </div>
       `;

@@ -212,6 +212,10 @@ button, input, select, textarea {
 .app-container.sidebar-collapsed .sidebar-widget .widget-sub,
 .app-container.sidebar-collapsed .sidebar-widget .btn-label-connected,
 .app-container.sidebar-collapsed .sidebar-widget .btn-label-disconnect,
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn-text,
+.app-container.sidebar-collapsed .sidebar-widget .widget-skeleton-title,
+.app-container.sidebar-collapsed .sidebar-widget .widget-skeleton-sub,
+.app-container.sidebar-collapsed .sidebar-widget .widget-skeleton-btn,
 .app-container.sidebar-collapsed .sidebar-divider {
   display: none !important;
 }
@@ -272,21 +276,46 @@ button, input, select, textarea {
   border: none;
 }
 
-.app-container.sidebar-collapsed .sidebar-widget .widget-btn {
-  padding: 10px;
-  font-size: 0;
-  border-radius: 12px;
-  justify-content: center;
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn,
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn.connected {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: #0F172A !important;
+  padding: 6px !important;
+  width: 36px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  border-radius: 10px !important;
+  margin: 4px auto 0 auto !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn:hover,
+.app-container.sidebar-collapsed .sidebar-widget .widget-btn.connected:hover {
+  background: #F1F5F9 !important;
+  color: var(--color-primary, #1A5AF0) !important;
+  transform: scale(1.08);
 }
 
 .app-container.sidebar-collapsed .sidebar-widget .widget-btn i {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px !important;
   margin: 0 !important;
-  font-size: 14px;
+  line-height: 1;
 }
 
 /* Hover tooltips when sidebar is collapsed */
 @media (min-width: 769px) {
-  .app-container.sidebar-collapsed .nav-link[data-tooltip]:hover::after {
+  .app-container.sidebar-collapsed .nav-link[data-tooltip]:hover::after,
+  .app-container.sidebar-collapsed .sidebar-widget .widget-btn[data-tooltip]:hover::after {
     content: attr(data-tooltip);
     position: absolute;
     left: calc(100% + 12px);
@@ -467,6 +496,7 @@ button, input, select, textarea {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   width: 100%;
   padding: 10px 18px;
   background-color: #0F172A;
