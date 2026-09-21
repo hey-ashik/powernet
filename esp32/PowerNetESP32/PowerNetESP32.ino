@@ -40,8 +40,8 @@ const int   MQTT_PORT     = 1883;
 // Device Identification
 const char* DEVICE_ID     = "pnw101";
 
-// MQTT Telemetry Topic
-const char* MQTT_TOPIC    = "powernet/device/pnw101/telemetry";
+// MQTT Telemetry Topic (built from DEVICE_ID automatically)
+String MQTT_TOPIC = String("powernet/device/") + DEVICE_ID + "/telemetry";
 
 // Primary Hostinger Cloud API Endpoint
 const char* HTTP_API_URL  = "https://powernet.ashiik.com/api/telemetry/push.php";
@@ -279,7 +279,7 @@ void publishTelemetry() {
 
   // 1. Publish to HiveMQ MQTT Broker
   if (mqttClient.connected()) {
-    published = mqttClient.publish(MQTT_TOPIC, jsonBuffer);
+    published = mqttClient.publish(MQTT_TOPIC.c_str(), jsonBuffer);
     if (published) {
       Serial.print("[MQTT PUBLISH SUCCESS] -> ");
       Serial.println(jsonBuffer);
