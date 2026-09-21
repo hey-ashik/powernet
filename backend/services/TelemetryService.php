@@ -27,6 +27,9 @@ class TelemetryService
         }
 
         $deviceId = trim((string)$payload['device_id']);
+        if (!preg_match('/^[a-zA-Z0-9_-]{3,32}$/', $deviceId)) {
+            throw new Exception('Invalid device_id format.');
+        }
 
         $voltage = isset($payload['voltage']) ? (float)$payload['voltage'] : null;
         $current = isset($payload['current']) ? (float)$payload['current'] : null;
@@ -381,8 +384,11 @@ class TelemetryService
     {
         $db = Connection::get();
         if ($deviceId !== null) {
-            $stmt = $db->prepare("DELETE FROM telemetry WHERE device_id = :device_id");
-            return $stmt->execute(['device_id' => $deviceId]);
+            $stmt = $db->prepare("DELETE t FROM telemetry t JOIN devices d ON t.device_id = d.device_id WHERE t.device_id = :device_id AND d.user_id = :user_id");
+            return $stmt->execute([
+                'device_id' => $deviceId,
+                'user_id'   => $userId
+            ]);
         }
         $stmt = $db->prepare("DELETE t FROM telemetry t JOIN devices d ON t.device_id = d.device_id WHERE d.user_id = :user_id");
         return $stmt->execute(['user_id' => $userId]);

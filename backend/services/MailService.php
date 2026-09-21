@@ -160,11 +160,12 @@ class MailService
         $isSsl = ($port === 465);
         $protocol = $isSsl ? "ssl" : "tcp";
 
+        $verifyPeer = filter_var(Env::get('SMTP_VERIFY_PEER', 'true'), FILTER_VALIDATE_BOOLEAN);
         $context = stream_context_create([
             'ssl' => [
-                'verify_peer'       => false,
-                'verify_peer_name'  => false,
-                'allow_self_signed' => true,
+                'verify_peer'       => $verifyPeer,
+                'verify_peer_name'  => $verifyPeer,
+                'allow_self_signed' => !$verifyPeer,
                 'SNI_enabled'       => true,
                 'peer_name'         => $host
             ]
@@ -332,7 +333,11 @@ class MailService
     {
         $logDir = dirname(__DIR__, 2) . '/logs';
         if (!is_dir($logDir)) {
-            @mkdir($logDir, 0777, true);
+            @mkdir($logDir, 0750, true);
+        }
+        $htaccess = "{$logDir}/.htaccess";
+        if (!file_exists($htaccess)) {
+            @file_put_contents($htaccess, "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nOrder allow,deny\nDeny from all\n</IfModule>\n");
         }
         @file_put_contents("{$logDir}/mail.log", "[" . date('Y-m-d H:i:s') . "] {$to} -> {$status}\n", FILE_APPEND);
     }
@@ -341,14 +346,20 @@ class MailService
     {
         $logDir = dirname(__DIR__, 2) . '/logs';
         if (!is_dir($logDir)) {
-            @mkdir($logDir, 0777, true);
+            @mkdir($logDir, 0750, true);
         }
+        $htaccess = "{$logDir}/.htaccess";
+        if (!file_exists($htaccess)) {
+            @file_put_contents($htaccess, "<IfModule mod_authz_core.c>\nRequire all denied\n</IfModule>\n<IfModule !mod_authz_core.c>\nOrder allow,deny\nDeny from all\n</IfModule>\n");
+        }
+        // Redact any raw verification or reset tokens to prevent credential exposure
+        $sanitizedText = preg_replace('/token=[a-zA-Z0-9_-]+/', 'token=[REDACTED]', $plainText);
         $entry = sprintf(
             "[%s] TO: %s | SUBJECT: %s\n%s\n%s\n",
             date('Y-m-d H:i:s'),
             $to,
             $subject,
-            $plainText,
+            $sanitizedText,
             str_repeat('-', 50)
         );
         @file_put_contents("{$logDir}/mail.log", $entry, FILE_APPEND);

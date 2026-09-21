@@ -11,6 +11,29 @@ const path = require('path');
 const tls = require('tls');
 const crypto = require('crypto');
 
+// Parse .env dynamically if present into process.env
+try {
+  const envPath = path.join(__dirname, '.env');
+  if (fs.existsSync(envPath)) {
+    const envLines = fs.readFileSync(envPath, 'utf8').split(/\r?\n/);
+    for (const line of envLines) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+      const eqIdx = trimmed.indexOf('=');
+      if (eqIdx !== -1) {
+        const key = trimmed.substring(0, eqIdx).trim();
+        let val = trimmed.substring(eqIdx + 1).trim();
+        if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+          val = val.slice(1, -1);
+        }
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+} catch {}
+
 const PORT = process.env.PORT || 3000;
 const BASE_DIR = __dirname;
 
@@ -30,13 +53,13 @@ const pendingResets = {};
  */
 function sendSmtpEmail({ to, subject, text, html }) {
   return new Promise((resolve, reject) => {
-    const host = 'smtp.hostinger.com';
-    const port = 465;
-    const user = 'noreply@powernet.ashiik.com';
-    const pass = 'Ashik@21032001';
-    const from = 'PowerNet <noreply@powernet.ashiik.com>';
+    const host = process.env.MAIL_HOST || 'smtp.hostinger.com';
+    const port = parseInt(process.env.MAIL_PORT || '465', 10);
+    const user = process.env.MAIL_USERNAME || 'noreply@powernet.ashiik.com';
+    const pass = process.env.MAIL_PASSWORD || '';
+    const from = process.env.MAIL_FROM ? `PowerNet <${process.env.MAIL_FROM}>` : `PowerNet <${user}>`;
 
-    const socket = tls.connect(port, host, { rejectUnauthorized: false }, () => {});
+    const socket = tls.connect(port, host, { servername: host }, () => {});
 
     socket.setTimeout(20000, () => {
       socket.destroy();
@@ -825,7 +848,52 @@ const server = http.createServer((req, res) => {
   if (routes[pathname]) {
     filePath = path.join(BASE_DIR, routes[pathname]);
   } else {
-    filePath = path.join(BASE_DIR, pathname);
+    // Sanitize pathname to prevent directory traversal
+    const safePath = path.normalize(pathname).replace(/^(\.\.[\/\\])+/, '');
+    filePath = path.join(BASE_DIR, safePath);
+  }
+
+  // Security check: Only allow static serving from frontend/ and assets/
+  const resolvedPath = path.resolve(filePath);
+  const allowedRoots = [
+    path.resolve(BASE_DIR, 'frontend'),
+    path.resolve(BASE_DIR, 'assets')
+  ];
+
+  const isAllowed = allowedRoots.some(root => resolvedPath.startsWith(root));
+
+  // Explicitly deny sensitive files and internal directories
+  const deniedPatterns = [
+    /^\.env/i,
+    /\/\.env/i,
+    /\.git/i,
+    /server\.js$/i,
+    /\.sql$/i,
+    /\.log$/i,
+    /\.md$/i,
+    /database/i,
+    /backend/i,
+    /esp32/i,
+    /logs/i,
+    /scratch/i,
+    /skills-lock\.json$/i
+  ];
+
+  const isDenied = deniedPatterns.some(pat => pat.test(resolvedPath) || pat.test(pathname));
+  if (isDenied) {
+    res.writeHead(403, { 'Content-Type': 'text/plain; charset=UTF-8' });
+    res.end('403 Forbidden');
+    return;
+  }
+
+  if (!isAllowed) {
+    if (!path.extname(pathname) && !pathname.startsWith('/.')) {
+      filePath = path.join(BASE_DIR, 'frontend', 'dashboard.html');
+    } else {
+      res.writeHead(404, { 'Content-Type': 'text/plain; charset=UTF-8' });
+      res.end('404 Not Found');
+      return;
+    }
   }
 
   // Check if file exists
@@ -834,7 +902,7 @@ const server = http.createServer((req, res) => {
       if (!path.extname(pathname)) {
         filePath = path.join(BASE_DIR, 'frontend', 'dashboard.html');
       } else {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.writeHead(404, { 'Content-Type': 'text/plain; charset=UTF-8' });
         res.end('404 Not Found');
         return;
       }
@@ -845,10 +913,15 @@ const server = http.createServer((req, res) => {
 
     fs.readFile(filePath, (readErr, content) => {
       if (readErr) {
-        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.writeHead(500, { 'Content-Type': 'text/plain; charset=UTF-8' });
         res.end('500 Server Error');
         return;
       }
+
+      // Add security headers to all static file responses
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+      res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
       res.writeHead(200, { 'Content-Type': contentType });
       res.end(content);

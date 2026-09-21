@@ -17,13 +17,35 @@ class Response
         header('X-Content-Type-Options: nosniff');
         header('X-Frame-Options: DENY');
         header('X-XSS-Protection: 1; mode=block');
+        header('Referrer-Policy: strict-origin-when-cross-origin');
+        header('Permissions-Policy: camera=(), microphone=(), geolocation=()');
 
-        // Allow CORS if needed
-        $origin = $_SERVER['HTTP_ORIGIN'] ?? '*';
-        header("Access-Control-Allow-Origin: {$origin}");
-        header('Access-Control-Allow-Credentials: true');
+        // Controlled CORS: Only allow trusted origins with credentials
+        $rawOrigin = $_SERVER['HTTP_ORIGIN'] ?? '';
+        $allowedOrigins = [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'https://powernet.ashiik.com',
+            'https://powernet.ashik.com'
+        ];
+
+        if (class_exists('PowerNet\Config\Env')) {
+            $appUrl = \PowerNet\Config\Env::get('APP_URL');
+            if ($appUrl && !in_array($appUrl, $allowedOrigins, true)) {
+                $allowedOrigins[] = rtrim($appUrl, '/');
+            }
+        }
+
+        if (!empty($rawOrigin)) {
+            $normalizedOrigin = rtrim($rawOrigin, '/');
+            if (in_array($normalizedOrigin, $allowedOrigins, true)) {
+                header("Access-Control-Allow-Origin: {$rawOrigin}");
+                header('Access-Control-Allow-Credentials: true');
+            }
+        }
+
         header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+        header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With, X-Device-Secret');
 
         if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
             http_response_code(204);
@@ -48,6 +70,15 @@ class Response
     public static function error(string $message = 'An error occurred', int $statusCode = 400, ?array $errors = null): void
     {
         http_response_code($statusCode);
+
+        // Sanitize 500 internal errors in production to prevent leaking database/server details
+        if ($statusCode >= 500) {
+            error_log("PowerNet Internal Error: {$message}");
+            if (class_exists('PowerNet\Config\Env') && \PowerNet\Config\Env::get('APP_ENV') === 'production') {
+                $message = 'An internal server error occurred. Please try again later.';
+            }
+        }
+
         $payload = [
             'success' => false,
             'message' => $message

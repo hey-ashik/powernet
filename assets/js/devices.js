@@ -164,7 +164,10 @@ function renderDevicesView(dev) {
   if (dev) {
     if (connectCard) connectCard.style.display = 'none';
     if (container) {
-        const cleanName = (dev.device_name && dev.device_name.trim() && !dev.device_name.startsWith('Main Panel') && dev.device_name !== 'Hardware Device') ? dev.device_name.trim() : 'Device';
+        const rawName = (dev.device_name && dev.device_name.trim() && !dev.device_name.startsWith('Main Panel') && dev.device_name !== 'Hardware Device') ? dev.device_name.trim() : 'Device';
+        const cleanName = API.escapeHtml(rawName);
+        const safeDevId = API.escapeHtml(dev.device_id || 'pnw101');
+        const encodedDevId = encodeURIComponent(dev.device_id || 'pnw101');
         container.innerHTML = `
         <div class="card active-device-card" style="margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; border-radius: 20px; padding: 22px 26px; background: #FFFFFF; border: 1px solid #E2E8F0; box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.05); flex-wrap: wrap; gap: 16px;">
           <div style="display: flex; align-items: center; gap: 18px;">
@@ -179,17 +182,17 @@ function renderDevicesView(dev) {
                 </span>
               </div>
               <p style="font-size: 13px; color: #64748B; margin-top: 6px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-weight: 500;">
-                <span>ID: <strong style="color: #0F172A; font-family: var(--font-mono, monospace); font-weight: 700;">${dev.device_id || 'pnw101'}</strong></span>
+                <span>ID: <strong style="color: #0F172A; font-family: var(--font-mono, monospace); font-weight: 700;">${safeDevId}</strong></span>
                 <span style="color: #CBD5E1;">|</span>
-                <span style="color: #0F172A; font-weight: 700;">${dev.status_display || (dev.computed_status === 'online' ? 'Online' : 'Offline')}</span>
+                <span style="color: #0F172A; font-weight: 700;">${API.escapeHtml(dev.status_display || (dev.computed_status === 'online' ? 'Online' : 'Offline'))}</span>
                 <span style="color: #CBD5E1;">|</span>
-                <span>${dev.last_seen_relative || 'Just connected'}</span>
+                <span>${API.escapeHtml(dev.last_seen_relative || 'Just connected')}</span>
               </p>
             </div>
           </div>
           <div class="active-device-actions" style="display: flex; align-items: center; gap: 12px;">
             <a href="/dashboard" class="btn-device-analytics" style="background: #0F172A; color: #FFFFFF; border: 1px solid #0F172A; border-radius: 9999px; padding: 8px 22px; font-size: 13.5px; font-weight: 700; text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 4px 12px rgba(15, 23, 42, 0.16);">Analytics</a>
-            <button onclick="removeDevice('${dev.device_id}')" class="btn-device-disconnect" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #0F172A; border-radius: 9999px; padding: 8px 20px; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);">Disconnect</button>
+            <button onclick="removeDevice(decodeURIComponent('${encodedDevId}'))" class="btn-device-disconnect" style="background: #FFFFFF; border: 1px solid #E2E8F0; color: #0F172A; border-radius: 9999px; padding: 8px 20px; font-size: 13.5px; font-weight: 700; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);">Disconnect</button>
           </div>
         </div>
       `;

@@ -47,6 +47,16 @@ const API = {
     }
   },
 
+  escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  },
+
   requireAuth() {
     if (!this.isLoggedIn()) {
       window.location.replace('/login');
@@ -345,11 +355,11 @@ const API = {
               <line x1="12" y1="22.08" x2="12" y2="12"></line>
             </svg>
           </div>
-          <div class="widget-title">${dev.device_name || 'Device'}</div>
+          <div class="widget-title">${this.escapeHtml(dev.device_name || 'Device')}</div>
           <div class="widget-sub">
             <span class="widget-sub-badge">Connected</span>
             <span>&bull;</span>
-            <span class="widget-sub-id">${dev.device_id}</span>
+            <span class="widget-sub-id">${this.escapeHtml(dev.device_id)}</span>
           </div>
           <button class="widget-btn connected" id="btn-sidebar-connect" title="Click to Disconnect">
             Disconnect

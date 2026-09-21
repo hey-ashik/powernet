@@ -53,18 +53,36 @@ class Auth
         $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
         if (str_starts_with($authHeader, 'Bearer ')) {
             $token = trim(substr($authHeader, 7));
-            // Token format: base64_encode(user_id:hmac)
             $decoded = base64_decode($token, true);
             if ($decoded && str_contains($decoded, ':')) {
-                [$userId, $hash] = explode(':', $decoded, 2);
-                $secret = Env::get('APP_SECRET', 'powernet_secret_key');
-                if (hash_equals(hash_hmac('sha256', (string)$userId, $secret), $hash)) {
-                    $db = Connection::get();
-                    $stmt = $db->prepare("SELECT id, name, email, email_verified, created_at FROM users WHERE id = :id LIMIT 1");
-                    $stmt->execute(['id' => (int)$userId]);
-                    $user = $stmt->fetch();
-                    if ($user) {
-                        return $user;
+                $parts = explode(':', $decoded);
+                $secret = (string)Env::get('APP_SECRET', 'powernet_secret_key');
+
+                if (count($parts) === 3) {
+                    [$userId, $timestamp, $hash] = $parts;
+                    $tokenTime = (int)$timestamp;
+                    $maxAge = 7 * 86400; // 7 days expiration
+
+                    if (time() - $tokenTime <= $maxAge && hash_equals(hash_hmac('sha256', "{$userId}:{$timestamp}", $secret), $hash)) {
+                        $db = Connection::get();
+                        $stmt = $db->prepare("SELECT id, name, email, email_verified, created_at FROM users WHERE id = :id LIMIT 1");
+                        $stmt->execute(['id' => (int)$userId]);
+                        $user = $stmt->fetch();
+                        if ($user) {
+                            return $user;
+                        }
+                    }
+                } elseif (count($parts) === 2) {
+                    // Legacy token fallback
+                    [$userId, $hash] = $parts;
+                    if (hash_equals(hash_hmac('sha256', (string)$userId, $secret), $hash)) {
+                        $db = Connection::get();
+                        $stmt = $db->prepare("SELECT id, name, email, email_verified, created_at FROM users WHERE id = :id LIMIT 1");
+                        $stmt->execute(['id' => (int)$userId]);
+                        $user = $stmt->fetch();
+                        if ($user) {
+                            return $user;
+                        }
                     }
                 }
             }
@@ -96,8 +114,9 @@ class Auth
 
     public static function generateAuthToken(int $userId): string
     {
-        $secret = Env::get('APP_SECRET', 'powernet_secret_key');
-        $hash = hash_hmac('sha256', (string)$userId, $secret);
-        return base64_encode("{$userId}:{$hash}");
+        $secret = (string)Env::get('APP_SECRET', 'powernet_secret_key');
+        $timestamp = time();
+        $hash = hash_hmac('sha256', "{$userId}:{$timestamp}", $secret);
+        return base64_encode("{$userId}:{$timestamp}:{$hash}");
     }
 }

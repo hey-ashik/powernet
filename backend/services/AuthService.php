@@ -51,53 +51,34 @@ class AuthService
         $passwordHash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
 
         if ($existing) {
-            // If the account was pre-seeded (id 1) or is unverified, update password & resend verification
-            if (!$existing['email_verified'] || (int)$existing['id'] === 1) {
-                $db->beginTransaction();
-                try {
-                    $upd = $db->prepare("UPDATE users SET name = :name, password_hash = :password_hash, updated_at = NOW() WHERE id = :id");
-                    $upd->execute([
-                        'name'          => $name,
-                        'password_hash' => $passwordHash,
-                        'id'            => $existing['id']
-                    ]);
-                    $userId = (int)$existing['id'];
+            if (!$existing['email_verified']) {
+                // Account exists but unverified: do not overwrite password.
+                // Resend verification email safely to the existing account.
+                $token = bin2hex(random_bytes(32));
+                $tokenHash = hash('sha256', $token);
+                $expiresAt = date('Y-m-d H:i:s', time() + 86400);
 
-                    $token = bin2hex(random_bytes(32));
-                    $tokenHash = hash('sha256', $token);
-                    $expiresAt = date('Y-m-d H:i:s', time() + 86400);
+                $tokenStmt = $db->prepare("
+                    INSERT INTO email_verifications (user_id, token_hash, expires_at, created_at)
+                    VALUES (:user_id, :token_hash, :expires_at, NOW())
+                ");
+                $tokenStmt->execute([
+                    'user_id'    => (int)$existing['id'],
+                    'token_hash' => $tokenHash,
+                    'expires_at' => $expiresAt
+                ]);
 
-                    $tokenStmt = $db->prepare("
-                        INSERT INTO email_verifications (user_id, token_hash, expires_at, created_at)
-                        VALUES (:user_id, :token_hash, :expires_at, NOW())
-                    ");
-                    $tokenStmt->execute([
-                        'user_id'    => $userId,
-                        'token_hash' => $tokenHash,
-                        'expires_at' => $expiresAt
-                    ]);
-
-                    $db->commit();
-
-                    MailService::sendVerificationEmail($email, $name, $token);
-                    $appUrl = rtrim((string)Env::get('APP_URL', 'https://powernet.ashiik.com'), '/');
-                    $verificationUrl = "{$appUrl}/verify-email?token=" . urlencode($token);
-
-                    return [
-                        'user_id'          => $userId,
-                        'name'             => $name,
-                        'email'            => $email,
-                        'email_verified'   => (bool)$existing['email_verified'],
-                        'verification_url' => $verificationUrl,
-                        'message'          => 'Account updated! Verification email dispatched to your inbox.'
-                    ];
-                } catch (Exception $e) {
-                    $db->rollBack();
-                    throw $e;
-                }
-            } else {
-                throw new Exception('An account with this email already exists. Please log in or use Forgot Password.');
+                MailService::sendVerificationEmail($email, $name, $token);
+                return [
+                    'user_id'        => (int)$existing['id'],
+                    'name'           => $name,
+                    'email'          => $email,
+                    'email_verified' => false,
+                    'message'        => 'This email is already registered but unverified. A new verification link has been sent to your inbox.'
+                ];
             }
+
+            throw new Exception('An account with this email already exists. Please log in or use Forgot Password.');
         }
 
         $db->beginTransaction();
@@ -177,8 +158,11 @@ class AuthService
             throw new Exception('Please verify your email address before signing in. Check your inbox.');
         }
 
-        // Establish session
+        // Establish session and prevent session fixation
         Auth::startSession();
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            session_regenerate_id(true);
+        }
         $_SESSION['user_id'] = $user['id'];
         $_SESSION['user_name'] = $user['name'];
         $_SESSION['user_email'] = $user['email'];

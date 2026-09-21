@@ -1,11 +1,12 @@
-# ==========================================================
-# PowerNet Clean URL & Apache mod_rewrite Configuration
-# Enables URLs like: powernet.ashik.com/register
-# ==========================================================
+# Options: Disable directory index listings
+Options -Indexes
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
+
+    # Block direct HTTP access to internal directories
+    RewriteRule ^(database|backend/(config|services|middleware)|esp32|logs|scratch)/ - [F,L]
 
     # 1. API Execution with .php extension: /api/xxx.php -> backend/api/xxx.php
     RewriteRule ^api/(.+\.php)$ backend/api/$1 [L,QSA]
@@ -34,15 +35,24 @@
     RewriteRule ^(.*)$ frontend/dashboard.html [L]
 </IfModule>
 
-# Security Headers & MIME Types
+# Security Headers
 <IfModule mod_headers.c>
     Header set X-Content-Type-Options "nosniff"
     Header set X-Frame-Options "SAMEORIGIN"
     Header set X-XSS-Protection "1; mode=block"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
 </IfModule>
 
-# Deny access to sensitive files and directories
-<FilesMatch "^\.env|\.git|\.md$|composer\.(json|lock)$">
-    Order allow,deny
-    Deny from all
-</FilesMatch>
+# Deny access to sensitive files and configs (Apache 2.4 & 2.2 compatible)
+<IfModule mod_authz_core.c>
+    <FilesMatch "(^\.env|\.git|\.md$|composer\.(json|lock)$|schema\.sql$|server\.js$|\.log$|skills-lock\.json$)">
+        Require all denied
+    </FilesMatch>
+</IfModule>
+<IfModule !mod_authz_core.c>
+    <FilesMatch "(^\.env|\.git|\.md$|composer\.(json|lock)$|schema\.sql$|server\.js$|\.log$|skills-lock\.json$)">
+        Order allow,deny
+        Deny from all
+    </FilesMatch>
+</IfModule>

@@ -1336,8 +1336,8 @@ const Dashboard = {
             <div class="node-cell">
               <div class="node-avatar"><i class="fa-solid fa-bolt" style="font-size:14px;"></i></div>
               <div>
-                <div class="node-name">${devName}</div>
-                <div class="node-loc" style="font-family: var(--font-mono, monospace); font-size: 11px; opacity: 0.85;">${devId}</div>
+                <div class="node-name">${API.escapeHtml(devName)}</div>
+                <div class="node-loc" style="font-family: var(--font-mono, monospace); font-size: 11px; opacity: 0.85;">${API.escapeHtml(devId)}</div>
               </div>
             </div>
           </td>

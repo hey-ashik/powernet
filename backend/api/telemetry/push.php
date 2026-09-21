@@ -27,6 +27,17 @@ if (empty($input)) {
     Response::error('Empty telemetry payload.', 400);
 }
 
+// Optional Device Secret verification for IoT hardware push
+if (class_exists('PowerNet\Config\Env')) {
+    $expectedSecret = (string)\PowerNet\Config\Env::get('DEVICE_PUSH_SECRET', '');
+    if (!empty($expectedSecret)) {
+        $providedSecret = $_SERVER['HTTP_X_DEVICE_SECRET'] ?? ($input['secret'] ?? '');
+        if (!hash_equals($expectedSecret, (string)$providedSecret)) {
+            Response::error('Unauthorized device push request.', 401);
+        }
+    }
+}
+
 try {
     $result = TelemetryService::ingestMqttTelemetry($input);
     Response::success($result, 'Telemetry stored successfully');
