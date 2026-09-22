@@ -140,6 +140,20 @@
     display: block !important;
   }
 
+  /* Devices Page - Mobile & iPad (<= 1024px): Hide Active Device and Connect Device headings */
+  .active-device-heading {
+    display: none !important;
+  }
+
+  .connect-device-heading {
+    display: none !important;
+  }
+
+  .connect-device-header-row {
+    align-items: center !important;
+    margin-bottom: 16px !important;
+  }
+
 
   .app-container {
     flex-direction: column;
