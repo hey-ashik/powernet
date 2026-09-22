@@ -233,7 +233,27 @@ let hardwareRegistry = [
   { device_id: 'pnw303', device_name: 'Solar Phase Inverter', user_id: 4 } // In use
 ];
 
+const DEVICES_FILE = path.join(__dirname, 'scratch', 'local_devices.json');
 let localDevices = [];
+try {
+  if (fs.existsSync(DEVICES_FILE)) {
+    localDevices = JSON.parse(fs.readFileSync(DEVICES_FILE, 'utf8'));
+    if (Array.isArray(localDevices) && localDevices.length > 0) {
+      localDevices.forEach(d => {
+        const reg = hardwareRegistry.find(r => r.device_id.toLowerCase() === d.device_id.toLowerCase());
+        if (reg) reg.user_id = 1;
+      });
+    }
+  }
+} catch {}
+
+function saveLocalDevices() {
+  try {
+    const dir = path.dirname(DEVICES_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(DEVICES_FILE, JSON.stringify(localDevices, null, 2), 'utf8');
+  } catch {}
+}
 
 // Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
 const localTelemetry = (() => {
@@ -795,6 +815,7 @@ const server = http.createServer((req, res) => {
         };
 
         localDevices = [connectedDev];
+        saveLocalDevices();
 
         // Update telemetry data so stream is tied to the connected device
         if (localTelemetry && localTelemetry.length > 0) {
@@ -815,6 +836,7 @@ const server = http.createServer((req, res) => {
       if (apiRoute === '/api/devices/remove') {
         const devId = (input.device_id || '').trim();
         localDevices = localDevices.filter(d => d.device_id.toLowerCase() !== devId.toLowerCase());
+        saveLocalDevices();
         const reg = hardwareRegistry.find(d => d.device_id.toLowerCase() === devId.toLowerCase());
         if (reg) {
           reg.user_id = null; // Release claim so it can be reconnected

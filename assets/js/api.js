@@ -197,19 +197,18 @@ const API = {
     }
 
     if (endpoint.startsWith('/devices/list')) {
+      const activeDev = this.getConnectedDevice();
       return {
         success: true,
-        data: [
-          {
-            id: 1,
-            device_id: 'pnw101',
-            device_name: 'Device',
-            computed_status: 'offline',
-            status_display: 'Offline',
-            last_seen_relative: 'Not yet connected',
-            seconds_since_seen: 999999
-          }
-        ]
+        data: activeDev ? [activeDev] : []
+      };
+    }
+
+    if (endpoint.startsWith('/devices/remove')) {
+      this.setConnectedDevice(null);
+      return {
+        success: true,
+        message: 'Device disconnected successfully'
       };
     }
 
@@ -230,17 +229,20 @@ const API = {
         throw new Error('Enter Correct Device ID');
       }
 
+      const connectedDev = {
+        id: 1,
+        device_id: devId,
+        device_name: devName,
+        computed_status: 'online',
+        status_display: 'Online',
+        last_seen_relative: 'Just connected'
+      };
+      this.setConnectedDevice(connectedDev);
+
       return {
         success: true,
         message: 'Device connected successfully',
-        data: {
-          id: 1,
-          device_id: devId,
-          device_name: devName,
-          computed_status: 'online',
-          status_display: 'Online',
-          last_seen_relative: 'Just connected'
-        }
+        data: connectedDev
       };
     }
 

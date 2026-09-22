@@ -40,6 +40,35 @@ function formatBdTime(dateInput, mode = 'short') {
   }
 }
 
+function formatBdLogDate(dateInput) {
+  if (!dateInput) return '';
+  let input = dateInput;
+  if (typeof input === 'string') {
+    if (input.includes(' ') && !input.includes('T') && !input.includes('+') && !input.endsWith('Z')) {
+      input = input.replace(' ', 'T') + 'Z';
+    }
+  }
+  const d = (input instanceof Date) ? input : new Date(input);
+  if (isNaN(d.getTime())) return '';
+
+  try {
+    const parts = new Intl.DateTimeFormat('en-US', {
+      timeZone: BD_TZ,
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric'
+    }).formatToParts(d);
+    const day = parts.find(p => p.type === 'day')?.value || d.getDate();
+    let month = parts.find(p => p.type === 'month')?.value || 'Sept';
+    if (month.toLowerCase() === 'sep') month = 'Sept';
+    const year = parts.find(p => p.type === 'year')?.value || d.getFullYear();
+    return `${day}${month} ${year}`;
+  } catch {
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sept', 'Oct', 'Nov', 'Dec'];
+    return `${d.getDate()}${months[d.getMonth()]} ${d.getFullYear()}`;
+  }
+}
+
 function getBdCalendarDays(count = 7) {
   if (count !== 7) {
     return getBdMonthDays();
@@ -786,11 +815,16 @@ const Dashboard = {
   },
 
   showSkeletonLoading() {
-    // 1. Status
+    // 1. Status: only Connected or Disconnected
     const statusDot = document.getElementById('status-pulse-dot');
     const statusText = document.getElementById('status-text');
-    if (statusDot) statusDot.className = 'pulse-dot';
-    if (statusText) statusText.textContent = 'Syncing...';
+    if (this.hasDevice) {
+      if (statusDot) statusDot.className = 'pulse-dot';
+      if (statusText) statusText.textContent = 'Connected';
+    } else {
+      if (statusDot) statusDot.className = 'pulse-dot offline';
+      if (statusText) statusText.textContent = 'Disconnected';
+    }
 
     // 2. Metrics shimmer helper
     const shimmer = (w = 64, h = 26) => `<span class="skeleton-shimmer" style="display:inline-block; width:${w}px; height:${h}px; vertical-align:middle; border-radius:6px;"></span>`;
@@ -1155,7 +1189,7 @@ const Dashboard = {
     const statusDot = document.getElementById('status-pulse-dot');
     const statusText = document.getElementById('status-text');
 
-    if (this.hasDevice && isLive) {
+    if (this.hasDevice) {
       if (statusDot) statusDot.className = 'pulse-dot';
       if (statusText) statusText.textContent = 'Connected';
     } else {
@@ -1317,15 +1351,14 @@ const Dashboard = {
       const devId = log.device_id || this.activeDeviceId || 'pnw101';
 
       // Bangladesh Standard Time (Asia/Dhaka) formatting
+      const rawTime = log.recorded_at || log.created_at || log.bucket_time || log.timestamp;
       let timeDisplay = '--:--:--';
       if (log.formatted_time && /[ap]m$/i.test(String(log.formatted_time).trim())) {
         timeDisplay = String(log.formatted_time).trim();
-      } else {
-        const rawTime = log.recorded_at || log.created_at || log.bucket_time || log.timestamp;
-        if (rawTime) {
-          timeDisplay = formatBdTime(rawTime, 'full');
-        }
+      } else if (rawTime) {
+        timeDisplay = formatBdTime(rawTime, 'full');
       }
+      const dateDisplay = formatBdLogDate(rawTime || new Date());
 
       const statusType = log.status_type || (logPower > 3.0 ? 'danger' : (logPower > 1.8 ? 'warning' : 'success'));
       const statusBadge = log.status_badge || (logPower > 3.0 ? 'High Load' : (logPower > 1.8 ? 'Moderate' : 'Normal'));
@@ -1342,7 +1375,10 @@ const Dashboard = {
             </div>
           </td>
           <td>
-            <span style="font-weight: 600; color: #0F172A;">${timeDisplay}</span>
+            <div style="display:inline-flex; align-items:baseline; gap:6px; white-space:nowrap;">
+              <span style="font-weight: 600; color: #0F172A;">${timeDisplay}</span>
+              ${dateDisplay ? `<span style="font-size: 11.5px; font-weight: 500; color: var(--text-muted, #64748B);">(${dateDisplay})</span>` : ''}
+            </div>
           </td>
           <td>${Number(log.voltage || 0).toFixed(1)} V / ${Number(log.current || 0).toFixed(2)} A</td>
           <td>
