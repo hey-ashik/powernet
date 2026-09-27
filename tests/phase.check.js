@@ -36,6 +36,9 @@ const get = async (p) => (await fetch(BASE + p)).text();
       assert(typeof day[`avg_${k}`] === 'number', `history.avg_${k}`);
     }
   }
+  // Every local JS/CSS link is versioned (?v=): Hostinger's CDN caches assets for 7 days, and a cached old api.js
+  // next to a new dashboard.js crashes the dashboard on its loading shimmer
+  for (const ref of dashboard.match(/"\/assets\/(js|css)\/[^"]+"/g)) assert(ref.includes('?v='), `dashboard asset not versioned: ${ref}`);
   // Manage Dashboard: box titles carry a phase tag, and the preferences API defaults / saves / validates / reads back
   for (const key of ['voltage', 'current', 'power']) {
     assert(dashboard.includes(`id="phase-tag-${key}"`), `dashboard missing phase-tag-${key}`);

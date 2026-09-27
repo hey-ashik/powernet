@@ -40,7 +40,8 @@ Deploy to Hostinger Business Hosting with Apache/LiteSpeed and MySQL.
 ### Step 1: Upload Files
 1. Log in to **Hostinger hPanel** &rarr; **Websites** &rarr; **File Manager** (or SFTP).
 2. Open the **`public_html/`** folder.
-3. Upload **`powernet.zip`** and click **Extract**, or upload the project files directly:
+3. **Changed any JS/CSS?** Bump the `?v=` tag first: replace `?v=20260927` with today's date in every `frontend/*.html`. Hostinger's CDN caches `/assets` for 7 days, and a cached old `api.js` next to a new `dashboard.js` leaves the dashboard stuck on its loading shimmer.
+4. Upload **`powernet.zip`** and click **Extract**, or upload the project files directly:
    ```text
    public_html/
    ├── .env                     # Production database & SMTP credentials (keep private)
@@ -56,7 +57,7 @@ Deploy to Hostinger Business Hosting with Apache/LiteSpeed and MySQL.
 1. In Hostinger hPanel, go to **Databases** &rarr; **phpMyAdmin** &rarr; select your database.
 2. Click the **Import** tab at the top.
 3. Choose the file **`database/schema.sql`** and click **Go**.
-4. Creates all necessary tables: `users`, `devices`, `telemetry`, `email_verifications`, `password_resets`, and `predictions`.
+4. Creates all necessary tables: `users`, `devices`, `telemetry`, `dashboard_preferences`, `email_verifications`, `password_resets`, and `predictions`, plus 10 demo V1-V3 / I1-I3 / P1-P3 readings for `pnw101` (added only once; safe to import again).
 
 ### Step 3: Configuration (`.env`)
 Configure your database and mail settings in your `.env` file:

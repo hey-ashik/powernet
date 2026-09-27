@@ -109,3 +109,32 @@ INSERT INTO `devices` (`id`, `user_id`, `device_id`, `device_name`, `status`, `c
 VALUES (1, NULL, 'pnw101', 'Main Panel (pnw101)', 'offline', NOW())
 ON DUPLICATE KEY UPDATE `status` = 'offline';
 
+-- Demo Telemetry (Device: pnw101) - 10 daily readings with V1-V3 / I1-I3 / P1-P3, newest = today
+-- Line values are the phase averages; P = V x I x 0.92 PF. Inserted only while pnw101 has no
+-- per-phase readings yet, so importing this file again never duplicates them.
+-- ==========================================================
+
+INSERT INTO `telemetry` (`device_id`, `voltage`, `voltage_1`, `voltage_2`, `voltage_3`,
+    `current`, `current_1`, `current_2`, `current_3`, `power`, `power_1`, `power_2`, `power_3`,
+    `energy`, `temperature`, `recorded_at`)
+SELECT 'pnw101',
+    ROUND((v1 + v2 + v3) / 3, 2), v1, v2, v3,
+    ROUND((i1 + i2 + i3) / 3, 2), i1, i2, i3,
+    ROUND((v1 * i1 + v2 * i2 + v3 * i3) * 0.92 / 3000, 3),
+    ROUND(v1 * i1 * 0.92 / 1000, 3), ROUND(v2 * i2 * 0.92 / 1000, 3), ROUND(v3 * i3 * 0.92 / 1000, 3),
+    energy, temp, UTC_TIMESTAMP() - INTERVAL days_ago DAY
+FROM (
+              SELECT 9 AS days_ago, 229.4 AS v1, 231.2 AS v2, 228.7 AS v3, 3.12 AS i1, 2.84 AS i2, 3.46 AS i3, 3.215 AS energy, 31.2 AS temp
+    UNION ALL SELECT 8, 230.1, 229.6, 231.8, 3.55, 3.02, 2.91,  6.480, 32.0
+    UNION ALL SELECT 7, 231.3, 230.4, 229.2, 2.76, 3.38, 3.10,  9.842, 31.6
+    UNION ALL SELECT 6, 228.9, 230.8, 230.3, 3.94, 3.21, 3.47, 13.517, 33.1
+    UNION ALL SELECT 5, 230.6, 231.5, 229.9, 4.12, 3.66, 3.85, 17.690, 34.4
+    UNION ALL SELECT 4, 229.8, 228.6, 230.7, 2.58, 2.93, 2.71, 20.476, 30.8
+    UNION ALL SELECT 3, 231.9, 230.2, 231.1, 3.27, 3.49, 3.05, 23.902, 32.5
+    UNION ALL SELECT 2, 230.4, 229.1, 230.9, 3.83, 3.14, 3.62, 27.681, 33.7
+    UNION ALL SELECT 1, 229.2, 230.7, 228.8, 3.01, 2.87, 3.33, 30.894, 31.9
+    UNION ALL SELECT 0, 230.8, 231.4, 230.1, 3.46, 3.72, 3.18, 34.512, 32.8
+) AS demo
+CROSS JOIN (SELECT COUNT(*) AS n FROM `telemetry` WHERE `device_id` = 'pnw101' AND `voltage_1` IS NOT NULL) AS seen
+WHERE seen.n = 0;
+

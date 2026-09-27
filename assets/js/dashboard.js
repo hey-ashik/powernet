@@ -1167,6 +1167,7 @@ const Dashboard = {
       }
     } catch (err) {
       console.warn('Could not fetch latest telemetry:', err);
+      this.updateMetricCards({}); // no reading: show 0 instead of leaving the loading shimmer
     }
   },
 
@@ -1183,6 +1184,7 @@ const Dashboard = {
       }
     } catch (err) {
       console.warn('Could not fetch logs:', err);
+      this.renderLogsTable([]);
     }
   },
 

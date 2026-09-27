@@ -6,6 +6,8 @@
 
 const API = {
   baseUrl: '/api',
+  // The "?v=..." this file was loaded with (set in the HTML); reused for scripts loaded later so a deploy never mixes cached old and new files
+  assetQuery: document.currentScript ? new URL(document.currentScript.src).search : '',
 
   getToken() {
     return localStorage.getItem('pnet_token') || '';
@@ -710,7 +712,7 @@ const API = {
             initDevicesPage();
           } else {
             const sc = document.createElement('script');
-            sc.src = '/assets/js/devices.js';
+            sc.src = '/assets/js/devices.js' + API.assetQuery;
             sc.onload = () => { if (typeof initDevicesPage === 'function') initDevicesPage(); };
             document.body.appendChild(sc);
           }
@@ -728,7 +730,7 @@ const API = {
           if (typeof Dashboard === 'undefined') {
             await new Promise((res) => {
               const sc = document.createElement('script');
-              sc.src = '/assets/js/dashboard.js';
+              sc.src = '/assets/js/dashboard.js' + API.assetQuery;
               sc.onload = res;
               sc.onerror = res;
               document.body.appendChild(sc);

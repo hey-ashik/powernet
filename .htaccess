@@ -6,7 +6,9 @@ Options -Indexes
     RewriteBase /
 
     # Block direct HTTP access to internal directories
-    RewriteRule ^(database|backend/(config|services|middleware)|esp32|logs|scratch)/ - [F,L]
+    RewriteRule ^(database|backend/(config|services|middleware|database|mqtt)|esp32|logs|scratch)/ - [F,L]
+    # CLI / diagnostic scripts: the MQTT worker + ESP32 simulator and the open ?to= mail tester must never run from a browser
+    RewriteRule ^backend/test_mail\.php$ - [F,L]
 
     # 1. API Execution with .php extension: /api/xxx.php -> backend/api/xxx.php
     RewriteRule ^api/(.+\.php)$ backend/api/$1 [L,QSA]
