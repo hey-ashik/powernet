@@ -125,7 +125,8 @@ ON DUPLICATE KEY UPDATE `status` = 'offline';
 -- Demo Telemetry (Device: pnw101) - Friday 25 Sep 2026 morning, 08:00-10:15 Bangladesh time (UTC+6),
 -- one reading every 15 minutes (10 readings). Stored in UTC like real ESP32 data (02:00-04:15 UTC).
 -- Units: V1-V3 in V, I1-I3 in A, P1-P3 in kW. Line values are the phase averages; P = V x I x 0.92 PF.
--- Inserted only if pnw101 has no readings in that window, so importing this file again never duplicates them.
+-- Inserted only if pnw101 has no per-phase readings in that window (the ESP32 sends none yet, so only this demo
+-- has them): importing this file again never duplicates them, and real readings from that morning never block them.
 -- ==========================================================
 
 INSERT INTO `telemetry` (`device_id`, `voltage`, `voltage_1`, `voltage_2`, `voltage_3`,
@@ -149,7 +150,7 @@ FROM (
     UNION ALL SELECT 120, 229.5, 228.9, 230.1, 3.34, 3.09, 3.52, 4.502, 31.3
     UNION ALL SELECT 135, 229.9, 229.2, 230.6, 3.06, 2.81, 3.25, 5.093, 31.5
 ) AS demo
-CROSS JOIN (SELECT COUNT(*) AS n FROM `telemetry` WHERE `device_id` = 'pnw101'
+CROSS JOIN (SELECT COUNT(*) AS n FROM `telemetry` WHERE `device_id` = 'pnw101' AND `voltage_1` IS NOT NULL
     AND `recorded_at` BETWEEN '2026-09-25 02:00:00' AND '2026-09-25 04:15:00') AS seen
 WHERE seen.n = 0;
 
