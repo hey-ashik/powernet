@@ -51,12 +51,12 @@ Options -Indexes
 
 # Deny access to sensitive files and configs (Apache 2.4 & 2.2 compatible)
 <IfModule mod_authz_core.c>
-    <FilesMatch "(^\.env|\.git|\.md$|composer\.(json|lock)$|schema\.sql$|server\.js$|\.log$|skills-lock\.json$)">
+    <FilesMatch "(^\.env|\.git|\.md$|composer\.(json|lock)$|schema\.sql$|server\.js$|\.log$|skills-lock\.json$|\.zip$)">
         Require all denied
     </FilesMatch>
 </IfModule>
 <IfModule !mod_authz_core.c>
-    <FilesMatch "(^\.env|\.git|\.md$|composer\.(json|lock)$|schema\.sql$|server\.js$|\.log$|skills-lock\.json$)">
+    <FilesMatch "(^\.env|\.git|\.md$|composer\.(json|lock)$|schema\.sql$|server\.js$|\.log$|skills-lock\.json$|\.zip$)">
         Order allow,deny
         Deny from all
     </FilesMatch>
