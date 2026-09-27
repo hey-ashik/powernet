@@ -247,6 +247,13 @@ try {
   }
 } catch {}
 
+// Dashboard box phase choices (mirrors the dashboard_preferences SQL table): 1-3 = phase, every box always shows one; V1/I1/P1 until changed
+const DASH_PREFS_FILE = process.env.DASH_PREFS_FILE || path.join(__dirname, 'scratch', 'local_dashboard_prefs.json');
+let localDashPrefs = { voltage_phase: 1, current_phase: 1, power_phase: 1 };
+try {
+  if (fs.existsSync(DASH_PREFS_FILE)) localDashPrefs = { ...localDashPrefs, ...JSON.parse(fs.readFileSync(DASH_PREFS_FILE, 'utf8')) };
+} catch {}
+
 function saveLocalDevices() {
   try {
     const dir = path.dirname(DEVICES_FILE);
@@ -592,6 +599,28 @@ const server = http.createServer((req, res) => {
           success: true,
           data: localUser
         }));
+        return;
+      }
+
+      if (apiRoute === '/api/dashboard/preferences') {
+        if (req.method === 'POST') {
+          const next = {};
+          for (const key of Object.keys(localDashPrefs)) {
+            const value = Number(input[key] ?? 1);
+            if (!Number.isInteger(value) || value < 1 || value > 3) {
+              res.statusCode = 400;
+              res.end(JSON.stringify({ success: false, message: `${key} must be 1, 2 or 3.` }));
+              return;
+            }
+            next[key] = value;
+          }
+          localDashPrefs = next;
+          try {
+            fs.mkdirSync(path.dirname(DASH_PREFS_FILE), { recursive: true });
+            fs.writeFileSync(DASH_PREFS_FILE, JSON.stringify(localDashPrefs, null, 2), 'utf8');
+          } catch {}
+        }
+        res.end(JSON.stringify({ success: true, data: localDashPrefs }));
         return;
       }
 

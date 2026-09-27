@@ -188,7 +188,7 @@
         <!-- Card 1: Voltage (Orders style in interface.png) -->
         <a href="/voltage" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase voltages">
           <div class="metric-header">
-            <span class="metric-title">Voltage</span>
+            <span class="metric-title">Voltage <span class="phase-tag" id="phase-tag-voltage"></span></span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="3" ry="3"></rect>
@@ -209,7 +209,7 @@
         <!-- Card 2: Current (Approved style in interface.png) -->
         <a href="/current" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase currents">
           <div class="metric-header">
-            <span class="metric-title">Current</span>
+            <span class="metric-title">Current <span class="phase-tag" id="phase-tag-current"></span></span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
@@ -230,7 +230,7 @@
         <!-- Card 3: Active Power with Amber Donut Chart -->
         <a href="/power" class="donut-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase power">
           <div class="donut-card-top">
-            <span class="metric-title">Active Power</span>
+            <span class="metric-title">Active Power <span class="phase-tag" id="phase-tag-power"></span></span>
           </div>
           <div class="donut-content-row">
             <div class="donut-stats">
@@ -476,10 +476,10 @@
             <span class="detail-val" style="color: var(--success); font-weight: 600;">Account Locked</span>
           </div>
         </div>
-        <a href="/devices" class="drawer-card-action">
-          <span>Manage in Devices</span>
+        <button type="button" class="drawer-card-action" id="btn-manage-dashboard">
+          <span>Manage Dashboard</span>
           <i class="fa-solid fa-arrow-right"></i>
-        </a>
+        </button>
       </div>
 
       <!-- Sign Out Action (Directly to Home Page) -->

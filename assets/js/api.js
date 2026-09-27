@@ -158,6 +158,11 @@ const API = {
       throw originalError || new Error('Authentication request failed. Please check your credentials or connection.');
     }
 
+    // Dashboard preferences must never "succeed" with empty data: that would silently reset the user's switches
+    if (endpoint.startsWith('/dashboard')) {
+      throw originalError || new Error('Could not reach the server. Dashboard settings were not saved.');
+    }
+
 
     if (endpoint.startsWith('/auth/me')) {
       const user = this.getUser();
@@ -292,6 +297,45 @@ const API = {
         localStorage.removeItem('pnet_cached_dev');
       } catch {}
     }
+  },
+
+  // ─── Dashboard box phase choices (Manage Dashboard drawer; SQL table dashboard_preferences) ───
+  // { voltage_phase, current_phase, power_phase }: 1-3 = phase that box shows; every box always shows one.
+  // Nothing saved yet (or an old "all off" 0) -> V1 / I1 / P1. Cached in localStorage for flicker-free first paint; the server copy is the source of truth.
+  cleanDashPrefs(raw) {
+    const out = {};
+    ['voltage_phase', 'current_phase', 'power_phase'].forEach(k => {
+      const n = Number(raw?.[k]);
+      out[k] = [1, 2, 3].includes(n) ? n : 1;
+    });
+    return out;
+  },
+
+  getDashPrefs() {
+    try {
+      return this.cleanDashPrefs(JSON.parse(localStorage.getItem('pnet_dash_prefs') || '{}'));
+    } catch {
+      return this.cleanDashPrefs({});
+    }
+  },
+
+  setDashPrefs(prefs) {
+    const clean = this.cleanDashPrefs(prefs);
+    try { localStorage.setItem('pnet_dash_prefs', JSON.stringify(clean)); } catch {}
+    return clean;
+  },
+
+  async loadDashPrefs() {
+    const res = await this.request('/dashboard/preferences.php');
+    return this.setDashPrefs(res && res.data);
+  },
+
+  async saveDashPrefs(prefs) {
+    const res = await this.request('/dashboard/preferences.php', {
+      method: 'POST',
+      body: JSON.stringify(this.cleanDashPrefs(prefs))
+    });
+    return this.setDashPrefs(res && res.data);
   },
 
   startTopLoader() {
@@ -598,6 +642,7 @@ const API = {
     const profBackdrop = document.getElementById('profile-drawer-backdrop');
     if (profDrawer) profDrawer.classList.remove('active');
     if (profBackdrop) profBackdrop.classList.remove('active');
+    document.getElementById('dashboard-drawer')?.classList.remove('active');
     document.body.style.overflow = '';
 
     // 3. Stop background dashboard polling if navigating away
@@ -888,10 +933,10 @@ document.addEventListener('DOMContentLoaded', () => {
                   <span class="detail-val" style="color: var(--success); font-weight: 600;">Account Locked</span>
                 </div>
               </div>
-              <a href="/devices" class="drawer-card-action">
-                <span>Manage in Devices</span>
+              <button type="button" class="drawer-card-action" id="btn-manage-dashboard">
+                <span>Manage Dashboard</span>
                 <i class="fa-solid fa-arrow-right"></i>
-              </a>
+              </button>
             </div>
 
             <div class="drawer-actions" style="margin-top: auto;">
@@ -982,6 +1027,125 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') closeDrawer();
+  });
+
+  // ─── 2b. Manage Dashboard drawer: pick the phase the Voltage / Current / Active Power boxes show ───
+  const PHASE_GROUPS = [
+    { key: 'voltage_phase', box: 'Voltage box', sym: 'V', noun: 'voltage' },
+    { key: 'current_phase', box: 'Current box', sym: 'I', noun: 'current' },
+    { key: 'power_phase', box: 'Active Power box', sym: 'P', noun: 'active power' }
+  ];
+
+  if (!document.getElementById('dashboard-drawer')) {
+    document.body.insertAdjacentHTML('beforeend', `
+      <aside class="right-drawer" id="dashboard-drawer" aria-hidden="true" aria-labelledby="dashboard-drawer-title">
+        <div class="drawer-header">
+          <h3 class="drawer-title" id="dashboard-drawer-title"><i class="fa-solid fa-sliders" style="color: var(--primary); margin-right: 8px;"></i> Manage Dashboard</h3>
+          <button class="drawer-close-btn" id="btn-close-dashboard-drawer" title="Close" aria-label="Close">&times;</button>
+        </div>
+        <div class="drawer-body">
+          <p class="dash-prefs-hint">Choose which phase each dashboard box shows. Each box always shows one phase: tap another phase to switch to it.</p>
+          ${PHASE_GROUPS.map(g => `
+            <div class="drawer-card" role="group" aria-labelledby="dash-group-${g.key}">
+              <div class="drawer-card-header">
+                <span class="drawer-section-title" id="dash-group-${g.key}">${g.box}</span>
+              </div>
+              ${[1, 2, 3].map(n => `
+                <label class="phase-switch-row">
+                  <span><strong>${g.sym}${n}</strong><span class="phase-switch-sub">Phase ${n} ${g.noun}</span></span>
+                  <input type="checkbox" role="switch" class="ios-switch" data-pref="${g.key}" data-phase="${n}">
+                </label>
+              `).join('')}
+            </div>
+          `).join('')}
+        </div>
+      </aside>
+    `);
+  }
+
+  const dashDrawer = document.getElementById('dashboard-drawer');
+  let dashSaving = false;
+
+  // Reflect saved choices: exactly one switch on per box
+  const syncDashSwitches = (prefs) => {
+    dashDrawer.querySelectorAll('.ios-switch').forEach(sw => {
+      sw.checked = prefs[sw.dataset.pref] === Number(sw.dataset.phase);
+    });
+  };
+
+  // Push choices into the live dashboard boxes and waveform (no-op on other pages)
+  const applyDashPrefs = (prefs) => {
+    if (typeof Dashboard !== 'undefined' && typeof Dashboard.applyPhasePrefs === 'function') {
+      Dashboard.applyPhasePrefs(prefs);
+    }
+  };
+
+  const openDashDrawer = () => {
+    if (drawer) drawer.classList.remove('active');
+    if (drawerBackdrop) drawerBackdrop.classList.add('active');
+    syncDashSwitches(API.getDashPrefs());
+    dashDrawer.classList.add('active');
+    dashDrawer.setAttribute('aria-hidden', 'false');
+    document.getElementById('btn-close-dashboard-drawer').focus();
+    // Refresh from the database in case another browser changed them
+    API.loadDashPrefs()
+      .then(prefs => { if (!dashSaving) { syncDashSwitches(prefs); applyDashPrefs(prefs); } })
+      .catch(() => {});
+  };
+
+  const closeDashDrawer = () => {
+    if (!dashDrawer.classList.contains('active')) return;
+    dashDrawer.classList.remove('active');
+    dashDrawer.setAttribute('aria-hidden', 'true');
+    if (drawerBackdrop) drawerBackdrop.classList.remove('active');
+  };
+
+  const btnManageDashboard = document.getElementById('btn-manage-dashboard');
+  if (btnManageDashboard) btnManageDashboard.addEventListener('click', openDashDrawer);
+  document.getElementById('btn-close-dashboard-drawer').addEventListener('click', closeDashDrawer);
+  if (drawerBackdrop) drawerBackdrop.addEventListener('click', closeDashDrawer);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeDashDrawer();
+  });
+
+  dashDrawer.addEventListener('click', async (e) => {
+    const sw = e.target.closest('.ios-switch');
+    if (!sw) return;
+    if (dashSaving) {
+      e.preventDefault();
+      return;
+    }
+
+    const group = PHASE_GROUPS.find(g => g.key === sw.dataset.pref);
+    const prev = API.getDashPrefs();
+
+    // Every box always shows one phase: switching another on moves the box to it,
+    // switching the active one off falls back to phase 1 (V1 / I1 / P1)
+    const phase = sw.checked ? Number(sw.dataset.phase) : 1;
+    if (!sw.checked) {
+      API.showToast(`You need to keep at least one phase on for the ${group.box}. ${group.sym}1 is on.`, 'error');
+    }
+    if (phase === prev[group.key]) {
+      e.preventDefault(); // turning off phase 1 itself: it simply stays on
+      return;
+    }
+
+    const next = { ...prev, [group.key]: phase };
+    dashSaving = true;
+    API.setDashPrefs(next);
+    syncDashSwitches(next);
+    applyDashPrefs(next);
+    try {
+      await API.saveDashPrefs(next);
+      if (sw.checked) API.showToast(`${group.box} now shows ${group.sym}${phase}.`, 'success');
+    } catch (err) {
+      API.setDashPrefs(prev);
+      syncDashSwitches(prev);
+      applyDashPrefs(prev);
+      API.showToast(err.message || 'Could not save dashboard settings', 'error');
+    } finally {
+      dashSaving = false;
+    }
   });
 
   // Settings in sidebar opens right drawer

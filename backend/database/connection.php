@@ -133,6 +133,38 @@ class Connection
         } catch (\Throwable $e) {
             // Table already exists, safe to ignore
         }
+
+        // 4. Ensure per-phase telemetry columns exist (V1-V3, I1-I3, P1-P3) so ingestion never fails on an old table
+        try {
+            $telCols = $db->query("SHOW COLUMNS FROM `telemetry`")->fetchAll(PDO::FETCH_COLUMN);
+            foreach (['voltage' => 'DECIMAL(6, 2)', 'current' => 'DECIMAL(6, 2)', 'power' => 'DECIMAL(8, 3)'] as $base => $type) {
+                $after = $base;
+                foreach ([1, 2, 3] as $n) {
+                    $col = "{$base}_{$n}";
+                    if (!in_array($col, $telCols)) {
+                        $db->exec("ALTER TABLE `telemetry` ADD COLUMN `{$col}` {$type} NULL AFTER `{$after}`");
+                    }
+                    $after = $col;
+                }
+            }
+        } catch (\Throwable $e) {
+            error_log('PowerNet telemetry phase column check failed: ' . $e->getMessage());
+        }
+
+        // 5. Ensure dashboard_preferences table exists (Manage Dashboard phase switches)
+        try {
+            $db->exec("
+                CREATE TABLE IF NOT EXISTS `dashboard_preferences` (
+                    `user_id` INT UNSIGNED NOT NULL PRIMARY KEY,
+                    `voltage_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    `current_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    `power_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+                    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+            ");
+        } catch (\Throwable $e) {
+            error_log('PowerNet dashboard_preferences table check failed: ' . $e->getMessage());
+        }
     }
 }
 

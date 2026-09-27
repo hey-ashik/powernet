@@ -1461,6 +1461,99 @@ button, input, select, textarea {
   border-color: #BFDBFE;
 }
 
+button.drawer-card-action {
+  width: 100%;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+/* Manage Dashboard drawer: iPhone-style phase switches */
+.dash-prefs-hint {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+
+.phase-switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 13.5px;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.drawer-card-header + .phase-switch-row {
+  border-top: none;
+  padding-top: 0;
+}
+
+.phase-switch-sub {
+  margin-left: 6px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.ios-switch {
+  appearance: none;
+  -webkit-appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 26px;
+  margin: 0;
+  border-radius: var(--radius-pill);
+  background: var(--text-light);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.ios-switch::before {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #FFFFFF;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.ios-switch:checked {
+  background: var(--success);
+}
+
+.ios-switch:checked::before {
+  transform: translateX(18px);
+}
+
+.ios-switch:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Dashboard box title suffix, e.g. "Voltage (V2)" */
+.phase-tag {
+  margin-left: 2px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ios-switch,
+  .ios-switch::before {
+    transition: none;
+  }
+}
+
 .drawer-btn-logout {
   width: 100%;
   padding: 11px 16px;

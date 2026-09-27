@@ -188,6 +188,8 @@ const Dashboard = {
   historyData: [],       // cached history points from API
   waveHistory: { voltage: [], current: [], power: [], energy: [], temperature: [] },
   prevTelemetry: null,   // tracks previous reading { voltage, current, temperature } for delta % calculation
+  lastTelemetry: null,   // latest reading, re-rendered when a Manage Dashboard switch changes
+  phasePrefs: null,      // { voltage_phase, current_phase, power_phase }: 1-3 = phase shown on that box (V1/I1/P1 until changed)
 
   async init() {
     if (this.pollTimer) {
@@ -221,6 +223,11 @@ const Dashboard = {
     this.powerUnit = activeBtn('power-unit-switcher').unit || 'kw';
     this.powerRange = activeBtn('power-range-switcher').range || '7d';
     this.waveMetric = activeBtn('waveform-metric-switcher').metric || 'voltage';
+
+    // Phase shown on the Voltage / Current / Active Power boxes: cached first, then the database copy
+    this.phasePrefs = API.getDashPrefs();
+    this.renderPhaseTags();
+    API.loadDashPrefs().then(prefs => this.applyPhasePrefs(prefs)).catch(() => {});
 
     this.loadUserProfile();
     this.updateDateRange();
@@ -267,6 +274,31 @@ const Dashboard = {
       clearInterval(this.pollTimer);
       this.pollTimer = null;
     }
+  },
+
+  // ─── Manage Dashboard phase choice ────────────────────────
+  // 'voltage' -> 'voltage_2' when the Voltage box is set to V2; any other metric is returned unchanged
+  phaseKey(metric) {
+    const n = this.phasePrefs && this.phasePrefs[`${metric}_phase`];
+    return n ? `${metric}_${n}` : metric;
+  },
+
+  renderPhaseTags() {
+    ['voltage', 'current', 'power'].forEach(metric => {
+      const el = document.getElementById(`phase-tag-${metric}`);
+      const key = this.phaseKey(metric);
+      if (el) el.textContent = key === metric ? '' : `(${WAVE_METRICS[key].name})`;
+    });
+  },
+
+  // Called when a switch changes: re-render the boxes and waveform from the last reading (no new poll)
+  applyPhasePrefs(prefs) {
+    if (JSON.stringify(prefs) === JSON.stringify(this.phasePrefs)) return;
+    this.phasePrefs = prefs;
+    if (!document.getElementById('metric-voltage')) return; // not on the dashboard page
+    this.renderPhaseTags();
+    if (this.lastTelemetry) this.updateMetricCards(this.lastTelemetry, false);
+    this.renderWaveformChart();
   },
 
   loadUserProfile() {
@@ -530,8 +562,11 @@ const Dashboard = {
     if (!container) return;
 
     const metric = this.waveMetric;
-    const cfg = WAVE_METRICS[metric] || WAVE_METRICS.voltage;
-    const points = this.waveHistory[metric] || [];
+    // Voltage / Current / Power tabs follow the phase chosen for that box (e.g. Voltage tab plots V2)
+    const dataKey = this.phaseKey(metric);
+    const baseCfg = WAVE_METRICS[metric] || WAVE_METRICS.voltage;
+    const cfg = dataKey === metric ? baseCfg : { ...baseCfg, name: `${baseCfg.name} (${WAVE_METRICS[dataKey].name})` };
+    const points = this.waveHistory[dataKey] || [];
 
     if (points.length < 2) {
       container.innerHTML = `
@@ -926,6 +961,7 @@ const Dashboard = {
 
     // Reset deltas and cached previous telemetry
     this.prevTelemetry = null;
+    this.lastTelemetry = null;
     const dv = document.getElementById('delta-voltage');
     if (dv) { dv.className = 'delta-neutral'; dv.innerHTML = '&rarr; 0.0%'; }
     const dc = document.getElementById('delta-current');
@@ -1150,7 +1186,10 @@ const Dashboard = {
     }
   },
 
-  updateMetricCards(data) {
+  // isNewReading = false re-renders the last reading after a Manage Dashboard switch change
+  // (no waveform point is pushed and the previous-reading baseline is left untouched)
+  updateMetricCards(data, isNewReading = true) {
+    if (isNewReading) this.lastTelemetry = data;
     let isLive = Boolean(data.is_online);
 
     // Check freshness: if timestamp is older than 35s or offline, data has stopped
@@ -1166,17 +1205,31 @@ const Dashboard = {
       }
     }
 
+    // Voltage / Current / Active Power boxes show the phase picked in Manage Dashboard
+    const vKey = this.phaseKey('voltage');
+    const cKey = this.phaseKey('current');
+    const pKey = this.phaseKey('power');
+
+    // Raw readings (line values + every phase), kept as the baseline for the next delta %
+    const reading = {};
+    ['voltage', 'current', 'temperature', ...PHASE_KEYS].forEach(k => {
+      reading[k] = isLive && data[k] != null ? Number(data[k]) : null;
+    });
+    const prevOf = (k) => (isNewReading && this.prevTelemetry && this.prevTelemetry[k] != null)
+      ? this.prevTelemetry[k]
+      : (data[`prev_${k}`] != null ? Number(data[`prev_${k}`]) : null);
+
     // 1. Voltage: when telemetry stops, display 0.0
     const elVoltage = document.getElementById('metric-voltage');
-    if (elVoltage) elVoltage.textContent = (isLive && data.voltage !== undefined && data.voltage !== null) ? Number(data.voltage).toFixed(1) : '0.0';
+    if (elVoltage) elVoltage.textContent = reading[vKey] !== null ? reading[vKey].toFixed(1) : '0.0';
 
     // 2. Current: when telemetry stops, display 0.00
     const elCurrent = document.getElementById('metric-current');
-    if (elCurrent) elCurrent.textContent = (isLive && data.current !== undefined && data.current !== null) ? Number(data.current).toFixed(2) : '0.00';
+    if (elCurrent) elCurrent.textContent = reading[cKey] !== null ? reading[cKey].toFixed(2) : '0.00';
 
     // 3. Active Power: when telemetry stops, display 0.000
     const elPower = document.getElementById('metric-power');
-    let powerNum = (isLive && data.power !== undefined && data.power !== null) ? Number(data.power) : 0.0;
+    let powerNum = (isLive && data[pKey] !== undefined && data[pKey] !== null) ? Number(data[pKey]) : 0.0;
     if (powerNum > 100) powerNum = powerNum / 1000;
     if (elPower) elPower.textContent = powerNum.toFixed(3);
 
@@ -1196,37 +1249,20 @@ const Dashboard = {
     }
 
     // 7. Dynamic Real-Time Delta % Calculations based on previous values
-    const currV = isLive && data.voltage != null ? Number(data.voltage) : null;
-    const currC = isLive && data.current != null ? Number(data.current) : null;
-    const currT = isLive && data.temperature != null ? Number(data.temperature) : null;
-
-    let prevV = (this.prevTelemetry && this.prevTelemetry.voltage != null) ? this.prevTelemetry.voltage : (data.prev_voltage != null ? Number(data.prev_voltage) : null);
-    let prevC = (this.prevTelemetry && this.prevTelemetry.current != null) ? this.prevTelemetry.current : (data.prev_current != null ? Number(data.prev_current) : null);
-    let prevT = (this.prevTelemetry && this.prevTelemetry.temperature != null) ? this.prevTelemetry.temperature : (data.prev_temperature != null ? Number(data.prev_temperature) : null);
-
-    this.updateDeltaBadge('delta-voltage', currV, prevV);
-    this.updateDeltaBadge('delta-current', currC, prevC);
-    this.updateDeltaBadge('delta-temperature', currT, prevT);
+    this.updateDeltaBadge('delta-voltage', reading[vKey], prevOf(vKey));
+    this.updateDeltaBadge('delta-current', reading[cKey], prevOf(cKey));
+    this.updateDeltaBadge('delta-temperature', reading.temperature, prevOf('temperature'));
 
     // Phase readings V1-V3 / I1-I3 / P1-P3 (cards exist only on the phase pages; no-ops elsewhere)
-    const currPhases = {};
     PHASE_KEYS.forEach(k => {
-      const curr = isLive && data[k] != null ? Number(data[k]) : null;
-      currPhases[k] = curr;
       const el = document.getElementById(`metric-${k}`);
-      if (el) el.textContent = (curr ?? 0).toFixed(WAVE_METRICS[k].decimals);
-      const prev = this.prevTelemetry?.[k] ?? (data[`prev_${k}`] != null ? Number(data[`prev_${k}`]) : null);
-      this.updateDeltaBadge(`delta-${k}`, curr, prev);
+      if (el) el.textContent = (reading[k] ?? 0).toFixed(WAVE_METRICS[k].decimals);
+      this.updateDeltaBadge(`delta-${k}`, reading[k], prevOf(k));
     });
 
     // Save current readings as previous for the next real-time cycle
-    if (isLive && (currV !== null || currC !== null || currT !== null)) {
-      this.prevTelemetry = {
-        voltage: currV,
-        current: currC,
-        temperature: currT,
-        ...currPhases
-      };
+    if (isNewReading && isLive && [reading.voltage, reading.current, reading.temperature].some(v => v !== null)) {
+      this.prevTelemetry = reading;
     }
 
     // 9. Status & Pulse: only Connected or Disconnected
@@ -1247,7 +1283,7 @@ const Dashboard = {
     this.renderDonuts(powerPct, energyPct);
 
     // Push live data to waveform (streams 0 when telemetry stopped)
-    this.pushWaveformPoint(data, isLive);
+    if (isNewReading) this.pushWaveformPoint(data, isLive);
   },
 
   updateDeltaBadge(elementId, curr, prev) {

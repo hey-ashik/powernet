@@ -48,11 +48,22 @@ CREATE TABLE IF NOT EXISTS `telemetry` (
     `power_2` DECIMAL(8, 3) NULL COMMENT 'P2 - Phase 2 Active Power (kW)',
     `power_3` DECIMAL(8, 3) NULL COMMENT 'P3 - Phase 3 Active Power (kW)',
     `energy` DECIMAL(10, 3) NOT NULL COMMENT 'kWh - Cumulative Energy (kWh)',
-    `temperature` DECIMAL(5, 2) NOT NULL COMMENT 'Celsius (°C)',
+    `temperature` DECIMAL(5, 2) NOT NULL COMMENT 'Temp - Celsius (°C)',
     `recorded_at` DATETIME NOT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     KEY `idx_telemetry_device_recorded` (`device_id`, `recorded_at`),
     KEY `idx_telemetry_recorded_at` (`recorded_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- 3b. Dashboard Box Preferences (Manage Dashboard drawer)
+-- One row per user. Each column holds the ONE phase its dashboard box shows,
+-- so "only one switch on per box" is enforced by the table shape itself.
+CREATE TABLE IF NOT EXISTS `dashboard_preferences` (
+    `user_id` INT UNSIGNED NOT NULL PRIMARY KEY,
+    `voltage_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Voltage box: 1-3 = V1-V3 (default V1)',
+    `current_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Current box: 1-3 = I1-I3 (default I1)',
+    `power_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Active Power box: 1-3 = P1-P3 (default P1)',
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 4. Email Verification Tokens
