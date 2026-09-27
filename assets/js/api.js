@@ -545,7 +545,7 @@ const API = {
         return;
       }
 
-      const supported = ['/dashboard', '/devices', '/analytics'];
+      const supported = ['/dashboard', '/devices', '/analytics', '/voltage', '/current', '/power'];
       const match = supported.some(r => targetPath === r || targetPath === `${r}.html`);
       if (!match) return;
 
@@ -563,7 +563,7 @@ const API = {
 
     window.addEventListener('popstate', () => {
       const currentPath = window.location.pathname;
-      const supported = ['/dashboard', '/devices', '/analytics'];
+      const supported = ['/dashboard', '/devices', '/analytics', '/voltage', '/current', '/power'];
       if (supported.some(r => currentPath === r || currentPath === `${r}.html`)) {
         this.navigateTo(currentPath, false);
       }
@@ -581,7 +581,7 @@ const API = {
     const targetNorm = targetUrl.replace(/\.html$/, '');
     document.querySelectorAll('.sidebar .nav-link').forEach(l => {
       const h = (l.getAttribute('href') || '').replace(/\.html$/, '');
-      if (h === targetNorm || (h === '/dashboard' && targetNorm === '/analytics')) {
+      if (h === targetNorm || (h === '/dashboard' && (targetNorm === '/analytics' || targetNorm === '/voltage' || targetNorm === '/current' || targetNorm === '/power'))) {
         l.classList.add('active');
       } else {
         l.classList.remove('active');
@@ -601,7 +601,7 @@ const API = {
     document.body.style.overflow = '';
 
     // 3. Stop background dashboard polling if navigating away
-    if (!targetUrl.includes('/dashboard') && !targetUrl.includes('/analytics')) {
+    if (!targetUrl.includes('/dashboard') && !targetUrl.includes('/analytics') && !targetUrl.includes('/voltage') && !targetUrl.includes('/current') && !targetUrl.includes('/power')) {
       if (typeof Dashboard !== 'undefined' && typeof Dashboard.destroy === 'function') {
         Dashboard.destroy();
       }
@@ -669,7 +669,7 @@ const API = {
             sc.onload = () => { if (typeof initDevicesPage === 'function') initDevicesPage(); };
             document.body.appendChild(sc);
           }
-        } else if (targetUrl.includes('/dashboard') || targetUrl.includes('/analytics')) {
+        } else if (targetUrl.includes('/dashboard') || targetUrl.includes('/analytics') || targetUrl.includes('/voltage') || targetUrl.includes('/current') || targetUrl.includes('/power')) {
           // Dynamic fallback if Chart.js or dashboard.js not yet loaded
           if (typeof Chart === 'undefined') {
             await new Promise((res) => {

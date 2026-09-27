@@ -30,6 +30,11 @@
   box-shadow: var(--shadow-card-hover);
 }
 
+/* /voltage: three phase cards per row; smaller screens use the responsive.css grid */
+@media (min-width: 1281px) {
+  .phase-card { grid-column: span 4; }
+}
+
 .metric-header {
   display: flex;
   align-items: flex-start;

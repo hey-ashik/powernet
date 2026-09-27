@@ -42,8 +42,17 @@ while (true) {
     $payload = [
         'device_id'   => $deviceId,
         'voltage'     => $voltage,
+        'voltage_1'   => round($voltage + mt_rand(-20, 20) / 10.0, 2),
+        'voltage_2'   => round($voltage + mt_rand(-20, 20) / 10.0, 2),
+        'voltage_3'   => round($voltage + mt_rand(-20, 20) / 10.0, 2),
         'current'     => $current,
+        'current_1'   => round($current + mt_rand(-40, 40) / 100.0, 2),
+        'current_2'   => round($current + mt_rand(-40, 40) / 100.0, 2),
+        'current_3'   => round($current + mt_rand(-40, 40) / 100.0, 2),
         'power'       => $power,
+        'power_1'     => round(max(0, $power + mt_rand(-150, 150) / 1000.0), 3),
+        'power_2'     => round(max(0, $power + mt_rand(-150, 150) / 1000.0), 3),
+        'power_3'     => round(max(0, $power + mt_rand(-150, 150) / 1000.0), 3),
         'energy'      => round($energy, 3),
         'temperature' => $temperature,
         'timestamp'   => date('c')

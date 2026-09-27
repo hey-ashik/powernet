@@ -255,6 +255,13 @@ function saveLocalDevices() {
   } catch {}
 }
 
+// Per-phase readings jittered around the line value: voltage_1..3 (±2 V), current_1..3 (±0.4 A), power_1..3 (±0.15 kW)
+const PHASE_SPREAD = { voltage: [2, 1], current: [0.4, 2], power: [0.15, 3] }; // [max jitter, decimals]
+const PHASE_FIELDS = Object.keys(PHASE_SPREAD).flatMap(key => [1, 2, 3].map(n => `${key}_${n}`));
+const phaseSplit = (key, v) => Object.fromEntries([1, 2, 3].map(n => [
+  `${key}_${n}`, +(v + (Math.random() * 2 - 1) * PHASE_SPREAD[key][0]).toFixed(PHASE_SPREAD[key][1])
+]));
+
 // Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
 const localTelemetry = (() => {
   const points = [];
@@ -303,6 +310,9 @@ const localTelemetry = (() => {
       device_id: 'pnw101',
       device_name: 'Device',
       voltage: voltage,
+      ...phaseSplit('voltage', voltage),
+      ...phaseSplit('current', current),
+      ...phaseSplit('power', powerKw),
       current: current,
       power: powerKw,
       avg_power: powerKw,
@@ -387,6 +397,9 @@ setInterval(() => {
     device_id: dev.device_id,
     device_name: dev.device_name || 'Device',
     voltage: voltage,
+    ...phaseSplit('voltage', voltage),
+    ...phaseSplit('current', current),
+    ...phaseSplit('power', powerKw),
     current: current,
     power: powerKw,
     avg_power: powerKw,
@@ -602,8 +615,10 @@ const server = http.createServer((req, res) => {
             latest.prev_voltage = prev.voltage;
             latest.prev_current = prev.current;
             latest.prev_temperature = prev.temperature;
+            PHASE_FIELDS.forEach(k => { latest[`prev_${k}`] = prev[k]; });
           }
           if (latest.is_online === false) {
+            PHASE_FIELDS.forEach(k => { latest[k] = 0.0; latest[`prev_${k}`] = 0.0; });
             latest.voltage = 0.0;
             latest.current = 0.0;
             latest.power = 0.0;
@@ -732,6 +747,13 @@ const server = http.createServer((req, res) => {
           // 24h default from local telemetry
           localTelemetry.forEach(pt => historyPoints.push(pt));
         }
+
+        // Daily/monthly per-phase averages (24h points already carry raw per-phase readings)
+        historyPoints.forEach(p => {
+          Object.keys(PHASE_SPREAD).forEach(key => {
+            if (p[`avg_${key}`]) Object.entries(phaseSplit(key, p[`avg_${key}`])).forEach(([k, v]) => { p[`avg_${k}`] = v; });
+          });
+        });
 
         res.end(JSON.stringify({
           success: true,
@@ -862,6 +884,9 @@ const server = http.createServer((req, res) => {
     '/dashboard': '/frontend/dashboard.html',
     '/devices': '/frontend/devices.html',
     '/analytics': '/frontend/analytics.html',
+    '/voltage': '/frontend/voltage.html',
+    '/current': '/frontend/current.html',
+    '/power': '/frontend/power.html',
     '/forgot-password': '/frontend/forgot-password.html',
     '/reset-password': '/frontend/reset-password.html',
     '/verify-email': '/frontend/verify-email.html',

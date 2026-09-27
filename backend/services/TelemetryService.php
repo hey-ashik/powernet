@@ -55,6 +55,19 @@ class TelemetryService
             throw new Exception("Temperature reading out of plausible bounds: {$temp}°C");
         }
 
+        // Optional per-phase readings (voltage_1..3, current_1..3, power_1..3); single-phase devices may omit them
+        $phases = [];
+        foreach (['voltage' => [500, 'V', 2], 'current' => [200, 'A', 2], 'power' => [100, 'kW', 3]] as $field => [$max, $unit, $dp]) {
+            foreach ([1, 2, 3] as $n) {
+                $key = "{$field}_{$n}";
+                $val = isset($payload[$key]) && is_numeric($payload[$key]) ? (float)$payload[$key] : null;
+                if ($val !== null && ($val < 0 || $val > $max)) {
+                    throw new Exception("Phase {$n} {$field} out of plausible bounds: {$val}{$unit}");
+                }
+                $phases[$key] = $val === null ? null : round($val, $dp);
+            }
+        }
+
         $db = Connection::get();
 
         // 2. Find device or auto-provision if new
@@ -96,8 +109,8 @@ class TelemetryService
 
             // Insert telemetry row
             $insStmt = $db->prepare("
-                INSERT INTO telemetry (device_id, voltage, current, power, energy, temperature, recorded_at, created_at)
-                VALUES (:device_id, :voltage, :current, :power, :energy, :temp, :recorded_at, NOW())
+                INSERT INTO telemetry (device_id, voltage, voltage_1, voltage_2, voltage_3, current, current_1, current_2, current_3, power, power_1, power_2, power_3, energy, temperature, recorded_at, created_at)
+                VALUES (:device_id, :voltage, :voltage_1, :voltage_2, :voltage_3, :current, :current_1, :current_2, :current_3, :power, :power_1, :power_2, :power_3, :energy, :temp, :recorded_at, NOW())
             ");
             $insStmt->execute([
                 'device_id'   => $deviceId,
@@ -107,7 +120,7 @@ class TelemetryService
                 'energy'      => round($energy, 3),
                 'temp'        => round($temp, 2),
                 'recorded_at' => $recordedAt
-            ]);
+            ] + $phases);
 
             $db->commit();
 
@@ -142,7 +155,7 @@ class TelemetryService
         }
 
         $telStmt = $db->prepare("
-            SELECT voltage, current, power, energy, temperature, recorded_at
+            SELECT voltage, voltage_1, voltage_2, voltage_3, current, current_1, current_2, current_3, power, power_1, power_2, power_3, energy, temperature, recorded_at
             FROM telemetry
             WHERE device_id = :device_id
             ORDER BY recorded_at DESC, id DESC
@@ -156,6 +169,12 @@ class TelemetryService
         $secondsSinceSeen = $device['last_seen'] ? (time() - strtotime($device['last_seen'])) : null;
         $telemetryAge = ($latest && !empty($latest['recorded_at'])) ? (time() - strtotime($latest['recorded_at'])) : null;
         $isOnline = $secondsSinceSeen !== null && $secondsSinceSeen <= $threshold && ($telemetryAge === null || $telemetryAge <= $threshold);
+
+        $phaseOut = [];
+        foreach (['voltage_1', 'voltage_2', 'voltage_3', 'current_1', 'current_2', 'current_3', 'power_1', 'power_2', 'power_3'] as $k) {
+            $phaseOut[$k]         = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : 0.0;
+            $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : 0.0;
+        }
 
         if (!$latest) {
             return [
@@ -175,7 +194,7 @@ class TelemetryService
                 'is_online'          => false,
                 'last_seen'          => $device['last_seen'],
                 'last_seen_relative' => 'No data recorded yet'
-            ];
+            ] + $phaseOut;
         }
 
         return [
@@ -195,7 +214,7 @@ class TelemetryService
             'is_online'          => $isOnline,
             'last_seen'          => $device['last_seen'],
             'last_seen_relative' => self::formatRelativeTime($secondsSinceSeen)
-        ];
+        ] + $phaseOut;
     }
 
     public static function getHistory(int $userId, ?string $deviceId = null, string $range = '24h'): array
@@ -249,8 +268,17 @@ class TelemetryService
             SELECT 
                 DATE_FORMAT(recorded_at, '{$groupBy}') as bucket_time,
                 ROUND(AVG(voltage), 2) as avg_voltage,
+                ROUND(AVG(voltage_1), 2) as avg_voltage_1,
+                ROUND(AVG(voltage_2), 2) as avg_voltage_2,
+                ROUND(AVG(voltage_3), 2) as avg_voltage_3,
                 ROUND(AVG(current), 2) as avg_current,
+                ROUND(AVG(current_1), 2) as avg_current_1,
+                ROUND(AVG(current_2), 2) as avg_current_2,
+                ROUND(AVG(current_3), 2) as avg_current_3,
                 ROUND(AVG(power), 3) as avg_power,
+                ROUND(AVG(power_1), 3) as avg_power_1,
+                ROUND(AVG(power_2), 3) as avg_power_2,
+                ROUND(AVG(power_3), 3) as avg_power_3,
                 ROUND(MAX(power), 3) as max_power,
                 ROUND(MAX(energy), 3) as max_energy,
                 ROUND(AVG(temperature), 2) as avg_temperature,
@@ -338,7 +366,7 @@ class TelemetryService
 
         $stmt = $db->prepare("
             SELECT t.id, t.device_id, COALESCE(NULLIF(d.device_name, ''), 'Device') as device_name,
-                   t.voltage, t.current, t.power, t.energy, t.temperature, t.recorded_at
+                   t.voltage, t.voltage_1, t.voltage_2, t.voltage_3, t.current, t.current_1, t.current_2, t.current_3, t.power, t.power_1, t.power_2, t.power_3, t.energy, t.temperature, t.recorded_at
             FROM telemetry t
             LEFT JOIN devices d ON t.device_id = d.device_id
             WHERE t.device_id = :device_id
