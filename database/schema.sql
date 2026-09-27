@@ -55,6 +55,19 @@ CREATE TABLE IF NOT EXISTS `telemetry` (
     KEY `idx_telemetry_recorded_at` (`recorded_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Unit labels for the phase columns (phpMyAdmin shows them under each column name).
+-- Needed on databases where the automatic upgrade in connection.php added these columns without a comment.
+ALTER TABLE `telemetry`
+    MODIFY `voltage_1` DECIMAL(6, 2) NULL COMMENT 'V1 - Phase 1 Volts (V)',
+    MODIFY `voltage_2` DECIMAL(6, 2) NULL COMMENT 'V2 - Phase 2 Volts (V)',
+    MODIFY `voltage_3` DECIMAL(6, 2) NULL COMMENT 'V3 - Phase 3 Volts (V)',
+    MODIFY `current_1` DECIMAL(6, 2) NULL COMMENT 'I1 - Phase 1 Amperes (A)',
+    MODIFY `current_2` DECIMAL(6, 2) NULL COMMENT 'I2 - Phase 2 Amperes (A)',
+    MODIFY `current_3` DECIMAL(6, 2) NULL COMMENT 'I3 - Phase 3 Amperes (A)',
+    MODIFY `power_1` DECIMAL(8, 3) NULL COMMENT 'P1 - Phase 1 Active Power (kW)',
+    MODIFY `power_2` DECIMAL(8, 3) NULL COMMENT 'P2 - Phase 2 Active Power (kW)',
+    MODIFY `power_3` DECIMAL(8, 3) NULL COMMENT 'P3 - Phase 3 Active Power (kW)';
+
 -- 3b. Dashboard Box Preferences (Manage Dashboard drawer)
 -- One row per user. Each column holds the ONE phase its dashboard box shows,
 -- so "only one switch on per box" is enforced by the table shape itself.
@@ -109,9 +122,10 @@ INSERT INTO `devices` (`id`, `user_id`, `device_id`, `device_name`, `status`, `c
 VALUES (1, NULL, 'pnw101', 'Main Panel (pnw101)', 'offline', NOW())
 ON DUPLICATE KEY UPDATE `status` = 'offline';
 
--- Demo Telemetry (Device: pnw101) - 10 daily readings with V1-V3 / I1-I3 / P1-P3, newest = today
--- Line values are the phase averages; P = V x I x 0.92 PF. Inserted only while pnw101 has no
--- per-phase readings yet, so importing this file again never duplicates them.
+-- Demo Telemetry (Device: pnw101) - Friday 25 Sep 2026 morning, 08:00-10:15 Bangladesh time (UTC+6),
+-- one reading every 15 minutes (10 readings). Stored in UTC like real ESP32 data (02:00-04:15 UTC).
+-- Units: V1-V3 in V, I1-I3 in A, P1-P3 in kW. Line values are the phase averages; P = V x I x 0.92 PF.
+-- Inserted only if pnw101 has no readings in that window, so importing this file again never duplicates them.
 -- ==========================================================
 
 INSERT INTO `telemetry` (`device_id`, `voltage`, `voltage_1`, `voltage_2`, `voltage_3`,
@@ -122,19 +136,20 @@ SELECT 'pnw101',
     ROUND((i1 + i2 + i3) / 3, 2), i1, i2, i3,
     ROUND((v1 * i1 + v2 * i2 + v3 * i3) * 0.92 / 3000, 3),
     ROUND(v1 * i1 * 0.92 / 1000, 3), ROUND(v2 * i2 * 0.92 / 1000, 3), ROUND(v3 * i3 * 0.92 / 1000, 3),
-    energy, temp, UTC_TIMESTAMP() - INTERVAL days_ago DAY
+    energy, temp, TIMESTAMP('2026-09-25 02:00:00') + INTERVAL mins MINUTE
 FROM (
-              SELECT 9 AS days_ago, 229.4 AS v1, 231.2 AS v2, 228.7 AS v3, 3.12 AS i1, 2.84 AS i2, 3.46 AS i3, 3.215 AS energy, 31.2 AS temp
-    UNION ALL SELECT 8, 230.1, 229.6, 231.8, 3.55, 3.02, 2.91,  6.480, 32.0
-    UNION ALL SELECT 7, 231.3, 230.4, 229.2, 2.76, 3.38, 3.10,  9.842, 31.6
-    UNION ALL SELECT 6, 228.9, 230.8, 230.3, 3.94, 3.21, 3.47, 13.517, 33.1
-    UNION ALL SELECT 5, 230.6, 231.5, 229.9, 4.12, 3.66, 3.85, 17.690, 34.4
-    UNION ALL SELECT 4, 229.8, 228.6, 230.7, 2.58, 2.93, 2.71, 20.476, 30.8
-    UNION ALL SELECT 3, 231.9, 230.2, 231.1, 3.27, 3.49, 3.05, 23.902, 32.5
-    UNION ALL SELECT 2, 230.4, 229.1, 230.9, 3.83, 3.14, 3.62, 27.681, 33.7
-    UNION ALL SELECT 1, 229.2, 230.7, 228.8, 3.01, 2.87, 3.33, 30.894, 31.9
-    UNION ALL SELECT 0, 230.8, 231.4, 230.1, 3.46, 3.72, 3.18, 34.512, 32.8
+              SELECT 0 AS mins, 231.8 AS v1, 230.9 AS v2, 232.4 AS v3, 1.42 AS i1, 1.18 AS i2, 1.65 AS i3, 0.212 AS energy, 27.4 AS temp
+    UNION ALL SELECT  15, 231.2, 230.4, 231.9, 1.86, 1.52, 1.97, 0.478, 27.8
+    UNION ALL SELECT  30, 230.7, 229.8, 231.3, 2.35, 2.04, 2.41, 0.842, 28.3
+    UNION ALL SELECT  45, 230.1, 229.3, 230.8, 2.78, 2.46, 2.93, 1.296, 28.9
+    UNION ALL SELECT  60, 229.6, 228.7, 230.2, 3.12, 2.89, 3.28, 1.843, 29.4
+    UNION ALL SELECT  75, 229.2, 228.4, 229.9, 3.45, 3.17, 3.61, 2.478, 30.1
+    UNION ALL SELECT  90, 228.8, 228.1, 229.5, 3.71, 3.42, 3.86, 3.176, 30.6
+    UNION ALL SELECT 105, 229.1, 228.5, 229.8, 3.58, 3.30, 3.74, 3.861, 31.0
+    UNION ALL SELECT 120, 229.5, 228.9, 230.1, 3.34, 3.09, 3.52, 4.502, 31.3
+    UNION ALL SELECT 135, 229.9, 229.2, 230.6, 3.06, 2.81, 3.25, 5.093, 31.5
 ) AS demo
-CROSS JOIN (SELECT COUNT(*) AS n FROM `telemetry` WHERE `device_id` = 'pnw101' AND `voltage_1` IS NOT NULL) AS seen
+CROSS JOIN (SELECT COUNT(*) AS n FROM `telemetry` WHERE `device_id` = 'pnw101'
+    AND `recorded_at` BETWEEN '2026-09-25 02:00:00' AND '2026-09-25 04:15:00') AS seen
 WHERE seen.n = 0;
 

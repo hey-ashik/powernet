@@ -137,12 +137,13 @@ class Connection
         // 4. Ensure per-phase telemetry columns exist (V1-V3, I1-I3, P1-P3) so ingestion never fails on an old table
         try {
             $telCols = $db->query("SHOW COLUMNS FROM `telemetry`")->fetchAll(PDO::FETCH_COLUMN);
-            foreach (['voltage' => 'DECIMAL(6, 2)', 'current' => 'DECIMAL(6, 2)', 'power' => 'DECIMAL(8, 3)'] as $base => $type) {
+            $phaseCols = ['voltage' => ['DECIMAL(6, 2)', 'V', 'Volts (V)'], 'current' => ['DECIMAL(6, 2)', 'I', 'Amperes (A)'], 'power' => ['DECIMAL(8, 3)', 'P', 'Active Power (kW)']];
+            foreach ($phaseCols as $base => [$type, $sym, $unit]) {
                 $after = $base;
                 foreach ([1, 2, 3] as $n) {
                     $col = "{$base}_{$n}";
                     if (!in_array($col, $telCols)) {
-                        $db->exec("ALTER TABLE `telemetry` ADD COLUMN `{$col}` {$type} NULL AFTER `{$after}`");
+                        $db->exec("ALTER TABLE `telemetry` ADD COLUMN `{$col}` {$type} NULL COMMENT '{$sym}{$n} - Phase {$n} {$unit}' AFTER `{$after}`");
                     }
                     $after = $col;
                 }
