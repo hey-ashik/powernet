@@ -179,7 +179,7 @@ backend/
 |---|---|
 | `users` | User accounts (name, email, password_hash, email_verified) |
 | `devices` | IoT devices (device_id, user_id, status, last_seen) |
-| `telemetry` | Sensor readings (voltage, current, power, energy, temperature) |
+| `telemetry` | Meter readings: V1-V3 (L-N), V12/V23/V31 (L-L), I1-I3, P1-P3 + total kW, PF1-PF3 + total PF, Hz, kWh (temperature optional) |
 | `email_verifications` | Email verification tokens |
 | `password_resets` | Password reset tokens |
 | `predictions` | AI load predictions (future feature, table ready) |

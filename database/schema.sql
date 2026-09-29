@@ -32,35 +32,51 @@ CREATE TABLE IF NOT EXISTS `devices` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3. Telemetry Table
+-- One row per sample from the Schneider PM2130D three-phase meter (ESP32 gateway, every 15 s).
+-- 3 line-to-line voltages, 3 line-to-neutral voltages, 3 currents, 3 + total kW, 3 + total PF, frequency, kWh.
+-- Every reading is nullable: NULL = not measured (no temperature sensor on the meter, PF undefined with no load,
+-- a Modbus read that failed). voltage / current = average of the phases; power / power_factor = meter totals.
 CREATE TABLE IF NOT EXISTS `telemetry` (
     `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `device_id` VARCHAR(64) NOT NULL,
-    `voltage` DECIMAL(6, 2) NOT NULL COMMENT 'Volts (V)',
-    `voltage_1` DECIMAL(6, 2) NULL COMMENT 'V1 - Phase 1 Volts (V)',
-    `voltage_2` DECIMAL(6, 2) NULL COMMENT 'V2 - Phase 2 Volts (V)',
-    `voltage_3` DECIMAL(6, 2) NULL COMMENT 'V3 - Phase 3 Volts (V)',
-    `current` DECIMAL(6, 2) NOT NULL COMMENT 'Amperes (A)',
+    `sample_id` VARCHAR(64) NULL COMMENT 'Gateway sample id (MQTT + HTTPS copies stored once)',
+    `voltage` DECIMAL(6, 2) NULL COMMENT 'V - Average Line-to-Neutral Volts (V)',
+    `voltage_1` DECIMAL(6, 2) NULL COMMENT 'V1 - Phase 1 Line-to-Neutral Volts (V)',
+    `voltage_2` DECIMAL(6, 2) NULL COMMENT 'V2 - Phase 2 Line-to-Neutral Volts (V)',
+    `voltage_3` DECIMAL(6, 2) NULL COMMENT 'V3 - Phase 3 Line-to-Neutral Volts (V)',
+    `voltage_ll_1` DECIMAL(6, 2) NULL COMMENT 'V12 - Line-to-Line L1-L2 Volts (V)',
+    `voltage_ll_2` DECIMAL(6, 2) NULL COMMENT 'V23 - Line-to-Line L2-L3 Volts (V)',
+    `voltage_ll_3` DECIMAL(6, 2) NULL COMMENT 'V31 - Line-to-Line L3-L1 Volts (V)',
+    `current` DECIMAL(6, 2) NULL COMMENT 'I - Average Phase Amperes (A)',
     `current_1` DECIMAL(6, 2) NULL COMMENT 'I1 - Phase 1 Amperes (A)',
     `current_2` DECIMAL(6, 2) NULL COMMENT 'I2 - Phase 2 Amperes (A)',
     `current_3` DECIMAL(6, 2) NULL COMMENT 'I3 - Phase 3 Amperes (A)',
-    `power` DECIMAL(8, 3) NOT NULL COMMENT 'Active Power (kW)',
+    `power` DECIMAL(8, 3) NULL COMMENT 'P - Total Active Power (kW)',
     `power_1` DECIMAL(8, 3) NULL COMMENT 'P1 - Phase 1 Active Power (kW)',
     `power_2` DECIMAL(8, 3) NULL COMMENT 'P2 - Phase 2 Active Power (kW)',
     `power_3` DECIMAL(8, 3) NULL COMMENT 'P3 - Phase 3 Active Power (kW)',
-    `energy` DECIMAL(10, 3) NOT NULL COMMENT 'kWh - Cumulative Energy (kWh)',
-    `temperature` DECIMAL(5, 2) NOT NULL COMMENT 'Temp - Celsius (°C)',
+    `power_factor` DECIMAL(4, 3) NULL COMMENT 'PF - Total Power Factor (-1..1)',
+    `power_factor_1` DECIMAL(4, 3) NULL COMMENT 'PF1 - Phase 1 Power Factor (-1..1)',
+    `power_factor_2` DECIMAL(4, 3) NULL COMMENT 'PF2 - Phase 2 Power Factor (-1..1)',
+    `power_factor_3` DECIMAL(4, 3) NULL COMMENT 'PF3 - Phase 3 Power Factor (-1..1)',
+    `frequency` DECIMAL(5, 2) NULL COMMENT 'Hz - Frequency (Hz)',
+    `energy` DECIMAL(10, 3) NULL COMMENT 'kWh - Cumulative Imported Energy (kWh)',
+    `temperature` DECIMAL(5, 2) NULL COMMENT 'Temp - Celsius (°C), NULL when the device has no sensor',
     `recorded_at` DATETIME NOT NULL,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY `idx_telemetry_sample_id` (`sample_id`),
     KEY `idx_telemetry_device_recorded` (`device_id`, `recorded_at`),
     KEY `idx_telemetry_recorded_at` (`recorded_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Unit labels for the phase columns (phpMyAdmin shows them under each column name).
 -- Needed on databases where the automatic upgrade in connection.php added these columns without a comment.
+-- (Databases created before the PM2130D meter: also run database/migrations/2026_09_29_add_pm2130d_readings.sql,
+-- or just let the API add those columns automatically on its first request.)
 ALTER TABLE `telemetry`
-    MODIFY `voltage_1` DECIMAL(6, 2) NULL COMMENT 'V1 - Phase 1 Volts (V)',
-    MODIFY `voltage_2` DECIMAL(6, 2) NULL COMMENT 'V2 - Phase 2 Volts (V)',
-    MODIFY `voltage_3` DECIMAL(6, 2) NULL COMMENT 'V3 - Phase 3 Volts (V)',
+    MODIFY `voltage_1` DECIMAL(6, 2) NULL COMMENT 'V1 - Phase 1 Line-to-Neutral Volts (V)',
+    MODIFY `voltage_2` DECIMAL(6, 2) NULL COMMENT 'V2 - Phase 2 Line-to-Neutral Volts (V)',
+    MODIFY `voltage_3` DECIMAL(6, 2) NULL COMMENT 'V3 - Phase 3 Line-to-Neutral Volts (V)',
     MODIFY `current_1` DECIMAL(6, 2) NULL COMMENT 'I1 - Phase 1 Amperes (A)',
     MODIFY `current_2` DECIMAL(6, 2) NULL COMMENT 'I2 - Phase 2 Amperes (A)',
     MODIFY `current_3` DECIMAL(6, 2) NULL COMMENT 'I3 - Phase 3 Amperes (A)',

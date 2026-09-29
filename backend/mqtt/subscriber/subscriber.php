@@ -151,7 +151,11 @@ class SimpleMqttClient
             // PUBLISH packet received (type 3)
             if ($type === 3) {
                 $remLen = self::decodeLength($this->socket);
-                $packet = fread($this->socket, $remLen);
+                $packet = self::readExact($this->socket, $remLen);
+                if (strlen($packet) < $remLen) {
+                    echo "[WARN] Incomplete MQTT packet dropped ({$remLen} bytes expected).\n";
+                    continue;
+                }
 
                 $topicLen = (ord($packet[0]) << 8) | ord($packet[1]);
                 $receivedTopic = substr($packet, 2, $topicLen);
@@ -160,6 +164,20 @@ class SimpleMqttClient
                 $onMessage($receivedTopic, $messagePayload);
             }
         }
+    }
+
+    // fread() on a socket returns what has arrived so far; the ~1 KB PM2130D packet can span several TCP segments
+    private static function readExact($socket, int $length): string
+    {
+        $data = '';
+        $deadline = time() + 10;
+        while (strlen($data) < $length && !feof($socket) && time() < $deadline) {
+            $chunk = fread($socket, $length - strlen($data));
+            if ($chunk !== false) {
+                $data .= $chunk;
+            }
+        }
+        return $data;
     }
 
     private static function encodeLength(int $length): string
@@ -209,7 +227,8 @@ while (true) {
 
                 try {
                     $result = TelemetryService::ingestMqttTelemetry($data);
-                    echo "       [OK] Telemetry stored: Device={$result['device_id']}, RecordedAt={$result['timestamp']}\n";
+                    $what = $result['status'] === 'duplicate' ? 'already stored (sent over HTTPS too)' : 'stored';
+                    echo "       [OK] Telemetry {$what}: Device={$result['device_id']}, RecordedAt={$result['timestamp']}\n";
                 } catch (Exception $e) {
                     echo "       [FAIL] Ingestion error: " . $e->getMessage() . "\n";
                 }

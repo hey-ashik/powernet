@@ -31,7 +31,10 @@ if (empty($input)) {
 if (class_exists('PowerNet\Config\Env')) {
     $expectedSecret = (string)\PowerNet\Config\Env::get('DEVICE_PUSH_SECRET', '');
     if (!empty($expectedSecret)) {
-        $providedSecret = $_SERVER['HTTP_X_DEVICE_SECRET'] ?? ($input['secret'] ?? '');
+        // X-Device-Secret header, "Authorization: Bearer <secret>" (PM2130D gateway HTTP_BEARER_TOKEN) or a "secret" field
+        $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? ''));
+        $bearer = preg_match('/^Bearer\s+(\S+)$/i', $auth, $m) ? $m[1] : null;
+        $providedSecret = $_SERVER['HTTP_X_DEVICE_SECRET'] ?? ($bearer ?? ($input['secret'] ?? ''));
         if (!hash_equals($expectedSecret, (string)$providedSecret)) {
             Response::error('Unauthorized device push request.', 401);
         }
@@ -40,7 +43,7 @@ if (class_exists('PowerNet\Config\Env')) {
 
 try {
     $result = TelemetryService::ingestMqttTelemetry($input);
-    Response::success($result, 'Telemetry stored successfully');
+    Response::success($result, $result['status'] === 'duplicate' ? 'Telemetry sample already stored' : 'Telemetry stored successfully');
 } catch (Exception $e) {
     Response::error($e->getMessage(), 400);
 }

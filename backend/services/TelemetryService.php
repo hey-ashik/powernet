@@ -10,6 +10,7 @@ declare(strict_types=1);
 namespace PowerNet\Services;
 
 use PDO;
+use PDOException;
 use Exception;
 use PowerNet\Database\Connection;
 use PowerNet\Config\Env;
@@ -19,6 +20,101 @@ require_once dirname(__DIR__) . '/config/env.php';
 
 class TelemetryService
 {
+    // Every reading column of the telemetry table: [min, max, decimals, unit]. All are nullable:
+    // NULL = not measured (the PM2130D has no temperature sensor; PF is undefined with no load; a failed Modbus group).
+    // voltage_1..3 = line-to-neutral V1N-V3N, voltage_ll_1..3 = line-to-line V12/V23/V31,
+    // power / power_factor = the meter's total (4th) value, voltage / current = average of the measured phases.
+    private const READINGS = [
+        'voltage'        => [0, 500, 2, 'V'],
+        'voltage_1'      => [0, 500, 2, 'V'],
+        'voltage_2'      => [0, 500, 2, 'V'],
+        'voltage_3'      => [0, 500, 2, 'V'],
+        'voltage_ll_1'   => [0, 900, 2, 'V'],
+        'voltage_ll_2'   => [0, 900, 2, 'V'],
+        'voltage_ll_3'   => [0, 900, 2, 'V'],
+        'current'        => [0, 200, 2, 'A'],
+        'current_1'      => [0, 200, 2, 'A'],
+        'current_2'      => [0, 200, 2, 'A'],
+        'current_3'      => [0, 200, 2, 'A'],
+        'power'          => [-100, 100, 3, 'kW'],
+        'power_1'        => [-100, 100, 3, 'kW'],
+        'power_2'        => [-100, 100, 3, 'kW'],
+        'power_3'        => [-100, 100, 3, 'kW'],
+        'power_factor'   => [-1, 1, 3, ''],
+        'power_factor_1' => [-1, 1, 3, ''],
+        'power_factor_2' => [-1, 1, 3, ''],
+        'power_factor_3' => [-1, 1, 3, ''],
+        'frequency'      => [40, 70, 2, 'Hz'],
+        'energy'         => [0, 9999999, 3, 'kWh'],
+        'temperature'    => [-40, 120, 2, '°C'],
+    ];
+
+    // PM2130D gateway packet: [phase 1, phase 2, phase 3] arrays -> {column}_1..3
+    private const PHASE_ARRAYS = [
+        'voltage_ln_v'    => 'voltage',
+        'voltage_ll_v'    => 'voltage_ll',
+        'phase_current_a' => 'current',
+        'phase_power_kw'  => 'power',
+        'phase_pf_iec'    => 'power_factor',
+    ];
+
+    // Packet keys accepted for a column, first non-null wins (flat firmware names, then PM2130D gateway names)
+    private const ALIASES = [
+        'power'        => ['power', 'power_kw', 'total_power_kw'],
+        'power_factor' => ['power_factor', 'total_pf_iec'],
+        'frequency'    => ['frequency', 'frequency_hz'],
+        'energy'       => ['energy', 'energy_kwh', 'import_energy_kwh'],
+    ];
+
+    // Readings added for the three-phase meter; the latest API returns null for them when not measured or offline
+    private const METER_KEYS = ['voltage_ll_1', 'voltage_ll_2', 'voltage_ll_3', 'power_factor', 'power_factor_1', 'power_factor_2', 'power_factor_3', 'frequency'];
+
+    /**
+     * Maps a telemetry packet onto the telemetry-table reading columns.
+     * Accepts the PM2130D gateway packet (voltage_ln_v, phase_current_a, total_power_kw, import_energy_kwh ...)
+     * and the older flat packet (voltage, voltage_1, current, power_kw, energy_kwh, temperature ...).
+     */
+    private static function readingsFromPayload(array $payload): array
+    {
+        foreach (self::PHASE_ARRAYS as $src => $base) {
+            if (isset($payload[$src]) && is_array($payload[$src])) {
+                foreach ([1, 2, 3] as $n) {
+                    $payload["{$base}_{$n}"] = $payload[$src][$n - 1] ?? null;
+                }
+            }
+        }
+
+        $row = [];
+        foreach (self::READINGS as $col => [$min, $max, $dp, $unit]) {
+            $val = null;
+            foreach (self::ALIASES[$col] ?? [$col] as $key) {
+                if (isset($payload[$key]) && is_numeric($payload[$key])) {
+                    $val = (float)$payload[$key];
+                    break;
+                }
+            }
+            if ($val !== null && ($val < $min || $val > $max)) {
+                throw new Exception("Reading {$col} out of plausible bounds: {$val}{$unit}");
+            }
+            $row[$col] = $val === null ? null : round($val, $dp);
+        }
+
+        // Line voltage / current the dashboard shows: average of the measured phases when the packet has no line value
+        foreach (['voltage', 'current'] as $base) {
+            $phases = array_filter([$row["{$base}_1"], $row["{$base}_2"], $row["{$base}_3"]], fn($v) => $v !== null);
+            if ($row[$base] === null && $phases) {
+                $row[$base] = round(array_sum($phases) / count($phases), 2);
+            }
+        }
+
+        $voltages = [$row['voltage'], $row['voltage_ll_1'], $row['voltage_ll_2'], $row['voltage_ll_3']];
+        if (count(array_filter($voltages, fn($v) => $v !== null)) === 0) {
+            throw new Exception('Incomplete telemetry measurements: no voltage reading in packet.');
+        }
+
+        return $row;
+    }
+
     public static function ingestMqttTelemetry(array $payload): array
     {
         // 1. Mandatory device identification
@@ -31,42 +127,12 @@ class TelemetryService
             throw new Exception('Invalid device_id format.');
         }
 
-        $voltage = isset($payload['voltage']) ? (float)$payload['voltage'] : null;
-        $current = isset($payload['current']) ? (float)$payload['current'] : null;
-        $power   = isset($payload['power'])   ? (float)$payload['power']   : (isset($payload['power_kw']) ? (float)$payload['power_kw'] : null);
-        $energy  = isset($payload['energy'])  ? (float)$payload['energy']  : (isset($payload['energy_kwh']) ? (float)$payload['energy_kwh'] : null);
-        $temp    = isset($payload['temperature']) ? (float)$payload['temperature'] : null;
+        $readings = self::readingsFromPayload($payload);
 
-        if ($voltage === null || $current === null || $power === null || $energy === null || $temp === null) {
-            throw new Exception('Incomplete telemetry measurements.');
-        }
-
-        // Physical bounds checking
-        if ($voltage < 0 || $voltage > 500) {
-            throw new Exception("Voltage reading out of plausible bounds: {$voltage}V");
-        }
-        if ($current < 0 || $current > 200) {
-            throw new Exception("Current reading out of plausible bounds: {$current}A");
-        }
-        if ($power < 0 || $power > 100) {
-            throw new Exception("Power reading out of plausible bounds: {$power}kW");
-        }
-        if ($temp < -40 || $temp > 120) {
-            throw new Exception("Temperature reading out of plausible bounds: {$temp}°C");
-        }
-
-        // Optional per-phase readings (voltage_1..3, current_1..3, power_1..3); single-phase devices may omit them
-        $phases = [];
-        foreach (['voltage' => [500, 'V', 2], 'current' => [200, 'A', 2], 'power' => [100, 'kW', 3]] as $field => [$max, $unit, $dp]) {
-            foreach ([1, 2, 3] as $n) {
-                $key = "{$field}_{$n}";
-                $val = isset($payload[$key]) && is_numeric($payload[$key]) ? (float)$payload[$key] : null;
-                if ($val !== null && ($val < 0 || $val > $max)) {
-                    throw new Exception("Phase {$n} {$field} out of plausible bounds: {$val}{$unit}");
-                }
-                $phases[$key] = $val === null ? null : round($val, $dp);
-            }
-        }
+        // Gateway sample id ("pnw101-3bef6c9a-28"): the same sample arriving over MQTT and HTTPS is stored once
+        $sampleId = isset($payload['sample_id']) && is_string($payload['sample_id']) && preg_match('/^[A-Za-z0-9_.:-]{1,64}$/', $payload['sample_id'])
+            ? $payload['sample_id']
+            : null;
 
         $db = Connection::get();
 
@@ -93,40 +159,50 @@ class TelemetryService
                 $upStmt->execute(['id' => $device['id']]);
             }
 
-            // Authoritative timestamp in UTC for database storage
+            // Authoritative timestamp in UTC for database storage: the device's NTP time
+            // (PM2130D gateway: timestamp_utc, older firmware: timestamp or epoch) when within a day of server time
             $recordedAt = gmdate('Y-m-d H:i:s');
-            if (!empty($payload['timestamp'])) {
-                $ts = strtotime((string)$payload['timestamp']);
-                if ($ts !== false && abs(time() - $ts) <= 86400) {
-                    $recordedAt = gmdate('Y-m-d H:i:s', $ts);
-                }
-            } elseif (!empty($payload['epoch'])) {
-                $ts = (int)$payload['epoch'];
-                if ($ts > 1000000000 && abs(time() - $ts) <= 86400) {
-                    $recordedAt = gmdate('Y-m-d H:i:s', $ts);
+            $ts = false;
+            foreach (['timestamp_utc', 'timestamp'] as $key) {
+                if (!empty($payload[$key]) && is_string($payload[$key])) {
+                    $ts = strtotime($payload[$key]);
+                    break;
                 }
             }
+            if ($ts === false && !empty($payload['epoch']) && (int)$payload['epoch'] > 1000000000) {
+                $ts = (int)$payload['epoch'];
+            }
+            if ($ts !== false && abs(time() - $ts) <= 86400) {
+                $recordedAt = gmdate('Y-m-d H:i:s', $ts);
+            }
 
-            // Insert telemetry row
+            // Insert telemetry row (column names come from the READINGS constant, never from the packet)
+            $cols = array_keys($readings);
             $insStmt = $db->prepare("
-                INSERT INTO telemetry (device_id, voltage, voltage_1, voltage_2, voltage_3, current, current_1, current_2, current_3, power, power_1, power_2, power_3, energy, temperature, recorded_at, created_at)
-                VALUES (:device_id, :voltage, :voltage_1, :voltage_2, :voltage_3, :current, :current_1, :current_2, :current_3, :power, :power_1, :power_2, :power_3, :energy, :temp, :recorded_at, NOW())
+                INSERT INTO telemetry (device_id, sample_id, " . implode(', ', $cols) . ", recorded_at, created_at)
+                VALUES (:device_id, :sample_id, :" . implode(', :', $cols) . ", :recorded_at, NOW())
             ");
-            $insStmt->execute([
-                'device_id'   => $deviceId,
-                'voltage'     => round($voltage, 2),
-                'current'     => round($current, 2),
-                'power'       => round($power, 3),
-                'energy'      => round($energy, 3),
-                'temp'        => round($temp, 2),
-                'recorded_at' => $recordedAt
-            ] + $phases);
+            $status = 'accepted';
+            try {
+                $insStmt->execute([
+                    'device_id'   => $deviceId,
+                    'sample_id'   => $sampleId,
+                    'recorded_at' => $recordedAt
+                ] + $readings);
+            } catch (PDOException $e) {
+                // 1062 = duplicate sample_id: this sample was already stored via the other transport (MQTT / HTTPS)
+                if ($sampleId === null || (int)($e->errorInfo[1] ?? 0) !== 1062) {
+                    throw $e;
+                }
+                $status = 'duplicate';
+            }
 
             $db->commit();
 
             return [
-                'status'    => 'accepted',
+                'status'    => $status,
                 'device_id' => $deviceId,
+                'sample_id' => $sampleId,
                 'timestamp' => $recordedAt
             ];
         } catch (Exception $e) {
@@ -155,7 +231,7 @@ class TelemetryService
         }
 
         $telStmt = $db->prepare("
-            SELECT voltage, voltage_1, voltage_2, voltage_3, current, current_1, current_2, current_3, power, power_1, power_2, power_3, energy, temperature, recorded_at
+            SELECT " . implode(', ', array_keys(self::READINGS)) . ", recorded_at
             FROM telemetry
             WHERE device_id = :device_id
             ORDER BY recorded_at DESC, id DESC
@@ -174,6 +250,11 @@ class TelemetryService
         foreach (['voltage_1', 'voltage_2', 'voltage_3', 'current_1', 'current_2', 'current_3', 'power_1', 'power_2', 'power_3'] as $k) {
             $phaseOut[$k]         = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : 0.0;
             $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : 0.0;
+        }
+        // Three-phase meter readings (V12/V23/V31, PF, Hz): null rather than a misleading 0 when not measured or offline
+        foreach (self::METER_KEYS as $k) {
+            $phaseOut[$k]          = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : null;
+            $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : null;
         }
 
         if (!$latest) {
@@ -206,8 +287,9 @@ class TelemetryService
             'prev_current'       => ($isOnline && $prev) ? (float)$prev['current'] : 0.0,
             'power'              => $isOnline ? (float)$latest['power'] : 0.0,
             'energy'             => (float)$latest['energy'],
-            'temperature'        => $isOnline ? (float)$latest['temperature'] : 0.0,
-            'prev_temperature'   => ($isOnline && $prev) ? (float)$prev['temperature'] : 0.0,
+            // null (dashboard shows "--") for devices without a temperature sensor such as the PM2130D meter
+            'temperature'        => ($isOnline && $latest['temperature'] !== null) ? (float)$latest['temperature'] : null,
+            'prev_temperature'   => ($isOnline && $prev && $prev['temperature'] !== null) ? (float)$prev['temperature'] : null,
             'timestamp'          => date('c', strtotime($latest['recorded_at'])),
             'recorded_at'        => $latest['recorded_at'],
             'status'             => $isOnline ? 'online' : 'offline',
@@ -271,6 +353,9 @@ class TelemetryService
                 ROUND(AVG(voltage_1), 2) as avg_voltage_1,
                 ROUND(AVG(voltage_2), 2) as avg_voltage_2,
                 ROUND(AVG(voltage_3), 2) as avg_voltage_3,
+                ROUND(AVG(voltage_ll_1), 2) as avg_voltage_ll_1,
+                ROUND(AVG(voltage_ll_2), 2) as avg_voltage_ll_2,
+                ROUND(AVG(voltage_ll_3), 2) as avg_voltage_ll_3,
                 ROUND(AVG(current), 2) as avg_current,
                 ROUND(AVG(current_1), 2) as avg_current_1,
                 ROUND(AVG(current_2), 2) as avg_current_2,
@@ -280,6 +365,11 @@ class TelemetryService
                 ROUND(AVG(power_2), 3) as avg_power_2,
                 ROUND(AVG(power_3), 3) as avg_power_3,
                 ROUND(MAX(power), 3) as max_power,
+                ROUND(AVG(power_factor), 3) as avg_power_factor,
+                ROUND(AVG(power_factor_1), 3) as avg_power_factor_1,
+                ROUND(AVG(power_factor_2), 3) as avg_power_factor_2,
+                ROUND(AVG(power_factor_3), 3) as avg_power_factor_3,
+                ROUND(AVG(frequency), 2) as avg_frequency,
                 ROUND(MAX(energy), 3) as max_energy,
                 ROUND(AVG(temperature), 2) as avg_temperature,
                 COUNT(*) as sample_count
@@ -327,6 +417,8 @@ class TelemetryService
                 ROUND(MIN(voltage), 2) as min_voltage,
                 ROUND(MAX(voltage), 2) as max_voltage,
                 ROUND(AVG(temperature), 1) as avg_temp,
+                ROUND(AVG(power_factor), 3) as avg_pf,
+                ROUND(AVG(frequency), 2) as avg_hz,
                 ROUND(MAX(energy) - MIN(energy), 3) as day_kwh,
                 COUNT(*) as total_samples
             FROM telemetry
@@ -342,6 +434,8 @@ class TelemetryService
             'min_voltage_v'  => (float)($data['min_voltage'] ?? 0),
             'max_voltage_v'  => (float)($data['max_voltage'] ?? 0),
             'avg_temp_c'     => (float)($data['avg_temp'] ?? 0),
+            'avg_power_factor' => isset($data['avg_pf']) ? (float)$data['avg_pf'] : null,
+            'avg_frequency_hz' => isset($data['avg_hz']) ? (float)$data['avg_hz'] : null,
             'day_kwh'        => (float)($data['day_kwh'] ?? 0),
             'samples_today'  => (int)($data['total_samples'] ?? 0)
         ];
@@ -366,7 +460,7 @@ class TelemetryService
 
         $stmt = $db->prepare("
             SELECT t.id, t.device_id, COALESCE(NULLIF(d.device_name, ''), 'Device') as device_name,
-                   t.voltage, t.voltage_1, t.voltage_2, t.voltage_3, t.current, t.current_1, t.current_2, t.current_3, t.power, t.power_1, t.power_2, t.power_3, t.energy, t.temperature, t.recorded_at
+                   t.sample_id, t." . implode(', t.', array_keys(self::READINGS)) . ", t.recorded_at
             FROM telemetry t
             LEFT JOIN devices d ON t.device_id = d.device_id
             WHERE t.device_id = :device_id

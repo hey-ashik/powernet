@@ -91,8 +91,10 @@ class Connection
             if (!$u1 || (strpos($u1['email'], 'ashikul') === false && strpos($u1['email'], 'ashik') === false)) {
                 $db->exec("UPDATE `devices` SET `user_id` = NULL WHERE `device_id` = 'pnw101' AND `user_id` = 1");
             }
-            // Purge fake demo telemetry seed rows for pnw101 so connecting device has zero demo data
-            $db->exec("DELETE FROM `telemetry` WHERE `device_id` = 'pnw101' AND (`voltage` = 230.50 OR `voltage` = 230.10 OR `energy` = 12.500 OR `energy` = 12.380 OR `recorded_at` < '2026-09-19 00:00:00')");
+            // Purge fake demo telemetry seed rows for pnw101 so connecting device has zero demo data.
+            // Rows with a sample_id come from the PM2130D meter gateway and are real readings (a real 230.10 V or
+            // 12.500 kWh must never be deleted); until step 4 adds that column this statement fails and is skipped.
+            $db->exec("DELETE FROM `telemetry` WHERE `device_id` = 'pnw101' AND `sample_id` IS NULL AND (`voltage` = 230.50 OR `voltage` = 230.10 OR `energy` = 12.500 OR `energy` = 12.380 OR `recorded_at` < '2026-09-19 00:00:00')");
         } catch (\Throwable $e) {
             // Safe to ignore
         }
@@ -136,8 +138,9 @@ class Connection
 
         // 4. Ensure per-phase telemetry columns exist (V1-V3, I1-I3, P1-P3) so ingestion never fails on an old table
         try {
-            $telCols = $db->query("SHOW COLUMNS FROM `telemetry`")->fetchAll(PDO::FETCH_COLUMN);
-            $phaseCols = ['voltage' => ['DECIMAL(6, 2)', 'V', 'Volts (V)'], 'current' => ['DECIMAL(6, 2)', 'I', 'Amperes (A)'], 'power' => ['DECIMAL(8, 3)', 'P', 'Active Power (kW)']];
+            $telInfo = $db->query("SHOW COLUMNS FROM `telemetry`")->fetchAll(PDO::FETCH_ASSOC);
+            $telCols = array_column($telInfo, 'Field');
+            $phaseCols =['voltage' => ['DECIMAL(6, 2)', 'V', 'Volts (V)'], 'current' => ['DECIMAL(6, 2)', 'I', 'Amperes (A)'], 'power' => ['DECIMAL(8, 3)', 'P', 'Active Power (kW)']];
             foreach ($phaseCols as $base => [$type, $sym, $unit]) {
                 $after = $base;
                 foreach ([1, 2, 3] as $n) {
@@ -147,6 +150,44 @@ class Connection
                     }
                     $after = $col;
                 }
+            }
+
+            // Schneider PM2130D three-phase meter readings (same as database/migrations/2026_09_29_add_pm2130d_readings.sql)
+            $meterCols = [
+                'voltage_ll_1'   => "DECIMAL(6, 2) NULL COMMENT 'V12 - Line-to-Line L1-L2 Volts (V)' AFTER `voltage_3`",
+                'voltage_ll_2'   => "DECIMAL(6, 2) NULL COMMENT 'V23 - Line-to-Line L2-L3 Volts (V)' AFTER `voltage_ll_1`",
+                'voltage_ll_3'   => "DECIMAL(6, 2) NULL COMMENT 'V31 - Line-to-Line L3-L1 Volts (V)' AFTER `voltage_ll_2`",
+                'power_factor'   => "DECIMAL(4, 3) NULL COMMENT 'PF - Total Power Factor (-1..1)' AFTER `power_3`",
+                'power_factor_1' => "DECIMAL(4, 3) NULL COMMENT 'PF1 - Phase 1 Power Factor (-1..1)' AFTER `power_factor`",
+                'power_factor_2' => "DECIMAL(4, 3) NULL COMMENT 'PF2 - Phase 2 Power Factor (-1..1)' AFTER `power_factor_1`",
+                'power_factor_3' => "DECIMAL(4, 3) NULL COMMENT 'PF3 - Phase 3 Power Factor (-1..1)' AFTER `power_factor_2`",
+                'frequency'      => "DECIMAL(5, 2) NULL COMMENT 'Hz - Frequency (Hz)' AFTER `power_factor_3`",
+            ];
+            foreach ($meterCols as $col => $def) {
+                if (!in_array($col, $telCols)) {
+                    $db->exec("ALTER TABLE `telemetry` ADD COLUMN `{$col}` {$def}");
+                }
+            }
+            if (!in_array('sample_id', $telCols)) {
+                $db->exec("ALTER TABLE `telemetry` ADD COLUMN `sample_id` VARCHAR(64) NULL COMMENT 'Gateway sample id (MQTT + HTTPS copies stored once)' AFTER `device_id`, ADD UNIQUE KEY `idx_telemetry_sample_id` (`sample_id`)");
+            }
+
+            // The meter has no temperature sensor and a failed Modbus read is stored as NULL, not as a fake 0
+            $nullable = [
+                'voltage'     => "DECIMAL(6, 2) NULL COMMENT 'V - Average Line-to-Neutral Volts (V)'",
+                'current'     => "DECIMAL(6, 2) NULL COMMENT 'I - Average Phase Amperes (A)'",
+                'power'       => "DECIMAL(8, 3) NULL COMMENT 'P - Total Active Power (kW)'",
+                'energy'      => "DECIMAL(10, 3) NULL COMMENT 'kWh - Cumulative Imported Energy (kWh)'",
+                'temperature' => "DECIMAL(5, 2) NULL COMMENT 'Temp - Celsius (°C), NULL when the device has no sensor'",
+            ];
+            $mods = [];
+            foreach ($telInfo as $c) {
+                if (isset($nullable[$c['Field']]) && $c['Null'] === 'NO') {
+                    $mods[] = "MODIFY `{$c['Field']}` {$nullable[$c['Field']]}";
+                }
+            }
+            if ($mods) {
+                $db->exec("ALTER TABLE `telemetry` " . implode(', ', $mods));
             }
         } catch (\Throwable $e) {
             error_log('PowerNet telemetry phase column check failed: ' . $e->getMessage());
