@@ -20,98 +20,96 @@ require_once dirname(__DIR__) . '/config/env.php';
 
 class TelemetryService
 {
-    // Every reading column of the telemetry table: [min, max, decimals, unit]. All are nullable:
-    // NULL = not measured (the PM2130D has no temperature sensor; PF is undefined with no load; a failed Modbus group).
-    // voltage_1..3 = line-to-neutral V1N-V3N, voltage_ll_1..3 = line-to-line V12/V23/V31,
-    // power / power_factor = the meter's total (4th) value, voltage / current = average of the measured phases.
+    // The telemetry table's reading columns = the names the ESP32 PM2130D gateway uses in its JSON; each 3-value
+    // array becomes three columns _1/_2/_3 (voltage_ll_v[0] -> voltage_ll_v_1). [min, max, decimals, unit].
+    // Every reading is nullable: NULL = the meter gave no valid value (e.g. power factor while no current flows).
     private const READINGS = [
-        'voltage'        => [0, 500, 2, 'V'],
-        'voltage_1'      => [0, 500, 2, 'V'],
-        'voltage_2'      => [0, 500, 2, 'V'],
-        'voltage_3'      => [0, 500, 2, 'V'],
-        'voltage_ll_1'   => [0, 900, 2, 'V'],
-        'voltage_ll_2'   => [0, 900, 2, 'V'],
-        'voltage_ll_3'   => [0, 900, 2, 'V'],
-        'current'        => [0, 200, 2, 'A'],
-        'current_1'      => [0, 200, 2, 'A'],
-        'current_2'      => [0, 200, 2, 'A'],
-        'current_3'      => [0, 200, 2, 'A'],
-        'power'          => [-100, 100, 3, 'kW'],
-        'power_1'        => [-100, 100, 3, 'kW'],
-        'power_2'        => [-100, 100, 3, 'kW'],
-        'power_3'        => [-100, 100, 3, 'kW'],
-        'power_factor'   => [-1, 1, 3, ''],
-        'power_factor_1' => [-1, 1, 3, ''],
-        'power_factor_2' => [-1, 1, 3, ''],
-        'power_factor_3' => [-1, 1, 3, ''],
-        'frequency'      => [40, 70, 2, 'Hz'],
-        'energy'         => [0, 9999999, 3, 'kWh'],
-        'temperature'    => [-40, 120, 2, '°C'],
+        'voltage_ll_v_1'    => [0, 900, 2, 'V'],          // Serial "VLL +0": V12, line 1 to line 2
+        'voltage_ll_v_2'    => [0, 900, 2, 'V'],          // Serial "VLL +2": V23
+        'voltage_ll_v_3'    => [0, 900, 2, 'V'],          // Serial "VLL +4": V31
+        'voltage_ln_v_1'    => [0, 500, 2, 'V'],          // Serial "VLN +0": V1N, phase 1 to neutral
+        'voltage_ln_v_2'    => [0, 500, 2, 'V'],          // Serial "VLN +2"
+        'voltage_ln_v_3'    => [0, 500, 2, 'V'],          // Serial "VLN +4"
+        'phase_current_a_1' => [0, 200, 3, 'A'],          // Serial "AMPS +0"
+        'phase_current_a_2' => [0, 200, 3, 'A'],          // Serial "AMPS +2"
+        'phase_current_a_3' => [0, 200, 3, 'A'],          // Serial "AMPS +4"
+        'phase_power_kw_1'  => [-100, 100, 3, 'kW'],      // Serial "KW +0"
+        'phase_power_kw_2'  => [-100, 100, 3, 'kW'],      // Serial "KW +2"
+        'phase_power_kw_3'  => [-100, 100, 3, 'kW'],      // Serial "KW +4"
+        'total_power_kw'    => [-100, 100, 3, 'kW'],      // Serial "KW +6" (4th kW value)
+        'phase_pf_iec_1'    => [-1, 1, 3, ''],            // Serial "PF +0"
+        'phase_pf_iec_2'    => [-1, 1, 3, ''],            // Serial "PF +2"
+        'phase_pf_iec_3'    => [-1, 1, 3, ''],            // Serial "PF +4"
+        'total_pf_iec'      => [-1, 1, 3, ''],            // Serial "PF +6" (4th PF value)
+        'frequency_hz'      => [40, 70, 3, 'Hz'],         // Serial "HZ +0"
+        'import_energy_kwh' => [0, 999999999, 3, 'kWh'],  // Serial "KWH +0"
     ];
 
-    // PM2130D gateway packet: [phase 1, phase 2, phase 3] arrays -> {column}_1..3
-    private const PHASE_ARRAYS = [
-        'voltage_ln_v'    => 'voltage',
-        'voltage_ll_v'    => 'voltage_ll',
-        'phase_current_a' => 'current',
-        'phase_power_kw'  => 'power',
-        'phase_pf_iec'    => 'power_factor',
-    ];
+    // ESP JSON arrays [phase 1, phase 2, phase 3] -> columns {name}_1, {name}_2, {name}_3
+    private const PHASE_ARRAYS = ['voltage_ll_v', 'voltage_ln_v', 'phase_current_a', 'phase_power_kw', 'phase_pf_iec'];
 
-    // Packet keys accepted for a column, first non-null wins (flat firmware names, then PM2130D gateway names)
-    private const ALIASES = [
-        'power'        => ['power', 'power_kw', 'total_power_kw'],
-        'power_factor' => ['power_factor', 'total_pf_iec'],
-        'frequency'    => ['frequency', 'frequency_hz'],
-        'energy'       => ['energy', 'energy_kwh', 'import_energy_kwh'],
+    // Older reading names -> ESP-named column. Accepted from older packets (esp32/PowerNetESP32.ino, simulate_esp32.php)
+    // and still returned by the read APIs because the current dashboard reads them
+    private const LEGACY = [
+        'voltage_1' => 'voltage_ln_v_1', 'voltage_2' => 'voltage_ln_v_2', 'voltage_3' => 'voltage_ln_v_3',
+        'current_1' => 'phase_current_a_1', 'current_2' => 'phase_current_a_2', 'current_3' => 'phase_current_a_3',
+        'power_1'   => 'phase_power_kw_1', 'power_2' => 'phase_power_kw_2', 'power_3' => 'phase_power_kw_3',
+        'power'     => 'total_power_kw',
+        'energy'    => 'import_energy_kwh',
     ];
-
-    // Readings added for the three-phase meter; the latest API returns null for them when not measured or offline
-    private const METER_KEYS = ['voltage_ll_1', 'voltage_ll_2', 'voltage_ll_3', 'power_factor', 'power_factor_1', 'power_factor_2', 'power_factor_3', 'frequency'];
 
     /**
      * Maps a telemetry packet onto the telemetry-table reading columns.
-     * Accepts the PM2130D gateway packet (voltage_ln_v, phase_current_a, total_power_kw, import_energy_kwh ...)
-     * and the older flat packet (voltage, voltage_1, current, power_kw, energy_kwh, temperature ...).
+     * The PM2130D gateway packet (voltage_ll_v, voltage_ln_v, phase_current_a, total_power_kw ...) maps 1:1;
+     * older flat packets (voltage_1, current_1, power, power_kw, energy, energy_kwh ...) map through LEGACY.
      */
     private static function readingsFromPayload(array $payload): array
     {
-        foreach (self::PHASE_ARRAYS as $src => $base) {
-            if (isset($payload[$src]) && is_array($payload[$src])) {
+        foreach (self::PHASE_ARRAYS as $name) {
+            if (isset($payload[$name]) && is_array($payload[$name])) {
                 foreach ([1, 2, 3] as $n) {
-                    $payload["{$base}_{$n}"] = $payload[$src][$n - 1] ?? null;
+                    $payload["{$name}_{$n}"] = $payload[$name][$n - 1] ?? null;
                 }
+            }
+        }
+        foreach (self::LEGACY + ['power_kw' => 'total_power_kw', 'energy_kwh' => 'import_energy_kwh'] as $old => $col) {
+            if (!isset($payload[$col]) && isset($payload[$old])) {
+                $payload[$col] = $payload[$old];
             }
         }
 
         $row = [];
         foreach (self::READINGS as $col => [$min, $max, $dp, $unit]) {
-            $val = null;
-            foreach (self::ALIASES[$col] ?? [$col] as $key) {
-                if (isset($payload[$key]) && is_numeric($payload[$key])) {
-                    $val = (float)$payload[$key];
-                    break;
-                }
-            }
+            $val = isset($payload[$col]) && is_numeric($payload[$col]) ? (float)$payload[$col] : null;
             if ($val !== null && ($val < $min || $val > $max)) {
                 throw new Exception("Reading {$col} out of plausible bounds: {$val}{$unit}");
             }
             $row[$col] = $val === null ? null : round($val, $dp);
         }
 
-        // Line voltage / current the dashboard shows: average of the measured phases when the packet has no line value
-        foreach (['voltage', 'current'] as $base) {
-            $phases = array_filter([$row["{$base}_1"], $row["{$base}_2"], $row["{$base}_3"]], fn($v) => $v !== null);
-            if ($row[$base] === null && $phases) {
-                $row[$base] = round(array_sum($phases) / count($phases), 2);
-            }
-        }
-
-        $voltages = [$row['voltage'], $row['voltage_ll_1'], $row['voltage_ll_2'], $row['voltage_ll_3']];
-        if (count(array_filter($voltages, fn($v) => $v !== null)) === 0) {
+        $voltages = array_filter($row, fn($v, $col) => $v !== null && str_starts_with($col, 'voltage_'), ARRAY_FILTER_USE_BOTH);
+        if (!$voltages) {
             throw new Exception('Incomplete telemetry measurements: no voltage reading in packet.');
         }
 
+        return $row;
+    }
+
+    /**
+     * Adds the older reading names the current dashboard reads (voltage, voltage_1..3, current, current_1..3,
+     * power, power_1..3, energy, temperature) to a telemetry row, taken from the ESP-named columns.
+     * voltage / current = average of the measured phases; temperature is always null (the meter has no sensor).
+     */
+    private static function withLegacyNames(array $row): array
+    {
+        foreach (self::LEGACY as $old => $col) {
+            $row[$old] = $row[$col] ?? null;
+        }
+        foreach (['voltage' => 'voltage_ln_v', 'current' => 'phase_current_a'] as $old => $name) {
+            $phases = array_filter([$row["{$name}_1"] ?? null, $row["{$name}_2"] ?? null, $row["{$name}_3"] ?? null], fn($v) => $v !== null);
+            $row[$old] = $phases ? round(array_sum(array_map('floatval', $phases)) / count($phases), 2) : null;
+        }
+        $row['temperature'] = null;
         return $row;
     }
 
@@ -238,7 +236,7 @@ class TelemetryService
             LIMIT 2
         ");
         $telStmt->execute(['device_id' => $device['device_id']]);
-        $rows = $telStmt->fetchAll();
+        $rows = array_map(fn($r) => self::withLegacyNames($r), $telStmt->fetchAll());
         $latest = $rows[0] ?? null;
         $prev = $rows[1] ?? null;
 
@@ -247,12 +245,13 @@ class TelemetryService
         $isOnline = $secondsSinceSeen !== null && $secondsSinceSeen <= $threshold && ($telemetryAge === null || $telemetryAge <= $threshold);
 
         $phaseOut = [];
+        // Older phase names the current dashboard reads: 0 when offline
         foreach (['voltage_1', 'voltage_2', 'voltage_3', 'current_1', 'current_2', 'current_3', 'power_1', 'power_2', 'power_3'] as $k) {
             $phaseOut[$k]         = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : 0.0;
             $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : 0.0;
         }
-        // Three-phase meter readings (V12/V23/V31, PF, Hz): null rather than a misleading 0 when not measured or offline
-        foreach (self::METER_KEYS as $k) {
+        // ESP-named readings (voltage_ll_v_1 ... import_energy_kwh): null rather than a misleading 0 when not measured or offline
+        foreach (array_keys(self::READINGS) as $k) {
             $phaseOut[$k]          = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : null;
             $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : null;
         }
@@ -346,32 +345,28 @@ class TelemetryService
                 break;
         }
 
+        // ESP-named averages (avg_voltage_ll_v_1 ... avg_frequency_hz), then the older names the current dashboard charts read
+        $cols = [];
+        foreach (self::READINGS as $col => [, , $dp]) {
+            $cols[] = "ROUND(AVG({$col}), {$dp}) as avg_{$col}";
+        }
+        $cols[] = "ROUND(MAX(total_power_kw), 3) as max_total_power_kw";
+        $cols[] = "ROUND(MAX(import_energy_kwh), 3) as max_import_energy_kwh";
+        foreach (self::LEGACY as $old => $col) {
+            if ($old !== 'energy') {
+                $cols[] = "ROUND(AVG({$col}), " . self::READINGS[$col][2] . ") as avg_{$old}";
+            }
+        }
+        $cols[] = "ROUND(AVG((voltage_ln_v_1 + voltage_ln_v_2 + voltage_ln_v_3) / 3), 2) as avg_voltage";
+        $cols[] = "ROUND(AVG((phase_current_a_1 + phase_current_a_2 + phase_current_a_3) / 3), 2) as avg_current";
+        $cols[] = "ROUND(MAX(total_power_kw), 3) as max_power";
+        $cols[] = "ROUND(MAX(import_energy_kwh), 3) as max_energy";
+        $cols[] = "NULL as avg_temperature";
+
         $query = "
-            SELECT 
+            SELECT
                 DATE_FORMAT(recorded_at, '{$groupBy}') as bucket_time,
-                ROUND(AVG(voltage), 2) as avg_voltage,
-                ROUND(AVG(voltage_1), 2) as avg_voltage_1,
-                ROUND(AVG(voltage_2), 2) as avg_voltage_2,
-                ROUND(AVG(voltage_3), 2) as avg_voltage_3,
-                ROUND(AVG(voltage_ll_1), 2) as avg_voltage_ll_1,
-                ROUND(AVG(voltage_ll_2), 2) as avg_voltage_ll_2,
-                ROUND(AVG(voltage_ll_3), 2) as avg_voltage_ll_3,
-                ROUND(AVG(current), 2) as avg_current,
-                ROUND(AVG(current_1), 2) as avg_current_1,
-                ROUND(AVG(current_2), 2) as avg_current_2,
-                ROUND(AVG(current_3), 2) as avg_current_3,
-                ROUND(AVG(power), 3) as avg_power,
-                ROUND(AVG(power_1), 3) as avg_power_1,
-                ROUND(AVG(power_2), 3) as avg_power_2,
-                ROUND(AVG(power_3), 3) as avg_power_3,
-                ROUND(MAX(power), 3) as max_power,
-                ROUND(AVG(power_factor), 3) as avg_power_factor,
-                ROUND(AVG(power_factor_1), 3) as avg_power_factor_1,
-                ROUND(AVG(power_factor_2), 3) as avg_power_factor_2,
-                ROUND(AVG(power_factor_3), 3) as avg_power_factor_3,
-                ROUND(AVG(frequency), 2) as avg_frequency,
-                ROUND(MAX(energy), 3) as max_energy,
-                ROUND(AVG(temperature), 2) as avg_temperature,
+                " . implode(",\n                ", $cols) . ",
                 COUNT(*) as sample_count
             FROM telemetry
             WHERE device_id = :device_id AND {$intervalQuery}
@@ -411,15 +406,14 @@ class TelemetryService
         $targetDeviceId = $device['device_id'];
 
         $stmt = $db->prepare("
-            SELECT 
-                ROUND(MAX(power), 3) as peak_power,
-                ROUND(AVG(power), 3) as avg_power,
-                ROUND(MIN(voltage), 2) as min_voltage,
-                ROUND(MAX(voltage), 2) as max_voltage,
-                ROUND(AVG(temperature), 1) as avg_temp,
-                ROUND(AVG(power_factor), 3) as avg_pf,
-                ROUND(AVG(frequency), 2) as avg_hz,
-                ROUND(MAX(energy) - MIN(energy), 3) as day_kwh,
+            SELECT
+                ROUND(MAX(total_power_kw), 3) as peak_power,
+                ROUND(AVG(total_power_kw), 3) as avg_power,
+                ROUND(MIN((voltage_ln_v_1 + voltage_ln_v_2 + voltage_ln_v_3) / 3), 2) as min_voltage,
+                ROUND(MAX((voltage_ln_v_1 + voltage_ln_v_2 + voltage_ln_v_3) / 3), 2) as max_voltage,
+                ROUND(AVG(total_pf_iec), 3) as avg_pf,
+                ROUND(AVG(frequency_hz), 3) as avg_hz,
+                ROUND(MAX(import_energy_kwh) - MIN(import_energy_kwh), 3) as day_kwh,
                 COUNT(*) as total_samples
             FROM telemetry
             WHERE device_id = :device_id AND recorded_at >= DATE_SUB(NOW(), INTERVAL 24 HOUR)
@@ -433,8 +427,7 @@ class TelemetryService
             'avg_power_kw'   => (float)($data['avg_power'] ?? 0),
             'min_voltage_v'  => (float)($data['min_voltage'] ?? 0),
             'max_voltage_v'  => (float)($data['max_voltage'] ?? 0),
-            'avg_temp_c'     => (float)($data['avg_temp'] ?? 0),
-            'avg_power_factor' => isset($data['avg_pf']) ? (float)$data['avg_pf'] : null,
+            'avg_total_pf_iec' => isset($data['avg_pf']) ? (float)$data['avg_pf'] : null,
             'avg_frequency_hz' => isset($data['avg_hz']) ? (float)$data['avg_hz'] : null,
             'day_kwh'        => (float)($data['day_kwh'] ?? 0),
             'samples_today'  => (int)($data['total_samples'] ?? 0)
@@ -474,6 +467,7 @@ class TelemetryService
 
         $bdTz = new \DateTimeZone('Asia/Dhaka');
         foreach ($logs as &$log) {
+            $log = self::withLegacyNames($log);
             $power = (float)$log['power'];
             if ($power > 3.0) {
                 $log['status_badge'] = 'High Load';

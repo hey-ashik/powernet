@@ -1,3 +1,4 @@
+-- SUPERSEDED by 2026_09_29_pm2130d_telemetry_table.sql (new PM2130D telemetry table): skip this file.
 -- Adds per-phase readings V1-V3, I1-I3, P1-P3 to an existing telemetry table.
 -- kWh already exists as the `energy` column, so it is not added here.
 -- Run once in phpMyAdmin (Import tab) on databases created before this change.

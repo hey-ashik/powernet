@@ -179,7 +179,7 @@ backend/
 |---|---|
 | `users` | User accounts (name, email, password_hash, email_verified) |
 | `devices` | IoT devices (device_id, user_id, status, last_seen) |
-| `telemetry` | Meter readings: V1-V3 (L-N), V12/V23/V31 (L-L), I1-I3, P1-P3 + total kW, PF1-PF3 + total PF, Hz, kWh (temperature optional) |
+| `telemetry` | PM2130D meter readings, columns named after the ESP JSON: `voltage_ll_v_1..3`, `voltage_ln_v_1..3`, `phase_current_a_1..3`, `phase_power_kw_1..3`, `total_power_kw`, `phase_pf_iec_1..3`, `total_pf_iec`, `frequency_hz`, `import_energy_kwh` |
 | `email_verifications` | Email verification tokens |
 | `password_resets` | Password reset tokens |
 | `predictions` | AI load predictions (future feature, table ready) |

@@ -18,6 +18,40 @@ class Connection
 {
     private static ?PDO $instance = null;
 
+    // Telemetry table, identical to database/schema.sql: one row per Schneider PM2130D sample from the ESP32 gateway.
+    // Column names = the ESP JSON names; each 3-value array becomes _1/_2/_3 (voltage_ll_v[0] -> voltage_ll_v_1).
+    private const TELEMETRY_TABLE = "
+        CREATE TABLE IF NOT EXISTS `telemetry` (
+            `id` BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+            `device_id` VARCHAR(64) NOT NULL COMMENT 'device_id from the ESP (e.g. pnw101)',
+            `sample_id` VARCHAR(64) NULL COMMENT 'sample_id from the ESP; unique, so an MQTT + HTTPS copy is stored once',
+            `voltage_ll_v_1` DECIMAL(6, 2) NULL COMMENT 'VLL +0: V12 line-to-line L1-L2 (V)',
+            `voltage_ll_v_2` DECIMAL(6, 2) NULL COMMENT 'VLL +2: V23 line-to-line L2-L3 (V)',
+            `voltage_ll_v_3` DECIMAL(6, 2) NULL COMMENT 'VLL +4: V31 line-to-line L3-L1 (V)',
+            `voltage_ln_v_1` DECIMAL(6, 2) NULL COMMENT 'VLN +0: V1N phase 1 line-to-neutral (V)',
+            `voltage_ln_v_2` DECIMAL(6, 2) NULL COMMENT 'VLN +2: V2N phase 2 line-to-neutral (V)',
+            `voltage_ln_v_3` DECIMAL(6, 2) NULL COMMENT 'VLN +4: V3N phase 3 line-to-neutral (V)',
+            `phase_current_a_1` DECIMAL(7, 3) NULL COMMENT 'AMPS +0: I1 phase 1 current (A)',
+            `phase_current_a_2` DECIMAL(7, 3) NULL COMMENT 'AMPS +2: I2 phase 2 current (A)',
+            `phase_current_a_3` DECIMAL(7, 3) NULL COMMENT 'AMPS +4: I3 phase 3 current (A)',
+            `phase_power_kw_1` DECIMAL(8, 3) NULL COMMENT 'KW +0: P1 phase 1 active power (kW)',
+            `phase_power_kw_2` DECIMAL(8, 3) NULL COMMENT 'KW +2: P2 phase 2 active power (kW)',
+            `phase_power_kw_3` DECIMAL(8, 3) NULL COMMENT 'KW +4: P3 phase 3 active power (kW)',
+            `total_power_kw` DECIMAL(8, 3) NULL COMMENT 'KW +6: 4th kW value from the meter (kW)',
+            `phase_pf_iec_1` DECIMAL(4, 3) NULL COMMENT 'PF +0: PF1 phase 1 power factor (-1..1)',
+            `phase_pf_iec_2` DECIMAL(4, 3) NULL COMMENT 'PF +2: PF2 phase 2 power factor (-1..1)',
+            `phase_pf_iec_3` DECIMAL(4, 3) NULL COMMENT 'PF +4: PF3 phase 3 power factor (-1..1)',
+            `total_pf_iec` DECIMAL(4, 3) NULL COMMENT 'PF +6: 4th power factor value from the meter (-1..1)',
+            `frequency_hz` DECIMAL(6, 3) NULL COMMENT 'HZ +0: frequency (Hz)',
+            `import_energy_kwh` DECIMAL(12, 3) NULL COMMENT 'KWH +0: imported energy counter (kWh)',
+            `recorded_at` DATETIME NOT NULL COMMENT 'timestamp_utc from the ESP (UTC)',
+            `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY `idx_telemetry_sample_id` (`sample_id`),
+            KEY `idx_telemetry_device_recorded` (`device_id`, `recorded_at`),
+            KEY `idx_telemetry_recorded_at` (`recorded_at`)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
     public static function get(): PDO
     {
         if (self::$instance === null) {
@@ -91,10 +125,6 @@ class Connection
             if (!$u1 || (strpos($u1['email'], 'ashikul') === false && strpos($u1['email'], 'ashik') === false)) {
                 $db->exec("UPDATE `devices` SET `user_id` = NULL WHERE `device_id` = 'pnw101' AND `user_id` = 1");
             }
-            // Purge fake demo telemetry seed rows for pnw101 so connecting device has zero demo data.
-            // Rows with a sample_id come from the PM2130D meter gateway and are real readings (a real 230.10 V or
-            // 12.500 kWh must never be deleted); until step 4 adds that column this statement fails and is skipped.
-            $db->exec("DELETE FROM `telemetry` WHERE `device_id` = 'pnw101' AND `sample_id` IS NULL AND (`voltage` = 230.50 OR `voltage` = 230.10 OR `energy` = 12.500 OR `energy` = 12.380 OR `recorded_at` < '2026-09-19 00:00:00')");
         } catch (\Throwable $e) {
             // Safe to ignore
         }
@@ -136,61 +166,25 @@ class Connection
             // Table already exists, safe to ignore
         }
 
-        // 4. Ensure per-phase telemetry columns exist (V1-V3, I1-I3, P1-P3) so ingestion never fails on an old table
+        // 4. Ensure the telemetry table has the PM2130D gateway layout (column names = the ESP JSON names).
+        //    A table in an older layout is kept as telemetry_old_backup (nothing is deleted) and a new empty table
+        //    is created, the same as database/migrations/2026_09_29_pm2130d_telemetry_table.sql does
         try {
-            $telInfo = $db->query("SHOW COLUMNS FROM `telemetry`")->fetchAll(PDO::FETCH_ASSOC);
-            $telCols = array_column($telInfo, 'Field');
-            $phaseCols =['voltage' => ['DECIMAL(6, 2)', 'V', 'Volts (V)'], 'current' => ['DECIMAL(6, 2)', 'I', 'Amperes (A)'], 'power' => ['DECIMAL(8, 3)', 'P', 'Active Power (kW)']];
-            foreach ($phaseCols as $base => [$type, $sym, $unit]) {
-                $after = $base;
-                foreach ([1, 2, 3] as $n) {
-                    $col = "{$base}_{$n}";
-                    if (!in_array($col, $telCols)) {
-                        $db->exec("ALTER TABLE `telemetry` ADD COLUMN `{$col}` {$type} NULL COMMENT '{$sym}{$n} - Phase {$n} {$unit}' AFTER `{$after}`");
-                    }
-                    $after = $col;
-                }
+            try {
+                $telCols = $db->query("SHOW COLUMNS FROM `telemetry`")->fetchAll(PDO::FETCH_COLUMN);
+            } catch (PDOException $e) {
+                $telCols = null; // no telemetry table yet
             }
-
-            // Schneider PM2130D three-phase meter readings (same as database/migrations/2026_09_29_add_pm2130d_readings.sql)
-            $meterCols = [
-                'voltage_ll_1'   => "DECIMAL(6, 2) NULL COMMENT 'V12 - Line-to-Line L1-L2 Volts (V)' AFTER `voltage_3`",
-                'voltage_ll_2'   => "DECIMAL(6, 2) NULL COMMENT 'V23 - Line-to-Line L2-L3 Volts (V)' AFTER `voltage_ll_1`",
-                'voltage_ll_3'   => "DECIMAL(6, 2) NULL COMMENT 'V31 - Line-to-Line L3-L1 Volts (V)' AFTER `voltage_ll_2`",
-                'power_factor'   => "DECIMAL(4, 3) NULL COMMENT 'PF - Total Power Factor (-1..1)' AFTER `power_3`",
-                'power_factor_1' => "DECIMAL(4, 3) NULL COMMENT 'PF1 - Phase 1 Power Factor (-1..1)' AFTER `power_factor`",
-                'power_factor_2' => "DECIMAL(4, 3) NULL COMMENT 'PF2 - Phase 2 Power Factor (-1..1)' AFTER `power_factor_1`",
-                'power_factor_3' => "DECIMAL(4, 3) NULL COMMENT 'PF3 - Phase 3 Power Factor (-1..1)' AFTER `power_factor_2`",
-                'frequency'      => "DECIMAL(5, 2) NULL COMMENT 'Hz - Frequency (Hz)' AFTER `power_factor_3`",
-            ];
-            foreach ($meterCols as $col => $def) {
-                if (!in_array($col, $telCols)) {
-                    $db->exec("ALTER TABLE `telemetry` ADD COLUMN `{$col}` {$def}");
-                }
+            if ($telCols !== null && !in_array('voltage_ll_v_1', $telCols, true)) {
+                $db->exec("RENAME TABLE `telemetry` TO `telemetry_old_backup`");
+                error_log('PowerNet: old telemetry table renamed to telemetry_old_backup; new PM2130D telemetry table created');
+                $telCols = null;
             }
-            if (!in_array('sample_id', $telCols)) {
-                $db->exec("ALTER TABLE `telemetry` ADD COLUMN `sample_id` VARCHAR(64) NULL COMMENT 'Gateway sample id (MQTT + HTTPS copies stored once)' AFTER `device_id`, ADD UNIQUE KEY `idx_telemetry_sample_id` (`sample_id`)");
-            }
-
-            // The meter has no temperature sensor and a failed Modbus read is stored as NULL, not as a fake 0
-            $nullable = [
-                'voltage'     => "DECIMAL(6, 2) NULL COMMENT 'V - Average Line-to-Neutral Volts (V)'",
-                'current'     => "DECIMAL(6, 2) NULL COMMENT 'I - Average Phase Amperes (A)'",
-                'power'       => "DECIMAL(8, 3) NULL COMMENT 'P - Total Active Power (kW)'",
-                'energy'      => "DECIMAL(10, 3) NULL COMMENT 'kWh - Cumulative Imported Energy (kWh)'",
-                'temperature' => "DECIMAL(5, 2) NULL COMMENT 'Temp - Celsius (°C), NULL when the device has no sensor'",
-            ];
-            $mods = [];
-            foreach ($telInfo as $c) {
-                if (isset($nullable[$c['Field']]) && $c['Null'] === 'NO') {
-                    $mods[] = "MODIFY `{$c['Field']}` {$nullable[$c['Field']]}";
-                }
-            }
-            if ($mods) {
-                $db->exec("ALTER TABLE `telemetry` " . implode(', ', $mods));
+            if ($telCols === null) {
+                $db->exec(self::TELEMETRY_TABLE);
             }
         } catch (\Throwable $e) {
-            error_log('PowerNet telemetry phase column check failed: ' . $e->getMessage());
+            error_log('PowerNet telemetry table check failed: ' . $e->getMessage());
         }
 
         // 5. Ensure dashboard_preferences table exists (Manage Dashboard phase switches)
