@@ -1,12 +1,19 @@
 /**
  * PowerNet Dashboard Controller
- * Handles user device locking, 10-second AJAX polling, telemetry rendering, dynamic charts & log tables
+ * Handles user device locking, 15-second AJAX polling, telemetry rendering, dynamic charts & log tables
  * Device ID: pnw101 (Direct pairing & secure per-user locking)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
-  const path = window.location.pathname.replace(/\.html$/, '');
-  if (path === '/dashboard' || path === '/analytics' || path === '/voltage' || path === '/current' || path === '/power' || path === '/' || !path) {
+  const path = window.location.pathname.replace(/\.html$/, '').replace(/(.)\/$/, '$1');
+  // A server that doesn't list this page yet answers with its dashboard.html fallback: load the page's own file
+  // instead of showing the dashboard under this URL (<main data-page> names the page that was served)
+  const servedPage = document.querySelector('.main-content')?.dataset.page;
+  if (servedPage && API.dashPages.includes(path) && servedPage !== path) {
+    API.navigateTo(path, false);
+    return;
+  }
+  if (API.dashPages.includes(path) || path === '/' || !path) {
     Dashboard.init();
   }
 });
@@ -154,42 +161,59 @@ function getBdCalendarMonths(count = 12) {
   return list;
 }
 
-const WAVE_METRICS = {
-  voltage: { name: 'Voltage', unit: 'V', color: '#2563EB', defaultMax: 250, decimals: 1 },
-  current: { name: 'Current', unit: 'A', color: '#F59E0B', defaultMax: 12, decimals: 2 },
-  power: { name: 'Power', unit: 'kW', color: '#8B5CF6', defaultMax: 4, decimals: 3 },
-  energy: { name: 'Energy', unit: 'kWh', color: '#10B981', defaultMax: 5, decimals: 3 },
-  temperature: { name: 'Temp', unit: '°C', color: '#EF4444', defaultMax: 60, decimals: 1 },
-  voltage_1: { name: 'V1', unit: 'V', color: '#EF4444', defaultMax: 250, decimals: 1 },
-  voltage_2: { name: 'V2', unit: 'V', color: '#F59E0B', defaultMax: 250, decimals: 1 },
-  voltage_3: { name: 'V3', unit: 'V', color: '#2563EB', defaultMax: 250, decimals: 1 },
-  current_1: { name: 'I1', unit: 'A', color: '#EF4444', defaultMax: 12, decimals: 2 },
-  current_2: { name: 'I2', unit: 'A', color: '#F59E0B', defaultMax: 12, decimals: 2 },
-  current_3: { name: 'I3', unit: 'A', color: '#2563EB', defaultMax: 12, decimals: 2 },
-  power_1: { name: 'P1', unit: 'kW', color: '#EF4444', defaultMax: 4, decimals: 3 },
-  power_2: { name: 'P2', unit: 'kW', color: '#F59E0B', defaultMax: 4, decimals: 3 },
-  power_3: { name: 'P3', unit: 'kW', color: '#2563EB', defaultMax: 4, decimals: 3 }
+// Phase 1 / 2 / 3 chart colors, and the phase-average color
+const PHASE_COLORS = ['#EF4444', '#F59E0B', '#2563EB'];
+const AVG_COLOR = '#8B5CF6';
+const phaseMetrics = (field, sym, cfg) => Object.fromEntries([1, 2, 3].map(n => [
+  `${field}_${n}`, { name: `${sym}${n}`, color: PHASE_COLORS[n - 1], ...cfg }
+]));
+
+// Every reading the dashboard pages show, keyed by its telemetry API field (= telemetry column / ESP JSON name;
+// total_power_kw / total_pf_iec = the meter's 4th kW / PF value, shown as the "Average" view).
+// name = chart button / tooltip label, suffix = text after the unit (V LL).
+// Chart scale: defaultMax (grows with the data) or fixedMax (power factor never exceeds 1).
+const METRICS = {
+  ...phaseMetrics('voltage_ll_v', 'V', { unit: 'V', suffix: 'LL', defaultMax: 450, decimals: 1 }),
+  ...phaseMetrics('voltage_ln_v', 'V', { unit: 'V', suffix: 'LN', defaultMax: 250, decimals: 1 }),
+  ...phaseMetrics('phase_current_a', 'I', { unit: 'A', defaultMax: 12, decimals: 2 }),
+  total_power_kw: { name: 'Avg', label: 'Average Power', unit: 'kW', color: AVG_COLOR, defaultMax: 4, decimals: 3 },
+  ...phaseMetrics('phase_power_kw', 'P', { unit: 'kW', defaultMax: 4, decimals: 3 }),
+  total_pf_iec: { name: 'Avg', label: 'Average PF', unit: '', color: AVG_COLOR, fixedMax: 1, decimals: 3 },
+  ...phaseMetrics('phase_pf_iec', 'PF', { unit: '', fixedMax: 1, decimals: 3 }),
+  frequency_hz: { name: 'Freq', label: 'Frequency', unit: 'Hz', color: '#EF4444', defaultMax: 60, decimals: 2 },
+  // history: the 7D / 30D / 12M bars read the counter's highest value per day / month
+  import_energy_kwh: { name: 'kWh', label: 'Energy', unit: 'kWh', color: '#10B981', defaultMax: 5, decimals: 3, history: 'max_import_energy_kwh' }
 };
 
-// Per-phase fields shown on /voltage, /current and /power (metric cards, bar chart, waveform, logs)
-const PHASE_KEYS = Object.keys(WAVE_METRICS).filter(k => /_[123]$/.test(k));
+// Dashboard chart buttons -> the reading they plot, in the dashboard's own chart colors.
+// box: follows the view picked for that box in Manage Dashboard (Voltage LL -> V12, Power Average -> total_power_kw ...)
+const DASH_SERIES = {
+  voltage:   { box: 'voltage', name: 'Voltage', color: '#2563EB' },
+  current:   { box: 'current', name: 'Current', color: '#F59E0B' },
+  power:     { box: 'power', name: 'Power', color: '#8B5CF6' },
+  energy:    { key: 'import_energy_kwh', name: 'Energy', color: '#10B981' },
+  frequency: { key: 'frequency_hz', name: 'Frequency', color: '#EF4444' },
+  // Power Dynamics bars: kW = daily / monthly average of the stored Average Power, kWh = energy counter
+  kw:        { key: 'total_power_kw', name: 'Average Power', color: '#2563EB' },
+  kwh:       { key: 'import_energy_kwh', name: 'Energy', color: '#10B981' }
+};
 
 const Dashboard = {
-  pollIntervalMs: 10000,
+  pollIntervalMs: 15000, // matches the ESP32 gateway's 15-second sample interval
   pollTimer: null,
   activeDeviceId: null,
   activeDevice: null,
   hasDevice: false,
 
   // Chart state
-  powerUnit: 'kw',     // 'kw' or 'kwh'
+  powerUnit: 'kw',     // bar chart: dashboard 'kw' / 'kwh', or the reading a phase-page button shows (voltage_ll_v_1 ...)
   powerRange: '7d',    // '7d', '30d', '12m'
-  waveMetric: 'voltage', // 'voltage', 'current', 'power', 'energy', 'temperature'
+  waveMetric: 'voltage', // waveform: dashboard 'voltage' / 'current' / 'power' / 'energy' / 'frequency', or a phase-page reading
   historyData: [],       // cached history points from API
-  waveHistory: { voltage: [], current: [], power: [], energy: [], temperature: [] },
-  prevTelemetry: null,   // tracks previous reading { voltage, current, temperature } for delta % calculation
+  waveHistory: {},       // { telemetry field: [{ val, time }] } for every METRICS reading
+  prevTelemetry: null,   // tracks previous reading of every METRICS field for delta % calculation
   lastTelemetry: null,   // latest reading, re-rendered when a Manage Dashboard switch changes
-  phasePrefs: null,      // { voltage_phase, current_phase, power_phase }: 1-3 = phase shown on that box (V1/I1/P1 until changed)
+  prefs: null,           // { voltage_view, current_view, power_view, pf_view }: view each box shows (Voltage LL / I1 / Average / Average until changed)
 
   async init() {
     if (this.pollTimer) {
@@ -224,10 +248,10 @@ const Dashboard = {
     this.powerRange = activeBtn('power-range-switcher').range || '7d';
     this.waveMetric = activeBtn('waveform-metric-switcher').metric || 'voltage';
 
-    // Phase shown on the Voltage / Current / Active Power boxes: cached first, then the database copy
-    this.phasePrefs = API.getDashPrefs();
-    this.renderPhaseTags();
-    API.loadDashPrefs().then(prefs => this.applyPhasePrefs(prefs)).catch(() => {});
+    // View shown on the Voltage / Current / Active Power / Power Factor boxes: cached first, then the database copy
+    this.prefs = API.getDashPrefs();
+    this.renderBoxViews();
+    API.loadDashPrefs().then(prefs => this.applyBoxPrefs(prefs)).catch(() => {});
 
     this.loadUserProfile();
     this.updateDateRange();
@@ -258,7 +282,7 @@ const Dashboard = {
       });
     }
 
-    // Start 10-second polling loop
+    // Start 15-second polling loop: every reading is re-fetched from the database
     this.pollTimer = setInterval(async () => {
       this.updateDateRange(); // Automatically syncs today's date across midnight
       await this.checkUserDevices(true);
@@ -276,27 +300,41 @@ const Dashboard = {
     }
   },
 
-  // ─── Manage Dashboard phase choice ────────────────────────
-  // 'voltage' -> 'voltage_2' when the Voltage box is set to V2; any other metric is returned unchanged
-  phaseKey(metric) {
-    const n = this.phasePrefs && this.phasePrefs[`${metric}_phase`];
-    return n ? `${metric}_${n}` : metric;
+  // ─── Manage Dashboard box views ───────────────────────────
+  // Telemetry field a dashboard box shows: boxKey('voltage') -> 'voltage_ll_v_1' (Voltage LL) or 'voltage_ln_v_1' (LN)
+  boxKey(boxId) {
+    return API.dashView(boxId, this.prefs).key;
   },
 
-  renderPhaseTags() {
-    ['voltage', 'current', 'power'].forEach(metric => {
-      const el = document.getElementById(`phase-tag-${metric}`);
-      const key = this.phaseKey(metric);
-      if (el) el.textContent = key === metric ? '' : `(${WAVE_METRICS[key].name})`;
+  // Chart button -> { key, display config }: dashboard buttons (DASH_SERIES) or a phase-page reading (METRICS field)
+  series(id) {
+    const dash = DASH_SERIES[id];
+    if (!dash && !METRICS[id]) return this.series('voltage'); // unknown button (stale page markup)
+    if (!dash) return { key: id, label: METRICS[id].name, ...METRICS[id] };
+    const view = dash.box ? API.dashView(dash.box, this.prefs) : null;
+    const key = view ? view.key : dash.key;
+    return { ...METRICS[key], key, color: dash.color, label: view ? `${dash.name} (${view.tag})` : dash.name };
+  },
+
+  // Box title tags "(LL)" / "(I1)" / "(Average)", the Voltage box's "V LL" unit and the page each box opens
+  renderBoxViews() {
+    API.DASH_BOXES.forEach(({ id }) => {
+      const view = API.dashView(id, this.prefs);
+      const tag = document.getElementById(`phase-tag-${id}`);
+      if (tag) tag.textContent = `(${view.tag})`;
+      const link = document.getElementById(`box-link-${id}`);
+      if (link) link.setAttribute('href', view.page);
     });
+    const suffix = document.getElementById('unit-suffix-voltage');
+    if (suffix) suffix.textContent = METRICS[this.boxKey('voltage')].suffix;
   },
 
   // Called when a switch changes: re-render the boxes and waveform from the last reading (no new poll)
-  applyPhasePrefs(prefs) {
-    if (JSON.stringify(prefs) === JSON.stringify(this.phasePrefs)) return;
-    this.phasePrefs = prefs;
+  applyBoxPrefs(prefs) {
+    if (JSON.stringify(prefs) === JSON.stringify(this.prefs)) return;
+    this.prefs = prefs;
     if (!document.getElementById('metric-voltage')) return; // not on the dashboard page
-    this.renderPhaseTags();
+    this.renderBoxViews();
     if (this.lastTelemetry) this.updateMetricCards(this.lastTelemetry, false);
     this.renderWaveformChart();
   },
@@ -434,10 +472,10 @@ const Dashboard = {
     if (!chartContainer) return;
 
     const points = this.historyData || [];
-    const unit = this.powerUnit; // 'kw' or 'kwh'
+    const s = this.series(this.powerUnit); // dashboard kW (average power) / kWh, or a phase-page button (V1, I2, Avg, PF3 ...)
     const range = this.powerRange; // '7d', '30d', '12m'
-    const phaseCfg = PHASE_KEYS.includes(unit) ? WAVE_METRICS[unit] : null; // /voltage V1-V3, /current I1-I3, /power P1-P3 tabs
-    const unitLabel = phaseCfg ? phaseCfg.unit : unit.toUpperCase();
+    const unitLabel = s.unit;
+    const historyField = s.history || `avg_${s.key}`; // per-day / per-month average, or the kWh counter's highest value
 
     let buckets = [];
     if (range === '7d') {
@@ -485,16 +523,14 @@ const Dashboard = {
 
       const bucket = buckets.find(b => b.key === pointKey);
       if (bucket) {
-        let rawVal = phaseCfg ? Number(p[`avg_${unit}`] || p[unit] || 0)
-          : unit === 'kwh' ? Number(p.max_energy || p.energy || 0) : Number(p.avg_power || p.power || 0);
-        if (unit === 'kw' && rawVal > 100) rawVal = rawVal / 1000;
-        bucket.value += rawVal;
+        const rawVal = Number(p[historyField] || 0);
+        bucket.value = s.history ? Math.max(bucket.value, rawVal) : bucket.value + rawVal;
         bucket._count += 1;
       }
     });
 
-    // Average for kW and phase voltages
-    if (unit !== 'kwh') {
+    // Average readings (kW, voltage, current, PF ...); the kWh counter keeps its highest value
+    if (!s.history) {
       buckets.forEach(b => {
         if (b._count > 1) b.value = b.value / b._count;
       });
@@ -502,7 +538,7 @@ const Dashboard = {
 
     // Calculate max for scaling
     const maxObserved = Math.max(...buckets.map(b => b.value), 0);
-    const maxVal = maxObserved > 0 ? maxObserved * 1.15 : (phaseCfg ? phaseCfg.defaultMax : (unit === 'kwh' ? 10 : 3.0));
+    const maxVal = s.fixedMax || (maxObserved > 0 ? maxObserved * 1.15 : s.defaultMax);
 
     // Build Y-axis labels (5 ticks from top down to 0)
     const yLabels = [];
@@ -518,13 +554,13 @@ const Dashboard = {
     // Visible labels configuration
     const showEvery = 1;
     const delayStep = range === '7d' ? 45 : (range === '30d' ? 18 : 35);
-    const metricLabel = phaseCfg ? phaseCfg.name : (unit === 'kwh' ? 'Energy' : 'Power');
-    const dotColor = phaseCfg ? phaseCfg.color : (unit === 'kwh' ? '#10B981' : '#2563EB');
+    const metricLabel = s.label;
+    const dotColor = s.color;
 
     buckets.forEach((b, idx) => {
       const pct = maxVal > 0 ? Math.min(100, Math.round((b.value / maxVal) * 100)) : 0;
       const showLabel = idx % showEvery === 0;
-      const valDisplay = b.value.toFixed(unit === 'kwh' ? 2 : (b.value < 10 ? 2 : 1));
+      const valDisplay = `${b.value.toFixed(s.history ? 2 : (b.value < 10 ? 2 : 1))} ${unitLabel}`.trim();
       const delayMs = idx * delayStep;
 
       let alignClass = '';
@@ -536,13 +572,13 @@ const Dashboard = {
 
       html += `
         <div class="bar-column-group">
-          <div class="bar-track" tabindex="0" role="button" aria-label="${b.tooltipDate}: ${valDisplay} ${unitLabel}">
+          <div class="bar-track" tabindex="0" role="button" aria-label="${b.tooltipDate}: ${valDisplay}">
             <div class="bar-tooltip${alignClass}">
               <div class="bar-tooltip-date">${b.tooltipDate} (BST)</div>
               <div class="bar-tooltip-val">
                 <span class="bar-tooltip-dot" style="background:${dotColor};"></span>
                 <span>${metricLabel}:</span>
-                <strong style="color:#FFFFFF;">${valDisplay} ${unitLabel}</strong>
+                <strong style="color:#FFFFFF;">${valDisplay}</strong>
               </div>
             </div>
             <div class="bar-fill" style="height: ${Math.max(3, pct)}%; animation-delay: ${delayMs}ms;"></div>
@@ -562,17 +598,15 @@ const Dashboard = {
     if (!container) return;
 
     const metric = this.waveMetric;
-    // Voltage / Current / Power tabs follow the phase chosen for that box (e.g. Voltage tab plots V2)
-    const dataKey = this.phaseKey(metric);
-    const baseCfg = WAVE_METRICS[metric] || WAVE_METRICS.voltage;
-    const cfg = dataKey === metric ? baseCfg : { ...baseCfg, name: `${baseCfg.name} (${WAVE_METRICS[dataKey].name})` };
-    const points = this.waveHistory[dataKey] || [];
+    // Dashboard Voltage / Current / Power buttons follow the view chosen for that box (e.g. Voltage (LL) plots V12)
+    const cfg = this.series(metric);
+    const points = this.waveHistory[cfg.key] || [];
 
     if (points.length < 2) {
       container.innerHTML = `
         <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#94A3B8;font-size:13px;flex-direction:column;gap:8px;">
           <i class="fa-brands fa-slack" style="font-size:28px;color:#0F172A;opacity:0.35;"></i>
-          <span>Waiting for live ${cfg.name} telemetry (${cfg.unit})</span>
+          <span>Waiting for live ${cfg.label} telemetry${cfg.unit ? ` (${cfg.unit})` : ''}</span>
         </div>
       `;
       return;
@@ -581,13 +615,13 @@ const Dashboard = {
     // Scale calculation
     const values = points.map(p => p.val);
     const maxObserved = Math.max(...values, 0.01);
-    const maxVal = Math.max(cfg.defaultMax, Math.ceil(maxObserved * 1.15));
+    const maxVal = cfg.fixedMax || Math.max(cfg.defaultMax, Math.ceil(maxObserved * 1.15));
 
     // 5 Y-axis tick values from max down to 0
     const yTicks = [maxVal, maxVal * 0.75, maxVal * 0.5, maxVal * 0.25, 0];
     const yLabels = yTicks.map((v, i) => {
-      const str = v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(cfg.decimals === 0 ? 0 : (v < 10 ? 1 : 0));
-      return i === 0 ? `${str} ${cfg.unit}` : str;
+      const str = v >= 1000 ? (v / 1000).toFixed(1) + 'k' : v.toFixed(cfg.decimals === 0 ? 0 : (v > 0 && v < 1 ? 2 : (v < 10 ? 1 : 0)));
+      return i === 0 ? `${str} ${cfg.unit}`.trim() : str;
     });
 
     // SVG parameters
@@ -664,7 +698,7 @@ const Dashboard = {
             <div class="waveform-tooltip-time" id="waveform-tooltip-time">--:--:-- (BST)</div>
             <div class="waveform-tooltip-val">
               <span class="waveform-tooltip-dot" style="background:${cfg.color};"></span>
-              <span>${cfg.name}:</span>
+              <span>${cfg.label}:</span>
               <strong id="waveform-tooltip-num" style="color:#FFFFFF;">--</strong>
             </div>
           </div>
@@ -708,7 +742,7 @@ const Dashboard = {
 
       const bdFull = formatBdTime(pt.time, 'full');
       tooltipTime.textContent = `${bdFull} (BST)`;
-      tooltipNum.textContent = `${pt.val.toFixed(cfg.decimals)} ${cfg.unit}`;
+      tooltipNum.textContent = `${pt.val.toFixed(cfg.decimals)} ${cfg.unit}`.trim();
 
       const pctX = (idx / (points.length - 1)) * 100;
       const pctY = ((ptY / svgH) * (rect.height - 30) / rect.height) * 100;
@@ -741,11 +775,11 @@ const Dashboard = {
 
   initZeroWaveform(count = 10) {
     const now = Date.now();
-    const fields = Object.keys(WAVE_METRICS);
+    const fields = Object.keys(METRICS);
     fields.forEach(f => {
       this.waveHistory[f] = [];
       for (let i = count - 1; i >= 0; i--) {
-        const t = new Date(now - i * 10000).toISOString();
+        const t = new Date(now - i * this.pollIntervalMs).toISOString();
         this.waveHistory[f].push({ val: 0, time: t });
       }
     });
@@ -755,7 +789,7 @@ const Dashboard = {
   pushWaveformPoint(data, isLive = true) {
     const maxPoints = 20;
     const nowIso = new Date().toISOString();
-    const fields = Object.keys(WAVE_METRICS);
+    const fields = Object.keys(METRICS);
 
     if (!isLive) {
       // Telemetry stopped: push 0 values at current Bangladesh time
@@ -771,8 +805,7 @@ const Dashboard = {
     // Active real-time data from database
     let time = data.timestamp || data.recorded_at || data.created_at || nowIso;
     fields.forEach(f => {
-      let rawVal = Number(data[f] || 0);
-      if (f === 'power' && rawVal > 100) rawVal = rawVal / 1000;
+      const rawVal = Number(data[f] || 0);
       if (!this.waveHistory[f]) this.waveHistory[f] = [];
       this.waveHistory[f].push({ val: rawVal, time });
       if (this.waveHistory[f].length > maxPoints) this.waveHistory[f].shift();
@@ -803,13 +836,11 @@ const Dashboard = {
 
     // Reverse newest-first array so that earliest timestamp is on the left and newest is on the right
     const slice = [...telemetryPoints].reverse().slice(-20);
-    const fields = Object.keys(WAVE_METRICS);
+    const fields = Object.keys(METRICS);
     fields.forEach(f => {
       this.waveHistory[f] = slice.map(p => {
-        let rawVal = Number(p[f] || 0);
-        if (f === 'power' && rawVal > 100) rawVal = rawVal / 1000;
         return {
-          val: rawVal,
+          val: Number(p[f] || 0),
           time: p.recorded_at || p.created_at || p.timestamp || new Date().toISOString()
         };
       });
@@ -890,13 +921,13 @@ const Dashboard = {
     if (cEl) cEl.innerHTML = shimmer(56, 30);
     const pEl = document.getElementById('metric-power');
     if (pEl) pEl.innerHTML = shimmer(65, 24);
+    const pfEl = document.getElementById('metric-pf');
+    if (pfEl) pfEl.innerHTML = shimmer(56, 30);
+    const hzEl = document.getElementById('metric-frequency');
+    if (hzEl) hzEl.innerHTML = shimmer(72, 24);
     const eEl = document.getElementById('metric-energy');
     if (eEl) eEl.innerHTML = shimmer(65, 24);
-    const tEl = document.getElementById('metric-temperature');
-    if (tEl) tEl.innerHTML = shimmer(48, 26);
-    const costEl = document.getElementById('kpi-est-cost');
-    if (costEl) costEl.innerHTML = shimmer(72, 24);
-    PHASE_KEYS.forEach(k => {
+    Object.keys(METRICS).forEach(k => {
       const el = document.getElementById(`metric-${k}`);
       if (el) el.innerHTML = shimmer(56, 30);
       const d = document.getElementById(`delta-${k}`);
@@ -908,8 +939,8 @@ const Dashboard = {
     if (deltaV) deltaV.innerHTML = shimmer(44, 16);
     const deltaC = document.getElementById('delta-current');
     if (deltaC) deltaC.innerHTML = shimmer(44, 16);
-    const deltaT = document.getElementById('delta-temperature');
-    if (deltaT) deltaT.innerHTML = shimmer(44, 16);
+    const deltaPf = document.getElementById('delta-pf');
+    if (deltaPf) deltaPf.innerHTML = shimmer(44, 16);
 
     // 3. Donut placeholders
     const donutP = document.getElementById('donut-power-container');
@@ -952,12 +983,12 @@ const Dashboard = {
     if (elCurrent) elCurrent.textContent = '0.00';
     const elPower = document.getElementById('metric-power');
     if (elPower) elPower.textContent = '0.000';
+    const elPf = document.getElementById('metric-pf');
+    if (elPf) elPf.textContent = '0.000';
+    const elHz = document.getElementById('metric-frequency');
+    if (elHz) elHz.textContent = '0.00';
     const elEnergy = document.getElementById('metric-energy');
     if (elEnergy) elEnergy.textContent = '0.000';
-    const elTemp = document.getElementById('metric-temperature');
-    if (elTemp) elTemp.textContent = '--';
-    const elCost = document.getElementById('kpi-est-cost');
-    if (elCost) elCost.textContent = '0.00 ৳';
 
     // Reset deltas and cached previous telemetry
     this.prevTelemetry = null;
@@ -966,11 +997,11 @@ const Dashboard = {
     if (dv) { dv.className = 'delta-neutral'; dv.innerHTML = '&rarr; 0.0%'; }
     const dc = document.getElementById('delta-current');
     if (dc) { dc.className = 'delta-neutral'; dc.innerHTML = '&rarr; 0.0%'; }
-    const dt = document.getElementById('delta-temperature');
-    if (dt) { dt.className = 'delta-neutral'; dt.innerHTML = '&rarr; 0.0%'; }
-    PHASE_KEYS.forEach(k => {
+    const dpf = document.getElementById('delta-pf');
+    if (dpf) { dpf.className = 'delta-neutral'; dpf.innerHTML = '&rarr; 0.0%'; }
+    Object.keys(METRICS).forEach(k => {
       const el = document.getElementById(`metric-${k}`);
-      if (el) el.textContent = (0).toFixed(WAVE_METRICS[k].decimals);
+      if (el) el.textContent = (0).toFixed(METRICS[k].decimals);
       const d = document.getElementById(`delta-${k}`);
       if (d) { d.className = 'delta-neutral'; d.innerHTML = '&rarr; 0.0%'; }
     });
@@ -991,7 +1022,7 @@ const Dashboard = {
     if (tbody) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align:center; padding: 40px 16px; color: #94A3B8;">
+          <td colspan="${this.logColspan()}" style="text-align:center; padding: 40px 16px; color: #94A3B8;">
             <i class="fa-solid fa-plug-circle-xmark" style="font-size: 30px; margin-bottom: 10px; display: block; color: #CBD5E1;"></i>
             No telemetry data yet.<br>
             <span style="font-size: 13px; color: #64748B;">Connect your device</span>
@@ -1034,7 +1065,7 @@ const Dashboard = {
           if (tbody) {
             tbody.innerHTML = `
               <tr>
-                <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
+                <td colspan="${this.logColspan()}" style="text-align:center; padding:36px; color:#94A3B8;">
                   Event logs cleared. Waiting for new ...
                 </td>
               </tr>
@@ -1177,8 +1208,8 @@ const Dashboard = {
       const res = await API.request(`/telemetry/logs.php?device_id=${this.activeDeviceId}&limit=20`);
       if (res && res.data) {
         this.renderLogsTable(res.data);
-        // Pre-populate waveform on load if not yet populated
-        if ((!this.waveHistory.voltage || this.waveHistory.voltage.length < 2) && res.data.length > 0) {
+        // Pre-populate waveform on load if not yet populated (every field is filled together)
+        if ((this.waveHistory.frequency_hz || []).length < 2 && res.data.length > 0) {
           this.populateWaveformFromTelemetry(res.data);
         }
       }
@@ -1207,63 +1238,54 @@ const Dashboard = {
       }
     }
 
-    // Voltage / Current / Active Power boxes show the phase picked in Manage Dashboard
-    const vKey = this.phaseKey('voltage');
-    const cKey = this.phaseKey('current');
-    const pKey = this.phaseKey('power');
+    // Voltage / Current / Active Power / Power Factor boxes show the view picked in Manage Dashboard
+    // (default: Voltage LL phase 1 = V12, I1, Average Power total_power_kw, Average PF total_pf_iec)
+    const vKey = this.boxKey('voltage');
+    const cKey = this.boxKey('current');
+    const pKey = this.boxKey('power');
+    const pfKey = this.boxKey('pf');
 
-    // Raw readings (line values + every phase), kept as the baseline for the next delta %
+    // Every reading (null when telemetry stopped or not measured), kept as the baseline for the next delta %
     const reading = {};
-    ['voltage', 'current', 'temperature', ...PHASE_KEYS].forEach(k => {
+    Object.keys(METRICS).forEach(k => {
       reading[k] = isLive && data[k] != null ? Number(data[k]) : null;
     });
     const prevOf = (k) => (isNewReading && this.prevTelemetry && this.prevTelemetry[k] != null)
       ? this.prevTelemetry[k]
       : (data[`prev_${k}`] != null ? Number(data[`prev_${k}`]) : null);
+    // When telemetry stops a box shows 0 (0.0 V, 0.00 A, 0.000 kW ...)
+    const showValue = (elId, key, decimals) => {
+      const el = document.getElementById(elId);
+      if (el) el.textContent = (reading[key] ?? 0).toFixed(decimals);
+    };
 
-    // 1. Voltage: when telemetry stops, display 0.0
-    const elVoltage = document.getElementById('metric-voltage');
-    if (elVoltage) elVoltage.textContent = reading[vKey] !== null ? reading[vKey].toFixed(1) : '0.0';
+    // 1-5. Voltage, Current, Active Power, Power Factor, Frequency
+    showValue('metric-voltage', vKey, 1);
+    showValue('metric-current', cKey, 2);
+    showValue('metric-power', pKey, 3);
+    showValue('metric-pf', pfKey, 3);
+    showValue('metric-frequency', 'frequency_hz', 2);
+    const powerNum = reading[pKey] ?? 0;
 
-    // 2. Current: when telemetry stops, display 0.00
-    const elCurrent = document.getElementById('metric-current');
-    if (elCurrent) elCurrent.textContent = reading[cKey] !== null ? reading[cKey].toFixed(2) : '0.00';
-
-    // 3. Active Power: when telemetry stops, display 0.000
-    const elPower = document.getElementById('metric-power');
-    let powerNum = (isLive && data[pKey] !== undefined && data[pKey] !== null) ? Number(data[pKey]) : 0.0;
-    if (powerNum > 100) powerNum = powerNum / 1000;
-    if (elPower) elPower.textContent = powerNum.toFixed(3);
-
-    // 4. Daily Energy (Cumulative meter reading)
+    // 6. Daily Energy (Cumulative meter reading; the API keeps the last reading while offline)
     const elEnergy = document.getElementById('metric-energy');
-    const energyNum = (data.energy !== undefined && data.energy !== null) ? Number(data.energy) : 0.0;
+    const energyNum = data.import_energy_kwh != null ? Number(data.import_energy_kwh) : 0.0;
     if (elEnergy) elEnergy.textContent = energyNum.toFixed(3);
-
-    // 5. Temperature: when telemetry stops, display --
-    const elTemp = document.getElementById('metric-temperature');
-    if (elTemp) elTemp.textContent = (isLive && data.temperature !== undefined && data.temperature !== null) ? Number(data.temperature).toFixed(1) : '--';
-
-    // 6. Cost (Fixed 0.00 taka sign)
-    const elCost = document.getElementById('kpi-est-cost');
-    if (elCost) {
-      elCost.textContent = '0.00 ৳';
-    }
 
     // 7. Dynamic Real-Time Delta % Calculations based on previous values
     this.updateDeltaBadge('delta-voltage', reading[vKey], prevOf(vKey));
     this.updateDeltaBadge('delta-current', reading[cKey], prevOf(cKey));
-    this.updateDeltaBadge('delta-temperature', reading.temperature, prevOf('temperature'));
+    this.updateDeltaBadge('delta-pf', reading[pfKey], prevOf(pfKey));
 
-    // Phase readings V1-V3 / I1-I3 / P1-P3 (cards exist only on the phase pages; no-ops elsewhere)
-    PHASE_KEYS.forEach(k => {
+    // Phase-page cards: one per reading, e.g. metric-voltage_ll_v_2 / delta-total_pf_iec (no-ops elsewhere)
+    Object.keys(METRICS).forEach(k => {
       const el = document.getElementById(`metric-${k}`);
-      if (el) el.textContent = (reading[k] ?? 0).toFixed(WAVE_METRICS[k].decimals);
+      if (el) el.textContent = (reading[k] ?? 0).toFixed(METRICS[k].decimals);
       this.updateDeltaBadge(`delta-${k}`, reading[k], prevOf(k));
     });
 
     // Save current readings as previous for the next real-time cycle
-    if (isNewReading && isLive && [reading.voltage, reading.current, reading.temperature].some(v => v !== null)) {
+    if (isNewReading && isLive && Object.values(reading).some(v => v !== null)) {
       this.prevTelemetry = reading;
     }
 
@@ -1399,6 +1421,11 @@ const Dashboard = {
     requestAnimationFrame(step);
   },
 
+  // Columns in the logs table: 5 on the dashboard, 5 or 6 on the phase pages (placeholder rows span all of them)
+  logColspan() {
+    return document.querySelectorAll('.logs-table thead th').length || 5;
+  },
+
   renderLogsTable(logs) {
     const tbody = document.getElementById('logs-table-body');
     if (!tbody) return;
@@ -1406,7 +1433,7 @@ const Dashboard = {
     if (!logs || logs.length === 0) {
       tbody.innerHTML = `
         <tr>
-          <td colspan="5" style="text-align:center; padding:36px; color:#94A3B8;">
+          <td colspan="${this.logColspan()}" style="text-align:center; padding:36px; color:#94A3B8;">
             <i class="fa-solid fa-satellite-dish" style="margin-right:8px; color:var(--primary);"></i>
             Connected to <strong>${this.activeDeviceId || 'Device'}</strong>. Waiting for data...
           </td>
@@ -1416,14 +1443,15 @@ const Dashboard = {
     }
 
     const top20 = logs.slice(0, 20);
-    // data-view="voltage" or "current" swaps the last three columns for that quantity's phases
-    const phaseView = tbody.dataset.view;
-    const phaseCols = phaseView ? [1, 2, 3].map(n => `${phaseView}_${n}`) : [];
+    // Phase pages list their readings in data-cols (e.g. "voltage_ll_v_1 voltage_ll_v_2 voltage_ll_v_3"): one column each,
+    // in place of the dashboard's PF / Hz, Power / Energy and Status columns
+    const phaseCols = (tbody.dataset.cols || '').split(/\s+/).filter(k => METRICS[k]);
+    const fmt = (log, k) => log[k] != null ? Number(log[k]).toFixed(METRICS[k].decimals) : '--';
 
     tbody.innerHTML = top20.map(log => {
-      let logPower = Number(log.power || 0);
-      if (logPower > 100) logPower = logPower / 1000;
-      let logEnergy = Number(log.energy || 0);
+      // Power / Energy column: stored Average Power (total_power_kw) and the kWh counter
+      const logPower = Number(log.total_power_kw || 0);
+      const logEnergy = Number(log.import_energy_kwh || 0);
 
       // Device Name: if set show this, otherwise DEFAULT "Device"
       let devName = 'Device';
@@ -1445,8 +1473,10 @@ const Dashboard = {
       }
       const dateDisplay = formatBdLogDate(rawTime || new Date());
 
-      const statusType = log.status_type || (logPower > 3.0 ? 'danger' : (logPower > 1.8 ? 'warning' : 'success'));
-      const statusBadge = log.status_badge || (logPower > 3.0 ? 'High Load' : (logPower > 1.8 ? 'Moderate' : 'Normal'));
+      // Status comes from the API (total active power); fallback uses the same thresholds
+      const totalPower = Number(log.total_power_kw || 0);
+      const statusType = log.status_type || (totalPower > 3.0 ? 'danger' : (totalPower > 1.8 ? 'warning' : 'success'));
+      const statusBadge = log.status_badge || (totalPower > 3.0 ? 'High Load' : (totalPower > 1.8 ? 'Moderate' : 'Normal'));
 
       return `
         <tr>
@@ -1465,8 +1495,8 @@ const Dashboard = {
               ${dateDisplay ? `<span style="font-size: 11.5px; font-weight: 500; color: var(--text-muted, #64748B);">(${dateDisplay})</span>` : ''}
             </div>
           </td>
-          ${phaseView ? phaseCols.map(k => `<td>${log[k] != null ? `${Number(log[k]).toFixed(WAVE_METRICS[k].decimals)} ${WAVE_METRICS[k].unit}` : '--'}</td>`).join('') : `
-          <td>${Number(log.voltage || 0).toFixed(1)} V / ${Number(log.current || 0).toFixed(2)} A</td>
+          ${phaseCols.length ? phaseCols.map(k => `<td>${log[k] != null ? `${fmt(log, k)} ${METRICS[k].unit}`.trim() : '--'}</td>`).join('') : `
+          <td>${fmt(log, 'total_pf_iec')} PF / ${fmt(log, 'frequency_hz')} Hz</td>
           <td>
             <div class="price-power-cell" style="display:flex; align-items:baseline; gap:6px;">
               <span>${logPower.toFixed(3)} kW</span>

@@ -247,11 +247,23 @@ try {
   }
 } catch {}
 
-// Dashboard box phase choices (mirrors the dashboard_preferences SQL table): 1-3 = phase, every box always shows one; V1/I1/P1 until changed
+// Dashboard box views (mirrors backend/api/dashboard/preferences.php and the dashboard_preferences SQL table):
+// each box -> the views it can show; the first one is the default (Voltage LL / I1 / Average / Average)
+const DASH_VIEWS = {
+  voltage_view: ['ll', 'ln'],
+  current_view: ['1', '2', '3'],
+  power_view: ['avg', '1', '2', '3'],
+  pf_view: ['avg', '1', '2', '3']
+};
 const DASH_PREFS_FILE = process.env.DASH_PREFS_FILE || path.join(__dirname, 'scratch', 'local_dashboard_prefs.json');
-let localDashPrefs = { voltage_phase: 1, current_phase: 1, power_phase: 1 };
+let localDashPrefs = Object.fromEntries(Object.entries(DASH_VIEWS).map(([key, views]) => [key, views[0]]));
 try {
-  if (fs.existsSync(DASH_PREFS_FILE)) localDashPrefs = { ...localDashPrefs, ...JSON.parse(fs.readFileSync(DASH_PREFS_FILE, 'utf8')) };
+  if (fs.existsSync(DASH_PREFS_FILE)) {
+    const saved = JSON.parse(fs.readFileSync(DASH_PREFS_FILE, 'utf8'));
+    for (const [key, views] of Object.entries(DASH_VIEWS)) {
+      if (views.includes(String(saved[key]))) localDashPrefs[key] = String(saved[key]);
+    }
+  }
 } catch {}
 
 function saveLocalDevices() {
@@ -262,171 +274,125 @@ function saveLocalDevices() {
   } catch {}
 }
 
-// Per-phase readings jittered around the line value: voltage_1..3 (±2 V), current_1..3 (±0.4 A), power_1..3 (±0.15 kW)
-const PHASE_SPREAD = { voltage: [2, 1], current: [0.4, 2], power: [0.15, 3] }; // [max jitter, decimals]
-const PHASE_FIELDS = Object.keys(PHASE_SPREAD).flatMap(key => [1, 2, 3].map(n => `${key}_${n}`));
-const phaseSplit = (key, v) => Object.fromEntries([1, 2, 3].map(n => [
-  `${key}_${n}`, +(v + (Math.random() * 2 - 1) * PHASE_SPREAD[key][0]).toFixed(PHASE_SPREAD[key][1])
-]));
+// Mock Schneider PM2130D samples with the fields the PHP read APIs return (backend/services/TelemetryService.php):
+// the telemetry columns (= ESP32 gateway JSON names) and the older names
+const PHASES = [1, 2, 3];
+const SAMPLE_EVERY_MS = 15000; // ESP32 gateway sample interval (SAMPLE_EVERY_MS in the firmware)
+const READING_KEYS = [
+  ...['voltage_ll_v', 'voltage_ln_v', 'phase_current_a', 'phase_power_kw'].flatMap(name => PHASES.map(n => `${name}_${n}`)),
+  'total_power_kw',
+  ...PHASES.map(n => `phase_pf_iec_${n}`),
+  'total_pf_iec', 'frequency_hz', 'import_energy_kwh'
+];
+const LEGACY = {
+  voltage_1: 'voltage_ln_v_1', voltage_2: 'voltage_ln_v_2', voltage_3: 'voltage_ln_v_3',
+  current_1: 'phase_current_a_1', current_2: 'phase_current_a_2', current_3: 'phase_current_a_3',
+  power_1: 'phase_power_kw_1', power_2: 'phase_power_kw_2', power_3: 'phase_power_kw_3',
+  power: 'total_power_kw',
+  energy: 'import_energy_kwh'
+};
+const round = (v, dp) => +v.toFixed(dp);
+const jitter = (max) => (Math.random() * 2 - 1) * max;
+const phaseMean = (row, name, dp) => {
+  const vals = PHASES.map(n => row[`${name}_${n}`]).filter(v => v != null);
+  return vals.length ? round(vals.reduce((a, b) => a + b, 0) / vals.length, dp) : null;
+};
 
-// Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
-const localTelemetry = (() => {
-  const points = [];
-  const now = Date.now();
-  for (let i = 0; i <= 95; i++) {
-    const ts = now - i * 15 * 60 * 1000;
-    const hour = new Date(ts).getHours();
-    // Simulate realistic load curve: low at night, peak midday
-    const loadFactor = hour >= 8 && hour <= 20 ? 0.7 + Math.random() * 0.3 : 0.2 + Math.random() * 0.2;
-    const voltage = +(218 + Math.random() * 6).toFixed(1);
-    const current = +(loadFactor * 11 + Math.random() * 1.5).toFixed(2);
-    const pf = 0.92 + Math.random() * 0.06;
-    const powerKw = +((voltage * current * pf) / 1000).toFixed(3);
-    const energyKwh = +(loadFactor * 3.2 + (95 - i) * 0.02 + 1.8).toFixed(3);
-    const tempC = +(28 + loadFactor * 12 + Math.random() * 2).toFixed(1);
-    const isoDate = new Date(ts).toISOString();
-    
-    // Bangladesh Time (Asia/Dhaka, UTC+6) formatted time
-    let formattedBdTime = '--:--:--';
-    try {
-      formattedBdTime = new Intl.DateTimeFormat('en-US', {
-        timeZone: 'Asia/Dhaka',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true
-      }).format(new Date(ts));
-    } catch {
-      formattedBdTime = new Date(ts).toLocaleTimeString();
-    }
-
-    let statusBadge = 'Normal';
-    let statusType = 'success';
-    if (powerKw > 3.0) {
-      statusBadge = 'High Load';
-      statusType = 'danger';
-    } else if (powerKw > 1.8) {
-      statusBadge = 'Moderate';
-      statusType = 'warning';
-    } else if (powerKw < 0.2) {
-      statusBadge = 'Standby';
-      statusType = 'info';
-    }
-
-    points.push({
-      device_id: 'pnw101',
-      device_name: 'Device',
-      voltage: voltage,
-      ...phaseSplit('voltage', voltage),
-      ...phaseSplit('current', current),
-      ...phaseSplit('power', powerKw),
-      current: current,
-      power: powerKw,
-      avg_power: powerKw,
-      energy: energyKwh,
-      max_energy: energyKwh,
-      temperature: tempC,
-      avg_temperature: tempC,
-      is_online: true,
-      status_badge: statusBadge,
-      status_type: statusType,
-      last_seen_relative: i === 0 ? 'Just now' : `${i * 15}m ago`,
-      created_at: isoDate,
-      recorded_at: isoDate,
-      bucket_time: isoDate,
-      formatted_time: formattedBdTime
-    });
-  }
-  return points;
-})();
-
-// Real-Time Live Telemetry Streamer (every 10 seconds: streams new live packet in Bangladesh Time)
-setInterval(() => {
-  if (!localDevices || localDevices.length === 0) return;
-  const dev = localDevices[0];
-  const now = Date.now();
-  const hour = new Date(now).getHours();
-  const loadFactor = hour >= 8 && hour <= 20 ? 0.7 + Math.random() * 0.3 : 0.2 + Math.random() * 0.2;
-
-  // Real-time subtle fluctuation from previous reading
-  const prevV = localTelemetry.length > 0 ? Number(localTelemetry[0].voltage || 219.6) : 219.6;
-  const vDelta = +(Math.random() * 1.6 - 0.8).toFixed(1);
-  let voltage = +(prevV + vDelta).toFixed(1);
-  if (voltage < 215.0) voltage = 216.5;
-  if (voltage > 228.0) voltage = 226.5;
-
-  const prevC = localTelemetry.length > 0 ? Number(localTelemetry[0].current || 9.06) : 9.06;
-  const cDelta = +(Math.random() * 0.4 - 0.2).toFixed(2);
-  let current = +(prevC + cDelta).toFixed(2);
-  if (current < 1.0) current = 2.5;
-  if (current > 25.0) current = 22.0;
-
-  const pf = 0.92 + Math.random() * 0.06;
-  const powerKw = +((voltage * current * pf) / 1000).toFixed(3);
-
-  const prevEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy || 2.5) : 2.5;
-  const energyKwh = +(prevEnergy + (powerKw * 10) / 3600).toFixed(3);
-
-  const prevT = localTelemetry.length > 0 ? Number(localTelemetry[0].temperature || 37.9) : 37.9;
-  const tDelta = +(Math.random() * 0.6 - 0.3).toFixed(1);
-  let tempC = +(prevT + tDelta).toFixed(1);
-  if (tempC < 25.0) tempC = 26.5;
-  if (tempC > 65.0) tempC = 60.0;
-  const isoDate = new Date(now).toISOString();
-
-  let formattedBdTime = '--:--:--';
+function formatBdTime(ts) {
   try {
-    formattedBdTime = new Intl.DateTimeFormat('en-US', {
+    return new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Dhaka',
       hour: '2-digit',
       minute: '2-digit',
       second: '2-digit',
       hour12: true
-    }).format(new Date(now));
+    }).format(new Date(ts));
   } catch {
-    formattedBdTime = new Date(now).toLocaleTimeString();
+    return new Date(ts).toLocaleTimeString();
   }
+}
 
-  let statusBadge = 'Normal';
-  let statusType = 'success';
-  if (powerKw > 3.0) {
-    statusBadge = 'High Load';
-    statusType = 'danger';
-  } else if (powerKw > 1.8) {
-    statusBadge = 'Moderate';
-    statusType = 'warning';
-  } else if (powerKw < 0.2) {
-    statusBadge = 'Standby';
-    statusType = 'info';
-  }
+// One meter sample at time ts: 230 V line to neutral per phase, load following the hour of day.
+// The import counter advances from prevEnergyKwh by the total power over the hours since the previous sample.
+function meterSample(ts, prevEnergyKwh, hours) {
+  const hour = new Date(ts).getHours();
+  const loadFactor = hour >= 8 && hour <= 20 ? 0.7 + Math.random() * 0.3 : 0.2 + Math.random() * 0.2;
+  const s = {};
+  PHASES.forEach(n => {
+    const vln = 230 + jitter(2.5);
+    const amps = loadFactor * 4.5 + Math.random() * 0.8;
+    const pf = 0.9 + Math.random() * 0.08;
+    s[`voltage_ll_v_${n}`] = round(vln * Math.sqrt(3) + jitter(1), 2);
+    s[`voltage_ln_v_${n}`] = round(vln, 2);
+    s[`phase_current_a_${n}`] = round(amps, 3);
+    s[`phase_power_kw_${n}`] = round((vln * amps * pf) / 1000, 3);
+    s[`phase_pf_iec_${n}`] = round(pf, 3);
+  });
+  s.total_power_kw = round(PHASES.reduce((sum, n) => sum + s[`phase_power_kw_${n}`], 0), 3);
+  s.total_pf_iec = phaseMean(s, 'phase_pf_iec', 3);
+  s.frequency_hz = round(50 + jitter(0.05), 3);
+  s.import_energy_kwh = round(prevEnergyKwh + s.total_power_kw * hours, 3);
+  return s;
+}
 
-  const packet = {
-    device_id: dev.device_id,
-    device_name: dev.device_name || 'Device',
-    voltage: voltage,
-    ...phaseSplit('voltage', voltage),
-    ...phaseSplit('current', current),
-    ...phaseSplit('power', powerKw),
-    current: current,
-    power: powerKw,
-    avg_power: powerKw,
-    energy: energyKwh,
-    max_energy: energyKwh,
-    temperature: tempC,
-    avg_temperature: tempC,
+// A telemetry row as /api/telemetry/logs returns it: the sample plus TelemetryService::withLegacyNames and log fields
+function telemetryRow(ts, sample, dev = { device_id: 'pnw101', device_name: 'Device' }) {
+  const row = { device_id: dev.device_id, device_name: dev.device_name || 'Device', ...sample };
+  Object.entries(LEGACY).forEach(([old, col]) => { row[old] = row[col] ?? null; });
+  row.voltage = phaseMean(row, 'voltage_ln_v', 2);
+  row.current = phaseMean(row, 'phase_current_a', 2);
+  row.temperature = null;
+
+  const power = row.total_power_kw;
+  const [statusBadge, statusType] = power > 3.0 ? ['High Load', 'danger'] : power > 1.8 ? ['Moderate', 'warning']
+    : power > 0.1 ? ['Normal', 'success'] : ['Standby', 'info'];
+  const isoDate = new Date(ts).toISOString();
+  return {
+    ...row,
     is_online: true,
     status_badge: statusBadge,
     status_type: statusType,
-    last_seen_relative: 'Just now',
     created_at: isoDate,
     recorded_at: isoDate,
-    bucket_time: isoDate,
-    formatted_time: formattedBdTime
+    formatted_time: formatBdTime(ts)
   };
+}
 
-  localTelemetry.unshift(packet);
+// One /api/telemetry/history bucket as TelemetryService::getHistory returns it, from a representative row
+function historyPoint(bucket_time, row, sampleCount) {
+  const p = { bucket_time, sample_count: sampleCount };
+  READING_KEYS.forEach(k => { p[`avg_${k}`] = row[k]; });
+  p.max_total_power_kw = p.max_power = round(row.total_power_kw * 1.25, 3);
+  p.max_import_energy_kwh = p.max_energy = row.import_energy_kwh;
+  Object.entries(LEGACY).forEach(([old, col]) => { if (old !== 'energy') p[`avg_${old}`] = row[col]; });
+  p.avg_voltage = row.voltage;
+  p.avg_current = row.current;
+  p.avg_temperature = null;
+  return p;
+}
+
+// Seed 24h of telemetry (one reading per 15 min = 96 points, newest first at index 0)
+const localTelemetry = (() => {
+  const points = [];
+  const now = Date.now();
+  let energy = 15520;
+  for (let i = 95; i >= 0; i--) {
+    const ts = now - i * 15 * 60 * 1000;
+    const sample = meterSample(ts, energy, 0.25);
+    energy = sample.import_energy_kwh;
+    points.unshift(telemetryRow(ts, sample));
+  }
+  return points;
+})();
+
+// Real-Time Live Telemetry Streamer (every 15 seconds, like the ESP32 gateway: streams a new live packet)
+setInterval(() => {
+  if (!localDevices || localDevices.length === 0) return;
+  const now = Date.now();
+  const prevEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].import_energy_kwh) : 15520;
+  localTelemetry.unshift(telemetryRow(now, meterSample(now, prevEnergy, SAMPLE_EVERY_MS / 3600000), localDevices[0]));
   if (localTelemetry.length > 150) localTelemetry.pop();
-}, 10000);
+}, SAMPLE_EVERY_MS);
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=UTF-8',
@@ -605,11 +571,12 @@ const server = http.createServer((req, res) => {
       if (apiRoute === '/api/dashboard/preferences') {
         if (req.method === 'POST') {
           const next = {};
-          for (const key of Object.keys(localDashPrefs)) {
-            const value = Number(input[key] ?? 1);
-            if (!Number.isInteger(value) || value < 1 || value > 3) {
+          for (const [key, views] of Object.entries(DASH_VIEWS)) {
+            const raw = input[key] ?? views[0];
+            const value = typeof raw === 'string' || Number.isInteger(raw) ? String(raw) : '';
+            if (!views.includes(value)) {
               res.statusCode = 400;
-              res.end(JSON.stringify({ success: false, message: `${key} must be 1, 2 or 3.` }));
+              res.end(JSON.stringify({ success: false, message: `${key} must be one of: ${views.join(', ')}.` }));
               return;
             }
             next[key] = value;
@@ -639,23 +606,10 @@ const server = http.createServer((req, res) => {
         const queryDevId = parsedUrl.searchParams.get('device_id') || 'pnw101';
         const latest = (localTelemetry && localTelemetry.length > 0) ? { ...localTelemetry[0] } : null;
         const prev = (localTelemetry && localTelemetry.length > 1) ? localTelemetry[1] : null;
-        if (latest) {
-          if (prev) {
-            latest.prev_voltage = prev.voltage;
-            latest.prev_current = prev.current;
-            latest.prev_temperature = prev.temperature;
-            PHASE_FIELDS.forEach(k => { latest[`prev_${k}`] = prev[k]; });
-          }
-          if (latest.is_online === false) {
-            PHASE_FIELDS.forEach(k => { latest[k] = 0.0; latest[`prev_${k}`] = 0.0; });
-            latest.voltage = 0.0;
-            latest.current = 0.0;
-            latest.power = 0.0;
-            latest.temperature = 0.0;
-            latest.prev_voltage = 0.0;
-            latest.prev_current = 0.0;
-            latest.prev_temperature = 0.0;
-          }
+        if (latest && prev) {
+          // prev_* of every reading (delta % badges), like TelemetryService::getLatest
+          Object.keys(prev).forEach(k => { if (typeof prev[k] === 'number') latest[`prev_${k}`] = prev[k]; });
+          latest.prev_temperature = null;
         }
         res.end(JSON.stringify({
           success: true,
@@ -702,29 +656,20 @@ const server = http.createServer((req, res) => {
         const BD_TZ = 'Asia/Dhaka';
         const now = new Date();
         const historyPoints = [];
+        const noon = new Date(now).setHours(12, 0, 0, 0);
+        const liveRow = localTelemetry[0] || telemetryRow(noon, meterSample(noon, 15520, 0));
+        // Representative row of a day / month: today is the live reading; the kWh counter runs back ~40 kWh per day
+        const bucketRow = (daysAgo) => daysAgo === 0 ? liveRow
+          : telemetryRow(noon, meterSample(noon, Math.max(0, liveRow.import_energy_kwh - daysAgo * 40), 0));
 
         if (range === '7d') {
           // 7 days in Bangladesh Time (Asia/Dhaka)
           for (let i = 6; i >= 0; i--) {
-            const targetDate = new Date(now.getTime() - i * 86400000);
-            const bucket_time = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ }).format(targetDate);
-            const loadFactor = 0.6 + Math.random() * 0.35;
-            const isToday = (i === 0);
-            const livePower = localTelemetry.length > 0 ? Number(localTelemetry[0].power) : 2.155;
-            const liveEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy) : 3.450;
-            historyPoints.push({
-              bucket_time,
-              avg_power: isToday ? livePower : +(1.9 + loadFactor * 1.5).toFixed(3),
-              max_power: isToday ? +(livePower * 1.25).toFixed(3) : +(3.2 + loadFactor * 1.6).toFixed(3),
-              max_energy: isToday ? liveEnergy : +(14 + loadFactor * 10).toFixed(2),
-              avg_voltage: +(220 + Math.random() * 4).toFixed(1),
-              avg_current: +(7 + loadFactor * 5).toFixed(2),
-              avg_temperature: +(34 + Math.random() * 4).toFixed(1),
-              sample_count: 96
-            });
+            const bucket_time = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ }).format(new Date(now.getTime() - i * 86400000));
+            historyPoints.push(historyPoint(bucket_time, bucketRow(i), 5760));
           }
         } else if (range === '30d') {
-          // Days of current month in Bangladesh Time (Asia/Dhaka) starting from 1
+          // Days of current month in Bangladesh Time (Asia/Dhaka) up to today (no rows for future days, like the database)
           const parts = new Intl.DateTimeFormat('en-US', {
             timeZone: BD_TZ,
             year: 'numeric',
@@ -734,55 +679,22 @@ const server = http.createServer((req, res) => {
           const bdYear = parseInt(parts.find(p => p.type === 'year')?.value || now.getFullYear(), 10);
           const bdMonth = parseInt(parts.find(p => p.type === 'month')?.value || (now.getMonth() + 1), 10);
           const bdToday = parseInt(parts.find(p => p.type === 'day')?.value || now.getDate(), 10);
-          const daysInMonth = new Date(bdYear, bdMonth, 0).getDate();
-          const totalDays = Math.max(30, daysInMonth);
 
-          for (let d = 1; d <= totalDays; d++) {
-            const mStr = String(bdMonth).padStart(2, '0');
-            const dStr = String(d).padStart(2, '0');
-            const bucket_time = `${bdYear}-${mStr}-${dStr}`;
-            const isToday = (d === bdToday);
-            const isFuture = (d > bdToday);
-            const loadFactor = 0.5 + Math.random() * 0.45;
-            const livePower = localTelemetry.length > 0 ? Number(localTelemetry[0].power) : 2.155;
-            const liveEnergy = localTelemetry.length > 0 ? Number(localTelemetry[0].energy) : 3.450;
-            historyPoints.push({
-              bucket_time,
-              avg_power: isFuture ? 0 : (isToday ? livePower : +(1.7 + loadFactor * 1.6).toFixed(3)),
-              max_power: isFuture ? 0 : (isToday ? +(livePower * 1.25).toFixed(3) : +(3.0 + loadFactor * 1.8).toFixed(3)),
-              max_energy: isFuture ? 0 : (isToday ? liveEnergy : +(12 + loadFactor * 12).toFixed(2)),
-              avg_voltage: isFuture ? 0 : +(220 + Math.random() * 4).toFixed(1),
-              avg_current: isFuture ? 0 : +(6.5 + loadFactor * 5.5).toFixed(2),
-              avg_temperature: isFuture ? 0 : +(33 + Math.random() * 5).toFixed(1),
-              sample_count: isFuture ? 0 : 96
-            });
+          for (let d = 1; d <= bdToday; d++) {
+            const bucket_time = `${bdYear}-${String(bdMonth).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            historyPoints.push(historyPoint(bucket_time, bucketRow(bdToday - d), 5760));
           }
         } else if (range === '12m') {
           // 12 months in Bangladesh Time (Asia/Dhaka)
           for (let i = 11; i >= 0; i--) {
             const targetDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
             const bucket_time = new Intl.DateTimeFormat('en-CA', { timeZone: BD_TZ, year: 'numeric', month: '2-digit' }).format(targetDate);
-            const loadFactor = 0.65 + Math.random() * 0.3;
-            historyPoints.push({
-              bucket_time,
-              avg_power: +(2.1 + loadFactor * 1.1).toFixed(3),
-              max_power: +(4.5 + Math.random() * 1.2).toFixed(3),
-              max_energy: +(380 + loadFactor * 190).toFixed(2),
-              avg_voltage: +(221 + Math.random() * 3).toFixed(1),
-              sample_count: 2880
-            });
+            historyPoints.push(historyPoint(bucket_time, bucketRow(i * 30), 172800));
           }
         } else {
-          // 24h default from local telemetry
-          localTelemetry.forEach(pt => historyPoints.push(pt));
+          // 24h default from local telemetry, oldest first
+          [...localTelemetry].reverse().forEach(pt => historyPoints.push(historyPoint(pt.recorded_at, pt, 1)));
         }
-
-        // Daily/monthly per-phase averages (24h points already carry raw per-phase readings)
-        historyPoints.forEach(p => {
-          Object.keys(PHASE_SPREAD).forEach(key => {
-            if (p[`avg_${key}`]) Object.entries(phaseSplit(key, p[`avg_${key}`])).forEach(([k, v]) => { p[`avg_${k}`] = v; });
-          });
-        });
 
         res.end(JSON.stringify({
           success: true,
@@ -905,6 +817,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // Old Phase Voltage URL -> line-to-line page (same 301 as .htaccess / nginx.conf)
+  if (pathname === '/voltage' || pathname === '/voltage/') {
+    res.writeHead(301, { Location: '/voltage-ll' });
+    res.end();
+    return;
+  }
+
   // Clean URL Routing mappings for frontend HTML pages
   const routes = {
     '/': '/frontend/index.html',
@@ -913,9 +832,11 @@ const server = http.createServer((req, res) => {
     '/dashboard': '/frontend/dashboard.html',
     '/devices': '/frontend/devices.html',
     '/analytics': '/frontend/analytics.html',
-    '/voltage': '/frontend/voltage.html',
+    '/voltage-ll': '/frontend/voltage-ll.html',
+    '/voltage-ln': '/frontend/voltage-ln.html',
     '/current': '/frontend/current.html',
     '/power': '/frontend/power.html',
+    '/power-factor': '/frontend/power-factor.html',
     '/forgot-password': '/frontend/forgot-password.html',
     '/reset-password': '/frontend/reset-password.html',
     '/verify-email': '/frontend/verify-email.html',

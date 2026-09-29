@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Phase Voltage (LL) — PowerNet Smart Electrical Energy Monitoring</title>
+  <title>Power Factor — PowerNet Smart Electrical Energy Monitoring</title>
   <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, power factor, frequency, and energy with automated device telemetry.">
   <meta name="theme-color" content="#1A5AF0">
 
@@ -15,13 +15,13 @@
   <!-- OpenGraph / Social Sharing Link Preview -->
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="PowerNet">
-  <meta property="og:title" content="Phase Voltage (LL) — PowerNet Smart Electrical Energy Monitoring">
+  <meta property="og:title" content="Power Factor — PowerNet Smart Electrical Energy Monitoring">
   <meta property="og:description" content="Real-time IoT electrical energy monitoring, telemetry metrics, and AI load prediction dashboard.">
   <meta property="og:image" content="/assets/images/og-preview.jpg">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="Phase Voltage (LL) — PowerNet Smart Electrical Energy Monitoring">
+  <meta name="twitter:title" content="Power Factor — PowerNet Smart Electrical Energy Monitoring">
   <meta name="twitter:description" content="Real-time IoT electrical energy monitoring, telemetry metrics, and AI load prediction dashboard.">
   <meta name="twitter:image" content="/assets/images/og-preview.jpg">
 
@@ -139,7 +139,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="main-content" data-page="/voltage-ll">
+    <main class="main-content" data-page="/power-factor">
       <!-- Top Bar -->
       <header class="top-bar dashboard-top-bar">
         <!-- Row 1: Left has hamburger + Analytics title, Right has User Profile (Icon only on mobile) -->
@@ -154,7 +154,7 @@
             <a href="/dashboard" class="logs-btn-icon" style="text-decoration: none; flex-shrink: 0;" title="Back to Dashboard" aria-label="Back to Dashboard">
               <i class="fa-solid fa-arrow-left" aria-hidden="true"></i>
             </a>
-            <h1 class="page-title">Phase Voltage (LL)</h1>
+            <h1 class="page-title">Power Factor</h1>
           </div>
 
           <!-- Day/Night theme toggle matching interface.png (Desktop only, mobile placed in sidebar drawer) -->
@@ -186,68 +186,85 @@
         </div>
       </header>
 
-      <!-- Line-to-Line Phase Voltage Cards (V1 = V12, V2 = V23, V3 = V31) -->
-      <section class="metrics-section">
-        <!-- Phase Voltage One (V1) -->
+      <!-- Power Factor Cards (Average Power Factor, then PF1, PF2, PF3) -->
+      <section class="metrics-section quad">
+        <!-- Average Power Factor (total_pf_iec from the database) -->
         <div class="metric-card phase-card">
           <div class="metric-header">
-            <span class="metric-title">Phase Voltage One</span>
+            <span class="metric-title">Average Power Factor</span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="3" ry="3"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                <path d="m12 14 4-4"></path>
+                <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
               </svg>
             </div>
           </div>
           <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-voltage_ll_v_1">0.0</span>
-            <span class="metric-unit">V<span class="unit-suffix">LL</span></span>
+            <span class="metric-value" id="metric-total_pf_iec">0.000</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up" id="delta-voltage_ll_v_1">&uarr; 0.0%</span>
-            <span class="delta-context">L1–L2 line to line</span>
+            <span class="delta-up" id="delta-total_pf_iec">&uarr; 0.0%</span>
+            <span class="delta-context">average power factor</span>
           </div>
         </div>
 
-        <!-- Phase Voltage Two (V2) -->
+        <!-- Phase Power Factor One (PF1) -->
         <div class="metric-card phase-card">
           <div class="metric-header">
-            <span class="metric-title">Phase Voltage Two</span>
+            <span class="metric-title">Phase Power Factor One</span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="3" ry="3"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                <path d="m12 14 4-4"></path>
+                <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
               </svg>
             </div>
           </div>
           <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-voltage_ll_v_2">0.0</span>
-            <span class="metric-unit">V<span class="unit-suffix">LL</span></span>
+            <span class="metric-value" id="metric-phase_pf_iec_1">0.000</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up" id="delta-voltage_ll_v_2">&uarr; 0.0%</span>
-            <span class="delta-context">L2–L3 line to line</span>
+            <span class="delta-up" id="delta-phase_pf_iec_1">&uarr; 0.0%</span>
+            <span class="delta-context">phase PF1 power factor</span>
           </div>
         </div>
 
-        <!-- Phase Voltage Three (V3) -->
+        <!-- Phase Power Factor Two (PF2) -->
         <div class="metric-card phase-card">
           <div class="metric-header">
-            <span class="metric-title">Phase Voltage Three</span>
+            <span class="metric-title">Phase Power Factor Two</span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="9" y="9" width="13" height="13" rx="3" ry="3"></rect>
-                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                <path d="m12 14 4-4"></path>
+                <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
               </svg>
             </div>
           </div>
           <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-voltage_ll_v_3">0.0</span>
-            <span class="metric-unit">V<span class="unit-suffix">LL</span></span>
+            <span class="metric-value" id="metric-phase_pf_iec_2">0.000</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up" id="delta-voltage_ll_v_3">&uarr; 0.0%</span>
-            <span class="delta-context">L3–L1 line to line</span>
+            <span class="delta-up" id="delta-phase_pf_iec_2">&uarr; 0.0%</span>
+            <span class="delta-context">phase PF2 power factor</span>
+          </div>
+        </div>
+
+        <!-- Phase Power Factor Three (PF3) -->
+        <div class="metric-card phase-card">
+          <div class="metric-header">
+            <span class="metric-title">Phase Power Factor Three</span>
+            <div class="metric-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 14 4-4"></path>
+                <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-value" id="metric-phase_pf_iec_3">0.000</span>
+          </div>
+          <div class="metric-footer">
+            <span class="delta-up" id="delta-phase_pf_iec_3">&uarr; 0.0%</span>
+            <span class="delta-context">phase PF3 power factor</span>
           </div>
         </div>
       </section>
@@ -258,12 +275,13 @@
         <div class="charts-row">
           <div class="chart-card">
             <div class="chart-header">
-              <h2 class="chart-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right: 8px; color: #0F172A;"></i> Voltage Dynamics</h2>
+              <h2 class="chart-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right: 8px; color: #0F172A;"></i> Power Factor Dynamics</h2>
               <div class="chart-controls">
                 <div class="chart-switcher" id="power-unit-switcher">
-                  <button class="sw-btn active" data-unit="voltage_ll_v_1">V1</button>
-                  <button class="sw-btn" data-unit="voltage_ll_v_2">V2</button>
-                  <button class="sw-btn" data-unit="voltage_ll_v_3">V3</button>
+                  <button class="sw-btn active" data-unit="total_pf_iec">Avg</button>
+                  <button class="sw-btn" data-unit="phase_pf_iec_1">PF1</button>
+                  <button class="sw-btn" data-unit="phase_pf_iec_2">PF2</button>
+                  <button class="sw-btn" data-unit="phase_pf_iec_3">PF3</button>
                 </div>
                 <div class="chart-switcher" id="power-range-switcher">
                   <button class="sw-btn active" data-range="7d">7D</button>
@@ -281,9 +299,10 @@
             <div class="chart-header">
               <h2 class="chart-title"><i class="fa-brands fa-slack" style="margin-right: 8px; color: #0F172A;"></i> Live Waveform</h2>
               <div class="chart-switcher" id="waveform-metric-switcher">
-                <button class="sw-btn active" data-metric="voltage_ll_v_1">V1</button>
-                <button class="sw-btn" data-metric="voltage_ll_v_2">V2</button>
-                <button class="sw-btn" data-metric="voltage_ll_v_3">V3</button>
+                <button class="sw-btn active" data-metric="total_pf_iec">Avg</button>
+                <button class="sw-btn" data-metric="phase_pf_iec_1">PF1</button>
+                <button class="sw-btn" data-metric="phase_pf_iec_2">PF2</button>
+                <button class="sw-btn" data-metric="phase_pf_iec_3">PF3</button>
               </div>
             </div>
             <div class="waveform-canvas-container" id="waveform-container">
@@ -313,12 +332,13 @@
                   <tr>
                     <th>Device</th>
                     <th>Time</th>
-                    <th>V1</th>
-                    <th>V2</th>
-                    <th>V3</th>
+                    <th>Avg</th>
+                    <th>PF1</th>
+                    <th>PF2</th>
+                    <th>PF3</th>
                   </tr>
                 </thead>
-                <tbody id="logs-table-body" data-cols="voltage_ll_v_1 voltage_ll_v_2 voltage_ll_v_3"></tbody>
+                <tbody id="logs-table-body" data-cols="total_pf_iec phase_pf_iec_1 phase_pf_iec_2 phase_pf_iec_3"></tbody>
               </table>
             </div>
           </div>

@@ -68,13 +68,15 @@ CREATE TABLE IF NOT EXISTS `telemetry` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 3b. Dashboard Box Preferences (Manage Dashboard drawer)
--- One row per user. Each column holds the ONE phase its dashboard box shows,
+-- One row per user. Each column holds the ONE view its dashboard box shows,
 -- so "only one switch on per box" is enforced by the table shape itself.
+-- Allowed values are checked by backend/api/dashboard/preferences.php; the defaults are the dashboard's defaults.
 CREATE TABLE IF NOT EXISTS `dashboard_preferences` (
     `user_id` INT UNSIGNED NOT NULL PRIMARY KEY,
-    `voltage_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Voltage box: 1-3 = V1-V3 (default V1)',
-    `current_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Current box: 1-3 = I1-I3 (default I1)',
-    `power_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1 COMMENT 'Active Power box: 1-3 = P1-P3 (default P1)',
+    `voltage_view` VARCHAR(3) NOT NULL DEFAULT 'll' COMMENT 'Voltage box: ll = line to line (V12), ln = line to neutral (V1N)',
+    `current_view` VARCHAR(3) NOT NULL DEFAULT '1' COMMENT 'Current box: 1-3 = I1-I3',
+    `power_view` VARCHAR(3) NOT NULL DEFAULT 'avg' COMMENT 'Active Power box: avg = Average Power (total_power_kw), 1-3 = P1-P3',
+    `pf_view` VARCHAR(3) NOT NULL DEFAULT 'avg' COMMENT 'Power Factor box: avg = Average PF (total_pf_iec), 1-3 = PF1-PF3',
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

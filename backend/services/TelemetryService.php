@@ -48,8 +48,8 @@ class TelemetryService
     // ESP JSON arrays [phase 1, phase 2, phase 3] -> columns {name}_1, {name}_2, {name}_3
     private const PHASE_ARRAYS = ['voltage_ll_v', 'voltage_ln_v', 'phase_current_a', 'phase_power_kw', 'phase_pf_iec'];
 
-    // Older reading names -> ESP-named column. Accepted from older packets (esp32/PowerNetESP32.ino, simulate_esp32.php)
-    // and still returned by the read APIs because the current dashboard reads them
+    // Older reading names -> ESP-named column. Accepted from older packets (esp32/PowerNetESP32.ino)
+    // and still returned by the read APIs for older clients (the dashboard reads the ESP names)
     private const LEGACY = [
         'voltage_1' => 'voltage_ln_v_1', 'voltage_2' => 'voltage_ln_v_2', 'voltage_3' => 'voltage_ln_v_3',
         'current_1' => 'phase_current_a_1', 'current_2' => 'phase_current_a_2', 'current_3' => 'phase_current_a_3',
@@ -95,9 +95,16 @@ class TelemetryService
         return $row;
     }
 
+    /** Average of {name}_1.._3 in a telemetry row over the phases that have a reading; null when none has */
+    private static function phaseMean(array $row, string $name, int $dp): ?float
+    {
+        $phases = array_filter([$row["{$name}_1"] ?? null, $row["{$name}_2"] ?? null, $row["{$name}_3"] ?? null], fn($v) => $v !== null);
+        return $phases ? round(array_sum(array_map('floatval', $phases)) / count($phases), $dp) : null;
+    }
+
     /**
-     * Adds the older reading names the current dashboard reads (voltage, voltage_1..3, current, current_1..3,
-     * power, power_1..3, energy, temperature) to a telemetry row, taken from the ESP-named columns.
+     * Adds the older reading names (voltage, voltage_1..3, current, current_1..3, power, power_1..3, energy,
+     * temperature) to a telemetry row, taken from the ESP-named columns, for older clients.
      * voltage / current = average of the measured phases; temperature is always null (the meter has no sensor).
      */
     private static function withLegacyNames(array $row): array
@@ -106,8 +113,7 @@ class TelemetryService
             $row[$old] = $row[$col] ?? null;
         }
         foreach (['voltage' => 'voltage_ln_v', 'current' => 'phase_current_a'] as $old => $name) {
-            $phases = array_filter([$row["{$name}_1"] ?? null, $row["{$name}_2"] ?? null, $row["{$name}_3"] ?? null], fn($v) => $v !== null);
-            $row[$old] = $phases ? round(array_sum(array_map('floatval', $phases)) / count($phases), 2) : null;
+            $row[$old] = self::phaseMean($row, $name, 2);
         }
         $row['temperature'] = null;
         return $row;
@@ -245,15 +251,17 @@ class TelemetryService
         $isOnline = $secondsSinceSeen !== null && $secondsSinceSeen <= $threshold && ($telemetryAge === null || $telemetryAge <= $threshold);
 
         $phaseOut = [];
-        // Older phase names the current dashboard reads: 0 when offline
+        // Older phase names (older clients): 0 when offline
         foreach (['voltage_1', 'voltage_2', 'voltage_3', 'current_1', 'current_2', 'current_3', 'power_1', 'power_2', 'power_3'] as $k) {
             $phaseOut[$k]         = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : 0.0;
             $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : 0.0;
         }
-        // ESP-named readings (voltage_ll_v_1 ... import_energy_kwh): null rather than a misleading 0 when not measured or offline
+        // ESP-named readings (voltage_ll_v_1 ... import_energy_kwh): null rather than a misleading 0 when not measured
+        // or offline. The kWh counter keeps its last reading while offline.
         foreach (array_keys(self::READINGS) as $k) {
-            $phaseOut[$k]          = ($isOnline && $latest && $latest[$k] !== null) ? (float)$latest[$k] : null;
-            $phaseOut["prev_{$k}"] = ($isOnline && $prev && $prev[$k] !== null) ? (float)$prev[$k] : null;
+            $live = $isOnline || $k === 'import_energy_kwh';
+            $phaseOut[$k]          = ($live && $latest && $latest[$k] !== null) ? (float)$latest[$k] : null;
+            $phaseOut["prev_{$k}"] = ($live && $prev && $prev[$k] !== null) ? (float)$prev[$k] : null;
         }
 
         if (!$latest) {
@@ -345,7 +353,8 @@ class TelemetryService
                 break;
         }
 
-        // ESP-named averages (avg_voltage_ll_v_1 ... avg_frequency_hz), then the older names the current dashboard charts read
+        // ESP-named averages (avg_voltage_ll_v_1 ... avg_frequency_hz; avg_total_power_kw = the dashboard's kW bars),
+        // then the older names (older clients)
         $cols = [];
         foreach (self::READINGS as $col => [, , $dp]) {
             $cols[] = "ROUND(AVG({$col}), {$dp}) as avg_{$col}";

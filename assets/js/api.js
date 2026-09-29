@@ -301,16 +301,43 @@ const API = {
     }
   },
 
-  // ─── Dashboard box phase choices (Manage Dashboard drawer; SQL table dashboard_preferences) ───
-  // { voltage_phase, current_phase, power_phase }: 1-3 = phase that box shows; every box always shows one.
-  // Nothing saved yet (or an old "all off" 0) -> V1 / I1 / P1. Cached in localStorage for flicker-free first paint; the server copy is the source of truth.
+  // ─── Dashboard box views (Manage Dashboard drawer; SQL table dashboard_preferences) ───
+  // Each box always shows ONE view of its reading; the first view listed is the default.
+  // key = telemetry field the dashboard box shows, tag = box title suffix "(LL)", page = page the box opens.
+  DASH_BOXES: [
+    { id: 'voltage', box: 'Voltage box', views: [
+      { id: 'll', label: 'Voltage LL', sub: 'Line to line voltage', key: 'voltage_ll_v_1', tag: 'LL', page: '/voltage-ll' },
+      { id: 'ln', label: 'Voltage LN', sub: 'Line to neutral voltage', key: 'voltage_ln_v_1', tag: 'LN', page: '/voltage-ln' }
+    ] },
+    { id: 'current', box: 'Current box', views: [1, 2, 3].map(n => (
+      { id: String(n), label: `I${n}`, sub: `Phase ${n} current`, key: `phase_current_a_${n}`, tag: `I${n}`, page: '/current' }
+    )) },
+    { id: 'power', box: 'Active Power box', views: [
+      { id: 'avg', label: 'Average', sub: 'Average active power', key: 'total_power_kw', tag: 'Average', page: '/power' },
+      ...[1, 2, 3].map(n => ({ id: String(n), label: `P${n}`, sub: `Phase ${n} active power`, key: `phase_power_kw_${n}`, tag: `P${n}`, page: '/power' }))
+    ] },
+    { id: 'pf', box: 'Power Factor box', views: [
+      { id: 'avg', label: 'Average', sub: 'Average power factor', key: 'total_pf_iec', tag: 'Average', page: '/power-factor' },
+      ...[1, 2, 3].map(n => ({ id: String(n), label: `PF${n}`, sub: `Phase ${n} power factor`, key: `phase_pf_iec_${n}`, tag: `PF${n}`, page: '/power-factor' }))
+    ] }
+  ],
+
+  // { voltage_view, current_view, power_view, pf_view }: the view id each box shows.
+  // Nothing saved yet (or an unknown / older value) -> that box's default: Voltage LL / I1 / Average / Average.
+  // Cached in localStorage for flicker-free first paint; the server copy is the source of truth.
   cleanDashPrefs(raw) {
     const out = {};
-    ['voltage_phase', 'current_phase', 'power_phase'].forEach(k => {
-      const n = Number(raw?.[k]);
-      out[k] = [1, 2, 3].includes(n) ? n : 1;
+    this.DASH_BOXES.forEach(b => {
+      const value = String(raw?.[`${b.id}_view`] ?? '');
+      out[`${b.id}_view`] = b.views.some(v => v.id === value) ? value : b.views[0].id;
     });
     return out;
+  },
+
+  // The view a box shows under these prefs, e.g. dashView('voltage', prefs).key -> 'voltage_ll_v_1'
+  dashView(boxId, prefs = this.getDashPrefs()) {
+    const box = this.DASH_BOXES.find(b => b.id === boxId);
+    return box.views.find(v => v.id === prefs[`${boxId}_view`]) || box.views[0];
   },
 
   getDashPrefs() {
@@ -568,6 +595,16 @@ const API = {
     }, 3500);
   },
 
+  // Pages driven by dashboard.js (the Analytics sidebar link stays highlighted on all of them)
+  dashPages: ['/dashboard', '/analytics', '/voltage-ll', '/voltage-ln', '/current', '/power', '/power-factor'],
+
+  // The HTML file behind a page URL (/voltage-ll -> /frontend/voltage-ll.html). The router fetches the file itself, so
+  // a server whose route list doesn't have the page yet (it answers unknown URLs with dashboard.html) still returns it
+  pageFile(url) {
+    const clean = url.replace(/\.html$/, '');
+    return ['/devices', ...this.dashPages].includes(clean) ? `/frontend${clean}.html${this.assetQuery}` : url;
+  },
+
   // ─── Smooth Client-Side Router (YouTube-style with Skeleton Shimmer) ───
   initRouter() {
     if (this._routerInitialized) return;
@@ -591,7 +628,7 @@ const API = {
         return;
       }
 
-      const supported = ['/dashboard', '/devices', '/analytics', '/voltage', '/current', '/power'];
+      const supported = ['/devices', ...this.dashPages];
       const match = supported.some(r => targetPath === r || targetPath === `${r}.html`);
       if (!match) return;
 
@@ -609,7 +646,7 @@ const API = {
 
     window.addEventListener('popstate', () => {
       const currentPath = window.location.pathname;
-      const supported = ['/dashboard', '/devices', '/analytics', '/voltage', '/current', '/power'];
+      const supported = ['/devices', ...this.dashPages];
       if (supported.some(r => currentPath === r || currentPath === `${r}.html`)) {
         this.navigateTo(currentPath, false);
       }
@@ -625,9 +662,10 @@ const API = {
 
     // 1. Highlight nav link in sidebar immediately
     const targetNorm = targetUrl.replace(/\.html$/, '');
+    const isDashPage = this.dashPages.includes(targetNorm);
     document.querySelectorAll('.sidebar .nav-link').forEach(l => {
       const h = (l.getAttribute('href') || '').replace(/\.html$/, '');
-      if (h === targetNorm || (h === '/dashboard' && (targetNorm === '/analytics' || targetNorm === '/voltage' || targetNorm === '/current' || targetNorm === '/power'))) {
+      if (h === targetNorm || (h === '/dashboard' && isDashPage)) {
         l.classList.add('active');
       } else {
         l.classList.remove('active');
@@ -648,7 +686,7 @@ const API = {
     document.body.style.overflow = '';
 
     // 3. Stop background dashboard polling if navigating away
-    if (!targetUrl.includes('/dashboard') && !targetUrl.includes('/analytics') && !targetUrl.includes('/voltage') && !targetUrl.includes('/current') && !targetUrl.includes('/power')) {
+    if (!isDashPage) {
       if (typeof Dashboard !== 'undefined' && typeof Dashboard.destroy === 'function') {
         Dashboard.destroy();
       }
@@ -690,7 +728,7 @@ const API = {
     const minDelay = new Promise(resolve => setTimeout(resolve, 260));
 
     try {
-      const fetchReq = fetch(targetUrl).then(r => r.text());
+      const fetchReq = fetch(this.pageFile(targetUrl)).then(r => r.text());
       const [_, html] = await Promise.all([minDelay, fetchReq]);
 
       const parser = new DOMParser();
@@ -699,6 +737,9 @@ const API = {
 
       if (incomingMain) {
         main.innerHTML = incomingMain.innerHTML;
+        // Which page is shown (data-page="/voltage-ll"): dashboard.js checks it on a full page load
+        if (incomingMain.dataset.page) main.dataset.page = incomingMain.dataset.page;
+        else delete main.dataset.page;
         main.style.animation = 'none';
         void main.offsetHeight; // trigger reflow
         main.style.animation = 'pageFadeIn 0.22s cubic-bezier(0.16, 1, 0.3, 1)';
@@ -716,7 +757,7 @@ const API = {
             sc.onload = () => { if (typeof initDevicesPage === 'function') initDevicesPage(); };
             document.body.appendChild(sc);
           }
-        } else if (targetUrl.includes('/dashboard') || targetUrl.includes('/analytics') || targetUrl.includes('/voltage') || targetUrl.includes('/current') || targetUrl.includes('/power')) {
+        } else if (isDashPage) {
           // Dynamic fallback if Chart.js or dashboard.js not yet loaded
           if (typeof Chart === 'undefined') {
             await new Promise((res) => {
@@ -1031,13 +1072,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Escape') closeDrawer();
   });
 
-  // ─── 2b. Manage Dashboard drawer: pick the phase the Voltage / Current / Active Power boxes show ───
-  const PHASE_GROUPS = [
-    { key: 'voltage_phase', box: 'Voltage box', sym: 'V', noun: 'voltage' },
-    { key: 'current_phase', box: 'Current box', sym: 'I', noun: 'current' },
-    { key: 'power_phase', box: 'Active Power box', sym: 'P', noun: 'active power' }
-  ];
-
+  // ─── 2b. Manage Dashboard drawer: pick what the Voltage / Current / Active Power / Power Factor boxes show ───
   if (!document.getElementById('dashboard-drawer')) {
     document.body.insertAdjacentHTML('beforeend', `
       <aside class="right-drawer" id="dashboard-drawer" aria-hidden="true" aria-labelledby="dashboard-drawer-title">
@@ -1046,16 +1081,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <button class="drawer-close-btn" id="btn-close-dashboard-drawer" title="Close" aria-label="Close">&times;</button>
         </div>
         <div class="drawer-body">
-          <p class="dash-prefs-hint">Choose which phase each dashboard box shows. Each box always shows one phase: tap another phase to switch to it.</p>
-          ${PHASE_GROUPS.map(g => `
-            <div class="drawer-card" role="group" aria-labelledby="dash-group-${g.key}">
+          <p class="dash-prefs-hint">Choose what each dashboard box shows. Each box always shows one reading: tap another one to switch to it.</p>
+          ${API.DASH_BOXES.map(g => `
+            <div class="drawer-card" role="group" aria-labelledby="dash-group-${g.id}">
               <div class="drawer-card-header">
-                <span class="drawer-section-title" id="dash-group-${g.key}">${g.box}</span>
+                <span class="drawer-section-title" id="dash-group-${g.id}">${g.box}</span>
               </div>
-              ${[1, 2, 3].map(n => `
+              ${g.views.map(v => `
                 <label class="phase-switch-row">
-                  <span><strong>${g.sym}${n}</strong><span class="phase-switch-sub">Phase ${n} ${g.noun}</span></span>
-                  <input type="checkbox" role="switch" class="ios-switch" data-pref="${g.key}" data-phase="${n}">
+                  <span><strong>${v.label}</strong><span class="phase-switch-sub">${v.sub}</span></span>
+                  <input type="checkbox" role="switch" class="ios-switch" data-pref="${g.id}_view" data-view="${v.id}">
                 </label>
               `).join('')}
             </div>
@@ -1071,14 +1106,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // Reflect saved choices: exactly one switch on per box
   const syncDashSwitches = (prefs) => {
     dashDrawer.querySelectorAll('.ios-switch').forEach(sw => {
-      sw.checked = prefs[sw.dataset.pref] === Number(sw.dataset.phase);
+      sw.checked = prefs[sw.dataset.pref] === sw.dataset.view;
     });
   };
 
   // Push choices into the live dashboard boxes and waveform (no-op on other pages)
   const applyDashPrefs = (prefs) => {
-    if (typeof Dashboard !== 'undefined' && typeof Dashboard.applyPhasePrefs === 'function') {
-      Dashboard.applyPhasePrefs(prefs);
+    if (typeof Dashboard !== 'undefined' && typeof Dashboard.applyBoxPrefs === 'function') {
+      Dashboard.applyBoxPrefs(prefs);
     }
   };
 
@@ -1118,28 +1153,30 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const group = PHASE_GROUPS.find(g => g.key === sw.dataset.pref);
+    const pref = sw.dataset.pref;
+    const group = API.DASH_BOXES.find(g => `${g.id}_view` === pref);
+    const fallback = group.views[0];
     const prev = API.getDashPrefs();
 
-    // Every box always shows one phase: switching another on moves the box to it,
-    // switching the active one off falls back to phase 1 (V1 / I1 / P1)
-    const phase = sw.checked ? Number(sw.dataset.phase) : 1;
+    // Every box always shows one view: switching another on moves the box to it,
+    // switching the active one off falls back to the box's default (Voltage LL / I1 / Average / Average)
+    const view = sw.checked ? sw.dataset.view : fallback.id;
     if (!sw.checked) {
-      API.showToast(`You need to keep at least one phase on for the ${group.box}. ${group.sym}1 is on.`, 'error');
+      API.showToast(`You need to keep one reading on for the ${group.box}. ${fallback.label} is on.`, 'error');
     }
-    if (phase === prev[group.key]) {
-      e.preventDefault(); // turning off phase 1 itself: it simply stays on
+    if (view === prev[pref]) {
+      e.preventDefault(); // turning off the default itself: it simply stays on
       return;
     }
 
-    const next = { ...prev, [group.key]: phase };
+    const next = { ...prev, [pref]: view };
     dashSaving = true;
     API.setDashPrefs(next);
     syncDashSwitches(next);
     applyDashPrefs(next);
     try {
       await API.saveDashPrefs(next);
-      if (sw.checked) API.showToast(`${group.box} now shows ${group.sym}${phase}.`, 'success');
+      if (sw.checked) API.showToast(`${group.box} now shows ${API.dashView(group.id, next).label}.`, 'success');
     } catch (err) {
       API.setDashPrefs(prev);
       syncDashSwitches(prev);

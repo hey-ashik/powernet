@@ -52,6 +52,31 @@ class Connection
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     ";
 
+    // Manage Dashboard choices, identical to database/schema.sql: one row per user, one column per dashboard box
+    // holding the ONE view that box shows (backend/api/dashboard/preferences.php validates the values)
+    private const DASHBOARD_PREFERENCES_TABLE = "
+        CREATE TABLE IF NOT EXISTS `dashboard_preferences` (
+            `user_id` INT UNSIGNED NOT NULL PRIMARY KEY,
+            `voltage_view` VARCHAR(3) NOT NULL DEFAULT 'll' COMMENT 'Voltage box: ll = line to line (V12), ln = line to neutral (V1N)',
+            `current_view` VARCHAR(3) NOT NULL DEFAULT '1' COMMENT 'Current box: 1-3 = I1-I3',
+            `power_view` VARCHAR(3) NOT NULL DEFAULT 'avg' COMMENT 'Active Power box: avg = Average Power (total_power_kw), 1-3 = P1-P3',
+            `pf_view` VARCHAR(3) NOT NULL DEFAULT 'avg' COMMENT 'Power Factor box: avg = Average PF (total_pf_iec), 1-3 = PF1-PF3',
+            `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    ";
+
+    // Older phase layout -> box views. Current keeps each user's I1-I3 choice; Voltage (V1-V3 were line-to-neutral
+    // phases) and Active Power (P1-P3) start on the new defaults: Voltage LL and the Average view
+    private const DASHBOARD_PREFERENCES_UPGRADE = [
+        "ALTER TABLE `dashboard_preferences`
+            ADD COLUMN `voltage_view` VARCHAR(3) NOT NULL DEFAULT 'll' COMMENT 'Voltage box: ll = line to line (V12), ln = line to neutral (V1N)' AFTER `user_id`,
+            ADD COLUMN `current_view` VARCHAR(3) NOT NULL DEFAULT '1' COMMENT 'Current box: 1-3 = I1-I3' AFTER `voltage_view`,
+            ADD COLUMN `power_view` VARCHAR(3) NOT NULL DEFAULT 'avg' COMMENT 'Active Power box: avg = Average Power (total_power_kw), 1-3 = P1-P3' AFTER `current_view`,
+            ADD COLUMN `pf_view` VARCHAR(3) NOT NULL DEFAULT 'avg' COMMENT 'Power Factor box: avg = Average PF (total_pf_iec), 1-3 = PF1-PF3' AFTER `power_view`",
+        "UPDATE `dashboard_preferences` SET `current_view` = CAST(`current_phase` AS CHAR) WHERE `current_phase` IN (1, 2, 3)",
+        "ALTER TABLE `dashboard_preferences` DROP COLUMN `voltage_phase`, DROP COLUMN `current_phase`, DROP COLUMN `power_phase`",
+    ];
+
     public static function get(): PDO
     {
         if (self::$instance === null) {
@@ -187,17 +212,23 @@ class Connection
             error_log('PowerNet telemetry table check failed: ' . $e->getMessage());
         }
 
-        // 5. Ensure dashboard_preferences table exists (Manage Dashboard phase switches)
+        // 5. Ensure dashboard_preferences has the box-view layout (Manage Dashboard switches), identical to database/schema.sql.
+        //    A table in the older phase layout (voltage_phase / current_phase / power_phase) is upgraded in place, the same
+        //    as database/migrations/2026_09_29_dashboard_box_views.sql does
         try {
-            $db->exec("
-                CREATE TABLE IF NOT EXISTS `dashboard_preferences` (
-                    `user_id` INT UNSIGNED NOT NULL PRIMARY KEY,
-                    `voltage_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    `current_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    `power_phase` TINYINT UNSIGNED NOT NULL DEFAULT 1,
-                    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-            ");
+            try {
+                $prefCols = $db->query("SHOW COLUMNS FROM `dashboard_preferences`")->fetchAll(PDO::FETCH_COLUMN);
+            } catch (PDOException $e) {
+                $prefCols = null; // no dashboard_preferences table yet
+            }
+            if ($prefCols === null) {
+                $db->exec(self::DASHBOARD_PREFERENCES_TABLE);
+            } elseif (!in_array('voltage_view', $prefCols, true)) {
+                foreach (self::DASHBOARD_PREFERENCES_UPGRADE as $sql) {
+                    $db->exec($sql);
+                }
+                error_log('PowerNet: dashboard_preferences upgraded to box views (voltage_view, current_view, power_view, pf_view)');
+            }
         } catch (\Throwable $e) {
             error_log('PowerNet dashboard_preferences table check failed: ' . $e->getMessage());
         }

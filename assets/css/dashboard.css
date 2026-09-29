@@ -30,9 +30,11 @@
   box-shadow: var(--shadow-card-hover);
 }
 
-/* /voltage: three phase cards per row; smaller screens use the responsive.css grid */
+/* Phase pages: three phase cards per row (/voltage-ll, /voltage-ln, /current), four with the average card
+   (/power, /power-factor); smaller screens use the responsive.css grid */
 @media (min-width: 1281px) {
   .phase-card { grid-column: span 4; }
+  .metrics-section.quad .phase-card { grid-column: span 3; }
 }
 
 .metric-header {
@@ -75,6 +77,14 @@
   font-weight: 600;
   color: var(--text-secondary);
   margin-left: 2px;
+}
+
+/* Voltage type beside the unit: "V LL" (line to line) / "V LN" (line to neutral) */
+.unit-suffix {
+  margin-left: 3px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
 }
 
 .metric-footer {
