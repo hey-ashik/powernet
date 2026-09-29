@@ -77,8 +77,9 @@ PubSubClient mqttClient(espClient);
 
 unsigned long lastTelemetryTime   = 0;
 unsigned long lastWifiCheckTime   = 0;
+unsigned long lastMqttRetryTime   = 0;
 unsigned long lastEnergyCalcTime  = 0;
-float cumulativeEnergyKWh         = 0.0;
+double cumulativeEnergyKWh        = 0.0; // double: a float stops counting small 5s increments once the total grows large
 
 // ----------------------------------------------------------------------------
 // 4. SENSOR READING FUNCTIONS (Direct Hardware Analog Readings)
@@ -221,7 +222,7 @@ void publishTelemetry() {
     float hoursPassed = (currentMillis - lastEnergyCalcTime) / 3600000.0;
     cumulativeEnergyKWh += power * hoursPassed;
   } else {
-    cumulativeEnergyKWh += (power * (5.0 / 3600000.0));
+    cumulativeEnergyKWh += power * (TELEMETRY_INTERVAL_MS / 3600000.0); // first sample: one interval (5 s) in hours
   }
   lastEnergyCalcTime = currentMillis;
 
@@ -265,6 +266,12 @@ void publishTelemetry() {
   doc["energy_kwh"]  = round(cumulativeEnergyKWh * 1000.0) / 1000.0;
   doc["temperature"] = round(temp * 10.0) / 10.0;
 
+  // Single-phase hardware = phase 1. The dashboard's Voltage/Current/Power boxes default to V1/I1/P1,
+  // so without these they show 0. Phases 2/3 are omitted (stored as NULL) since there are no sensors for them.
+  doc["voltage_1"]   = round(voltage * 100.0) / 100.0;
+  doc["current_1"]   = round(current * 100.0) / 100.0;
+  doc["power_1"]     = round(power * 1000.0) / 1000.0;
+
   if (timeValid) {
     doc["timestamp"]      = isoTimestamp;  // "2026-09-20T23:01:24+06:00"
     doc["formatted_time"] = bstTimeStr;    // "2026-09-20 11:01:24 PM"
@@ -287,14 +294,19 @@ void publishTelemetry() {
   }
 
   // 2. HTTPS POST Fallback to Hostinger API
+  bool httpOk = false;
   if (WiFi.status() == WL_CONNECTED) {
     HTTPClient http;
     http.begin(HTTP_API_URL);
     http.addHeader("Content-Type", "application/json");
 
     int httpCode = http.POST(jsonBuffer);
-    if (httpCode > 0) {
+    httpOk = httpCode >= 200 && httpCode < 300;
+    if (httpOk) {
       Serial.printf("[HTTP POST SUCCESS] Hostinger API: %d OK\n", httpCode);
+    } else if (httpCode > 0) {
+      // Server answered but rejected the data (e.g. 400 out-of-bounds, 401 secret, 500 DB error)
+      Serial.printf("[HTTP POST REJECTED] Hostinger API: %d -> %s\n", httpCode, http.getString().c_str());
     } else {
       Serial.printf("[HTTP POST NOTICE] Error: %s\n", http.errorToString(httpCode).c_str());
     }
@@ -302,9 +314,11 @@ void publishTelemetry() {
   }
 
   // Pulse onboard LED to indicate successful transmission
-  digitalWrite(STATUS_LED_PIN, LOW);
-  delay(40);
-  digitalWrite(STATUS_LED_PIN, HIGH);
+  if (published || httpOk) {
+    digitalWrite(STATUS_LED_PIN, LOW);
+    delay(40);
+    digitalWrite(STATUS_LED_PIN, HIGH);
+  }
   Serial.println("==========================================\n");
 }
 
@@ -350,9 +364,13 @@ void loop() {
     }
   }
 
-  // Auto-reconnect MQTT if Wi-Fi is healthy
+  // Auto-reconnect MQTT if Wi-Fi is healthy (every 5 s, not every loop pass: a blocked port 1883
+  // would otherwise retry in a tight loop, flooding Serial and hammering the broker)
   if (WiFi.status() == WL_CONNECTED && !mqttClient.connected()) {
-    connectMQTT();
+    if (currentMillis - lastMqttRetryTime >= 5000) {
+      lastMqttRetryTime = currentMillis;
+      connectMQTT();
+    }
   }
 
   mqttClient.loop();
