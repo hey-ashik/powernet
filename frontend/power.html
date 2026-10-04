@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Phase Power — PowerNet Smart Electrical Energy Monitoring</title>
-  <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, energy, and temperature with automated device telemetry.">
+  <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, power factor, frequency, and energy with automated device telemetry.">
   <meta name="theme-color" content="#1A5AF0">
 
   <!-- Favicon & App Icons -->
@@ -46,9 +46,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- FontAwesome 6 Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/assets/css/style.css?v=20260927">
-  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20260927">
-  <link rel="stylesheet" href="/assets/css/responsive.css?v=20260927">
+  <link rel="stylesheet" href="/assets/css/style.css?v=20260929">
+  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20260929">
+  <link rel="stylesheet" href="/assets/css/responsive.css?v=20260929">
 </head>
 <body>
   <div id="yt-progress-bar"></div>
@@ -139,7 +139,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="main-content">
+    <main class="main-content" data-page="/power">
       <!-- Top Bar -->
       <header class="top-bar dashboard-top-bar">
         <!-- Row 1: Left has hamburger + Analytics title, Right has User Profile (Icon only on mobile) -->
@@ -186,8 +186,28 @@
         </div>
       </header>
 
-      <!-- Phase Power Cards (P1, P2, P3) -->
-      <section class="metrics-section">
+      <!-- Active Power Cards (Average Power, then P1, P2, P3) -->
+      <section class="metrics-section quad">
+        <!-- Average Power (total_power_kw from the database) -->
+        <div class="metric-card phase-card">
+          <div class="metric-header">
+            <span class="metric-title">Average Power</span>
+            <div class="metric-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M13 2 4 14h7l-1 8 9-12h-7l1-8z"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-value" id="metric-total_power_kw">0.000</span>
+            <span class="metric-unit">kW</span>
+          </div>
+          <div class="metric-footer">
+            <span class="delta-up" id="delta-total_power_kw">&uarr; 0.0%</span>
+            <span class="delta-context">average active power</span>
+          </div>
+        </div>
+
         <!-- Phase Power One (P1) -->
         <div class="metric-card phase-card">
           <div class="metric-header">
@@ -199,11 +219,11 @@
             </div>
           </div>
           <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-power_1">0.000</span>
+            <span class="metric-value" id="metric-phase_power_kw_1">0.000</span>
             <span class="metric-unit">kW</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up" id="delta-power_1">&uarr; 0.0%</span>
+            <span class="delta-up" id="delta-phase_power_kw_1">&uarr; 0.0%</span>
             <span class="delta-context">phase P1 active power</span>
           </div>
         </div>
@@ -219,11 +239,11 @@
             </div>
           </div>
           <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-power_2">0.000</span>
+            <span class="metric-value" id="metric-phase_power_kw_2">0.000</span>
             <span class="metric-unit">kW</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up" id="delta-power_2">&uarr; 0.0%</span>
+            <span class="delta-up" id="delta-phase_power_kw_2">&uarr; 0.0%</span>
             <span class="delta-context">phase P2 active power</span>
           </div>
         </div>
@@ -239,11 +259,11 @@
             </div>
           </div>
           <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-power_3">0.000</span>
+            <span class="metric-value" id="metric-phase_power_kw_3">0.000</span>
             <span class="metric-unit">kW</span>
           </div>
           <div class="metric-footer">
-            <span class="delta-up" id="delta-power_3">&uarr; 0.0%</span>
+            <span class="delta-up" id="delta-phase_power_kw_3">&uarr; 0.0%</span>
             <span class="delta-context">phase P3 active power</span>
           </div>
         </div>
@@ -258,9 +278,10 @@
               <h2 class="chart-title"><i class="fa-solid fa-wand-magic-sparkles" style="margin-right: 8px; color: #0F172A;"></i> Power Dynamics</h2>
               <div class="chart-controls">
                 <div class="chart-switcher" id="power-unit-switcher">
-                  <button class="sw-btn active" data-unit="power_1">P1</button>
-                  <button class="sw-btn" data-unit="power_2">P2</button>
-                  <button class="sw-btn" data-unit="power_3">P3</button>
+                  <button class="sw-btn active" data-unit="total_power_kw">Avg</button>
+                  <button class="sw-btn" data-unit="phase_power_kw_1">P1</button>
+                  <button class="sw-btn" data-unit="phase_power_kw_2">P2</button>
+                  <button class="sw-btn" data-unit="phase_power_kw_3">P3</button>
                 </div>
                 <div class="chart-switcher" id="power-range-switcher">
                   <button class="sw-btn active" data-range="7d">7D</button>
@@ -278,9 +299,10 @@
             <div class="chart-header">
               <h2 class="chart-title"><i class="fa-brands fa-slack" style="margin-right: 8px; color: #0F172A;"></i> Live Waveform</h2>
               <div class="chart-switcher" id="waveform-metric-switcher">
-                <button class="sw-btn active" data-metric="power_1">P1</button>
-                <button class="sw-btn" data-metric="power_2">P2</button>
-                <button class="sw-btn" data-metric="power_3">P3</button>
+                <button class="sw-btn active" data-metric="total_power_kw">Avg</button>
+                <button class="sw-btn" data-metric="phase_power_kw_1">P1</button>
+                <button class="sw-btn" data-metric="phase_power_kw_2">P2</button>
+                <button class="sw-btn" data-metric="phase_power_kw_3">P3</button>
               </div>
             </div>
             <div class="waveform-canvas-container" id="waveform-container">
@@ -310,12 +332,13 @@
                   <tr>
                     <th>Device</th>
                     <th>Time</th>
+                    <th>Avg</th>
                     <th>P1</th>
                     <th>P2</th>
                     <th>P3</th>
                   </tr>
                 </thead>
-                <tbody id="logs-table-body" data-view="power"></tbody>
+                <tbody id="logs-table-body" data-cols="total_power_kw phase_power_kw_1 phase_power_kw_2 phase_power_kw_3"></tbody>
               </table>
             </div>
           </div>
@@ -434,8 +457,8 @@
   </aside>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="/assets/js/api.js?v=20260927"></script>
-  <script src="/assets/js/devices.js?v=20260927"></script>
-  <script src="/assets/js/dashboard.js?v=20260927"></script>
+  <script src="/assets/js/api.js?v=20260929"></script>
+  <script src="/assets/js/devices.js?v=20260929"></script>
+  <script src="/assets/js/dashboard.js?v=20260929"></script>
 </body>
 </html>

@@ -5,6 +5,10 @@ Options -Indexes
     RewriteEngine On
     RewriteBase /
 
+    # Pass "Authorization: Bearer <secret>" through to PHP (ESP32 gateway device push secret)
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     # Block direct HTTP access to internal directories
     RewriteRule ^(database|backend/(config|services|middleware|database|mqtt)|esp32|logs|scratch)/ - [F,L]
     # CLI / diagnostic scripts: the MQTT worker + ESP32 simulator and the open ?to= mail tester must never run from a browser
@@ -23,9 +27,12 @@ Options -Indexes
     RewriteRule ^dashboard/?$ frontend/dashboard.html [L]
     RewriteRule ^devices/?$ frontend/devices.html [L]
     RewriteRule ^analytics/?$ frontend/analytics.html [L]
-    RewriteRule ^voltage/?$ frontend/voltage.html [L]
+    RewriteRule ^voltage/?$ /voltage-ll [R=301,L]
+    RewriteRule ^voltage-ll/?$ frontend/voltage-ll.html [L]
+    RewriteRule ^voltage-ln/?$ frontend/voltage-ln.html [L]
     RewriteRule ^current/?$ frontend/current.html [L]
     RewriteRule ^power/?$ frontend/power.html [L]
+    RewriteRule ^power-factor/?$ frontend/power-factor.html [L]
     RewriteRule ^logs/?$ frontend/dashboard.html [L]
     RewriteRule ^verify-email/?$ frontend/verify-email.html [L]
     RewriteRule ^forgot-password/?$ frontend/forgot-password.html [L]

@@ -40,7 +40,7 @@ Deploy to Hostinger Business Hosting with Apache/LiteSpeed and MySQL.
 ### Step 1: Upload Files
 1. Log in to **Hostinger hPanel** &rarr; **Websites** &rarr; **File Manager** (or SFTP).
 2. Open the **`public_html/`** folder.
-3. **Changed any JS/CSS?** Bump the `?v=` tag first: replace `?v=20260927` with today's date in every `frontend/*.html`. Hostinger's CDN caches `/assets` for 7 days, and a cached old `api.js` next to a new `dashboard.js` leaves the dashboard stuck on its loading shimmer.
+3. **Changed any JS/CSS?** Bump the `?v=` tag first: replace `?v=20260929` with today's date in every `frontend/*.html`. Hostinger's CDN caches `/assets` for 7 days, and a cached old `api.js` next to a new `dashboard.js` leaves the dashboard stuck on its loading shimmer.
 4. Upload **`powernet.zip`** and click **Extract**, or upload the project files directly:
    ```text
    public_html/

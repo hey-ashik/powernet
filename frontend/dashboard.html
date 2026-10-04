@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Dashboard — PowerNet Smart Electrical Energy Monitoring</title>
-  <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, energy, and temperature with automated device telemetry.">
+  <meta name="description" content="PowerNet is a real-time IoT electrical energy monitoring and AI load prediction platform. Monitor voltage, current, power, power factor, frequency, and energy with automated device telemetry.">
   <meta name="theme-color" content="#1A5AF0">
 
   <!-- Favicon & App Icons -->
@@ -46,9 +46,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <!-- FontAwesome 6 Icons -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="/assets/css/style.css?v=20260927">
-  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20260927">
-  <link rel="stylesheet" href="/assets/css/responsive.css?v=20260927">
+  <link rel="stylesheet" href="/assets/css/style.css?v=20260929">
+  <link rel="stylesheet" href="/assets/css/dashboard.css?v=20260929">
+  <link rel="stylesheet" href="/assets/css/responsive.css?v=20260929">
 </head>
 <body>
   <div id="yt-progress-bar"></div>
@@ -139,7 +139,7 @@
     </aside>
 
     <!-- Main Content Area -->
-    <main class="main-content">
+    <main class="main-content" data-page="/dashboard">
       <!-- Top Bar -->
       <header class="top-bar dashboard-top-bar">
         <!-- Row 1: Left has hamburger + Analytics title, Right has User Profile (Icon only on mobile) -->
@@ -183,12 +183,12 @@
         </div>
       </header>
 
-      <!-- Top Row Metrics (Cards 1 to 4) -->
+      <!-- Top Row Metrics: Voltage, Current, Active Power, Power Factor (what each shows is picked in Manage Dashboard) -->
       <section class="metrics-section">
-        <!-- Card 1: Voltage (Orders style in interface.png) -->
-        <a href="/voltage" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase voltages">
+        <!-- Card 1: Voltage LL or LN, phase 1 (V12 / V1N); opens /voltage-ll or /voltage-ln -->
+        <a href="/voltage-ll" id="box-link-voltage" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase voltages">
           <div class="metric-header">
-            <span class="metric-title">Voltage <span class="phase-tag" id="phase-tag-voltage"></span></span>
+            <span class="metric-title">Voltage <span class="phase-tag" id="phase-tag-voltage">(LL)</span></span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="9" y="9" width="13" height="13" rx="3" ry="3"></rect>
@@ -198,7 +198,7 @@
           </div>
           <div class="metric-value-wrap">
             <span class="metric-value" id="metric-voltage">0.0</span>
-            <span class="metric-unit">V</span>
+            <span class="metric-unit">V<span class="unit-suffix" id="unit-suffix-voltage">LL</span></span>
           </div>
           <div class="metric-footer">
             <span class="delta-up" id="delta-voltage">&uarr; 0.4%</span>
@@ -206,10 +206,10 @@
           </div>
         </a>
 
-        <!-- Card 2: Current (Approved style in interface.png) -->
-        <a href="/current" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase currents">
+        <!-- Card 2: Current I1-I3 (Approved style in interface.png) -->
+        <a href="/current" id="box-link-current" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase currents">
           <div class="metric-header">
-            <span class="metric-title">Current <span class="phase-tag" id="phase-tag-current"></span></span>
+            <span class="metric-title">Current <span class="phase-tag" id="phase-tag-current">(I1)</span></span>
             <div class="metric-icon-box">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="4" ry="4"></rect>
@@ -227,10 +227,10 @@
           </div>
         </a>
 
-        <!-- Card 3: Active Power with Amber Donut Chart -->
-        <a href="/power" class="donut-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase power">
+        <!-- Card 3: Active Power (Average = total_power_kw, or one phase) with Amber Donut Chart -->
+        <a href="/power" id="box-link-power" class="donut-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase power">
           <div class="donut-card-top">
-            <span class="metric-title">Active Power <span class="phase-tag" id="phase-tag-power"></span></span>
+            <span class="metric-title">Active Power <span class="phase-tag" id="phase-tag-power">(Average)</span></span>
           </div>
           <div class="donut-content-row">
             <div class="donut-stats">
@@ -245,7 +245,47 @@
           </div>
         </a>
 
-        <!-- Card 4: Daily Energy with Blue Donut Chart -->
+        <!-- Card 4: Power Factor (Average = total_pf_iec, or one phase; Temperature box style) -->
+        <a href="/power-factor" id="box-link-pf" class="metric-card" style="grid-column: span 3; color: inherit; text-decoration: none; cursor: pointer;" title="View phase power factors">
+          <div class="metric-header">
+            <span class="metric-title">Power Factor <span class="phase-tag" id="phase-tag-pf">(Average)</span></span>
+            <div class="metric-icon-box">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m12 14 4-4"></path>
+                <path d="M3.34 19a10 10 0 1 1 17.32 0"></path>
+              </svg>
+            </div>
+          </div>
+          <div class="metric-value-wrap">
+            <span class="metric-value" id="metric-pf">0.000</span>
+          </div>
+          <div class="metric-footer">
+            <span class="delta-up" id="delta-pf">&uarr; 0.0%</span>
+            <span class="delta-context">load power factor</span>
+          </div>
+        </a>
+      </section>
+
+      <!-- Secondary Row: Frequency & Daily Energy (Left-aligned) -->
+      <section class="kpi-row">
+        <!-- Card 5: Frequency (Estimated Cost box style, Hz badge) -->
+        <div class="kpi-card" style="grid-column: span 3;">
+          <div class="kpi-card-header">
+            <div class="kpi-icon">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
+              </svg>
+            </div>
+            <div class="kpi-circular-badge"><span>Hz</span></div>
+          </div>
+          <div>
+            <div class="kpi-title">Frequency</div>
+            <div class="kpi-value"><span id="metric-frequency">0.00</span> Hz</div>
+            <div class="kpi-sub">Grid supply frequency</div>
+          </div>
+        </div>
+
+        <!-- Card 6: Daily Energy with Blue Donut Chart -->
         <div class="donut-card" style="grid-column: span 3;">
           <div class="donut-card-top">
             <span class="metric-title">Daily Energy</span>
@@ -260,48 +300,6 @@
               </div>
             </div>
             <div class="donut-chart-container" id="donut-energy-container"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Secondary Row: Temperature & Estimated Cost (Left-aligned) -->
-      <section class="kpi-row">
-        <!-- Card 1: Temperature -->
-        <div class="metric-card" style="grid-column: span 3;">
-          <div class="metric-header">
-            <span class="metric-title">Temperature</span>
-            <div class="metric-icon-box">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <rect x="2" y="5" width="20" height="14" rx="3"></rect>
-                <line x1="2" y1="10" x2="22" y2="10"></line>
-              </svg>
-            </div>
-          </div>
-          <div class="metric-value-wrap">
-            <span class="metric-value" id="metric-temperature">--</span>
-            <span class="metric-unit">&deg;C</span>
-          </div>
-          <div class="metric-footer">
-            <span class="delta-down" id="delta-temperature">&darr; 1.2%</span>
-            <span class="delta-context">panel thermal status</span>
-          </div>
-        </div>
-
-        <!-- Card 2: Estimated Cost (Left-aligned, 00 taka sign) -->
-        <div class="kpi-card" style="grid-column: span 3;">
-          <div class="kpi-card-header">
-            <div class="kpi-icon">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"></path>
-                <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"></path>
-              </svg>
-            </div>
-            <div class="kpi-circular-badge"><span>৳</span></div>
-          </div>
-          <div>
-            <div class="kpi-title">Estimated Cost</div>
-            <div class="kpi-value" id="kpi-est-cost">0.00 ৳</div>
-            <div class="kpi-sub">Standard Tariff (৳)</div>
           </div>
         </div>
       </section>
@@ -338,7 +336,7 @@
                 <button class="sw-btn" data-metric="current">Current</button>
                 <button class="sw-btn" data-metric="power">Power</button>
                 <button class="sw-btn" data-metric="energy">Energy</button>
-                <button class="sw-btn" data-metric="temperature">Temp</button>
+                <button class="sw-btn" data-metric="frequency">Freq</button>
               </div>
             </div>
             <div class="waveform-canvas-container" id="waveform-container">
@@ -368,7 +366,7 @@
                   <tr>
                     <th>Device</th>
                     <th>Time</th>
-                    <th>V / A</th>
+                    <th>PF / Hz</th>
                     <th>Power / Energy</th>
                     <th>Status</th>
                   </tr>
@@ -492,8 +490,8 @@
   </aside>
 
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-  <script src="/assets/js/api.js?v=20260927"></script>
-  <script src="/assets/js/devices.js?v=20260927"></script>
-  <script src="/assets/js/dashboard.js?v=20260927"></script>
+  <script src="/assets/js/api.js?v=20260929"></script>
+  <script src="/assets/js/devices.js?v=20260929"></script>
+  <script src="/assets/js/dashboard.js?v=20260929"></script>
 </body>
 </html>
